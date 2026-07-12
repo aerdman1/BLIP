@@ -625,7 +625,7 @@ export const FREQSWAP = {
 // never touches the platformer. Rewards feed the existing Signal Shard economy.
 export const SWEEP = {
   tile: 32, // top-down map grid tile size (rooms/corridors authored in tiles)
-  cameraZoom: 1.4, // zoom the top-down world camera so characters read bigger/punchier
+  cameraZoom: 1.15, // mild zoom; phone/touch devices pull back further in SweepScene
   maxHp: 5,
   moveSpeed: 118, // top-down roam speed (clamped; dash exceeds it)
   accel: 1600,

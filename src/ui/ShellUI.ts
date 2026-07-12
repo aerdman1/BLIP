@@ -473,6 +473,7 @@ export class ShellUI {
     if (this.menuVisible === v) return;
     this.menuVisible = v;
     this.onMenu = v;
+    document.body.classList.toggle('menu-active', v);
     $('game-frame').classList.toggle('menu-open', v);
     $('menu-overlay').classList.toggle('hidden', !v);
     this.refreshResetButton();

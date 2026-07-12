@@ -158,7 +158,8 @@ export class SweepScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(
       this.arena.biome === 'motel' ? '#080810' : this.arena.biome === 'orchard' ? '#0e0a16' : '#08130d'
     );
-    this.cameras.main.setZoom(RENDER_ZOOM * SWEEP.cameraZoom); // bigger, punchier characters
+    const coarsePointer = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+    this.cameras.main.setZoom(RENDER_ZOOM * (coarsePointer ? 1 : SWEEP.cameraZoom));
     this.cameras.main.setBounds(0, 0, AW, AH);
 
     this.physics.world.gravity.y = 0;
