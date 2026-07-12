@@ -173,6 +173,9 @@ button { font-family: var(--mono); }
   overflow: hidden;
   touch-action: none; /* no pan/zoom over the play area — the overlay handles touch */
 }
+#game-frame.menu-open {
+  touch-action: pan-y;
+}
 #game-root { position: absolute; inset: 0; }
 #game-root canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 

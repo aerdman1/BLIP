@@ -169,6 +169,7 @@ export class ShellUI {
     this.wireTopBar();
     this.wireTransmissionModal();
     this.wirePortraitModal();
+    this.wireMenuScroll();
     this.wireBus();
     this.buildPauseEntries();
     this.buildSettings();
@@ -472,6 +473,7 @@ export class ShellUI {
     if (this.menuVisible === v) return;
     this.menuVisible = v;
     this.onMenu = v;
+    $('game-frame').classList.toggle('menu-open', v);
     $('menu-overlay').classList.toggle('hidden', !v);
     this.refreshResetButton();
     if (v) {
@@ -482,6 +484,36 @@ export class ShellUI {
     }
     this.refreshTouch();
     this.refreshOrientationNudge();
+  }
+
+  private wireMenuScroll(): void {
+    const overlay = $('menu-overlay');
+    let lastY: number | null = null;
+    const canScroll = () => this.menuVisible && overlay.scrollHeight > overlay.clientHeight + 1;
+
+    overlay.addEventListener('wheel', (ev) => {
+      if (!canScroll()) return;
+      overlay.scrollTop += ev.deltaY;
+      ev.preventDefault();
+    }, { passive: false });
+
+    overlay.addEventListener('touchstart', (ev) => {
+      lastY = ev.touches[0]?.clientY ?? null;
+    }, { passive: true });
+
+    overlay.addEventListener('touchmove', (ev) => {
+      if (!canScroll() || lastY === null) return;
+      const y = ev.touches[0]?.clientY ?? lastY;
+      const dy = lastY - y;
+      lastY = y;
+      if (Math.abs(dy) < 1) return;
+      overlay.scrollTop += dy;
+      ev.preventDefault();
+    }, { passive: false });
+
+    overlay.addEventListener('touchend', () => {
+      lastY = null;
+    }, { passive: true });
   }
 
   /** Build the crisp radar hero once, reusing the game's own probe texture. */
