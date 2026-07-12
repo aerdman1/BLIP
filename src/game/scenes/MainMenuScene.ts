@@ -601,22 +601,24 @@ export class MainMenuScene extends Phaser.Scene {
     if (!continueRun) {
       resetSave();
     }
-    // continue drops you into whichever zone the save is in; a fresh start opens
-    // directly in Miller Field so the first playable screen is the core platformer.
-    let target: string;
-    if (continueRun) {
-      const zone = getSave().currentZone;
-      target = ZONE_ROUTES[zone]?.scene ?? SCENES.field;
-    } else {
-      target = SCENES.field;
-    }
+    // Continue drops you into whichever zone the save is in. A FRESH START does the
+    // canon cold-open (levelPlans.ts / Command Center): the top-down "Surface" Scan
+    // — Area 47 from above — then THE FOLD flips you down into side-view Miller Field.
     quests.load(getSave().currentQuest);
     if (!continueRun) quests.restart();
     audio.unlock();
     bus.emit(EVT.menuActive, { active: false });
     this.cameras.main.fadeOut(350, 7, 17, 38);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-      this.scene.start(target);
+      if (continueRun) {
+        const zone = getSave().currentZone;
+        this.scene.start(ZONE_ROUTES[zone]?.scene ?? SCENES.field);
+        return;
+      }
+      // cold-open: the surface-z1 traverse Scan → reach the Breach → Fold → Miller Field
+      this.registry.set('sweepReturnScene', SCENES.field);
+      this.registry.set('sweepArenaId', 'surface-z1');
+      this.scene.start(SCENES.sweep);
     });
   }
 
