@@ -1,0 +1,29 @@
+{
+  "name": "blip",
+  "private": true,
+  "version": "0.1.0",
+  "description": "BLIP — You are the thing on the radar. A pixel signal adventure about staying unknown.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run typecheck && npm run build",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:playtest": "playwright test tests/playtest.spec.ts",
+    "qa:playtest": "playwright test tests/qa-playtest.spec.ts",
+    "qa:full": "npm run typecheck && npm run build && npm run test:e2e",
+    "qa:loop": "node scripts/qa-loop.mjs"
+  },
+  "dependencies": {
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "~1.53.2",
+    "@types/node": "^18.19.0",
+    "typescript": "~5.6.3",
+    "vite": "^5.4.11"
+  }
+}

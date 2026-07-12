@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="BLIP — You are the thing on the radar. A pixel signal adventure about staying unknown." />
+    <meta name="theme-color" content="#071126" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>BLIP — you are the thing on the radar</title>
+  </head>
+  <body>
+    <div id="app-shell">
+      <!-- ▔▔ instrument bar ▔▔ -->
+      <header id="top-bar">
+        <div id="unit-badge" class="bracketed">
+          <span class="badge-icon">((·))</span>
+          <span class="badge-text">CONTACT-47 / FIELD UNIT</span>
+          <span class="badge-trail">—··—</span>
+        </div>
+        <nav id="shell-buttons">
+          <button id="btn-command-center" class="shell-btn" title="Open the Command Center [C]">▦ COMMAND CENTER</button>
+          <button id="btn-debug" class="shell-btn" title="Toggle debug overlay [F1]">&lt;/&gt; DEBUG</button>
+          <button id="btn-mute" class="shell-btn" title="Sound on/off — fine control in Settings">
+            <span id="mute-label">SOUND: ON</span>
+            <span id="volume-pips" class="pips"></span>
+          </button>
+          <button id="btn-reset" class="shell-btn danger" title="Erase all saved progress">⚠ RESET SAVE</button>
+        </nav>
+      </header>
+
+      <!-- ▔▔ game viewport + in-frame overlays ▔▔ -->
+      <main id="game-frame">
+        <div id="game-root"></div>
+        <div id="crt-overlay" aria-hidden="true"></div>
+        <div id="vignette-overlay" aria-hidden="true"></div>
+
+        <div id="toast-stack" aria-live="polite"></div>
+
+        <div id="boss-bar" class="hidden">
+          <div id="boss-name">—</div>
+          <div id="boss-hp"><i style="width: 100%"></i></div>
+        </div>
+
+        <!-- crisp main menu over the pixel world -->
+        <div id="menu-overlay" class="hidden">
+          <div id="menu-hero"></div>
+          <div id="menu-logo" aria-label="BLIP"></div>
+          <div id="menu-tagline">YOU ARE THE THING ON THE RADAR.</div>
+          <div id="menu-subtitle">A PIXEL SIGNAL ADVENTURE ABOUT STAYING UNKNOWN.</div>
+          <nav id="menu-items"></nav>
+          <div id="menu-footer">KEYBOARD ▸ ↑↓ + ENTER&ensp;·&ensp;GAMEPAD ▸ DPAD + Ⓐ</div>
+        </div>
+
+        <!-- pause -->
+        <div id="pause-overlay" class="hidden">
+          <div class="pause-card bracketed">
+            <div class="pause-title">— TRANSMISSION HELD —</div>
+            <nav id="pause-items"></nav>
+          </div>
+        </div>
+
+        <div id="debug-panel" class="hidden"></div>
+      </main>
+
+      <!-- ▔▔ objective + status strip ▔▔ -->
+      <div id="objective-bar">
+        <span id="objective-caret">▸</span>
+        <span id="objective-text">SYSTEMS BOOTING…</span>
+        <span id="objective-hint"></span>
+      </div>
+      <footer id="status-strip">
+        <div class="strip-cell">
+          <span class="cell-icon">◈</span>
+          <div class="cell-body">
+            <label>SIGNAL FRAGMENTS</label>
+            <b id="strip-fragments">0 / 7</b>
+          </div>
+          <span id="strip-fragment-pips" class="pips frag"></span>
+        </div>
+        <div class="strip-cell">
+          <div class="cell-body">
+            <label>CLASSIFICATION</label>
+            <b id="strip-classify-label">UNKNOWN</b>
+          </div>
+          <div id="strip-classify-pips" class="pips big"></div>
+        </div>
+        <div class="strip-cell">
+          <div class="cell-body">
+            <label>+ LOCATION +</label>
+            <b id="strip-location">CHAGRIN FALLS, OH</b>
+          </div>
+        </div>
+        <div class="strip-cell">
+          <div class="cell-body">
+            <label>STATUS</label>
+            <b id="strip-status" class="ok">STEALTH</b>
+          </div>
+        </div>
+        <div class="strip-cell clock">
+          <div class="cell-body right">
+            <b id="strip-clock">10:50 PM</b>
+            <label id="strip-date">05.24.1982</label>
+          </div>
+        </div>
+      </footer>
+
+      <!-- ▔▔ full-screen modals ▔▔ -->
+      <div id="settings-modal" class="hidden" role="dialog" aria-modal="true">
+        <div id="settings-card" class="bracketed">
+          <header>
+            <span>⚙ SETTINGS</span>
+            <button id="settings-close" class="shell-btn">✕ BACK</button>
+          </header>
+          <div id="settings-body"></div>
+        </div>
+      </div>
+
+      <div id="name-modal" class="hidden" role="dialog" aria-modal="true">
+        <div id="name-card" class="bracketed">
+          <header><span>✎ NAME THIS SAVE</span></header>
+          <input
+            id="name-input"
+            type="text"
+            maxlength="14"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="SLOT 1"
+          />
+          <div id="name-keys" aria-hidden="true"></div>
+          <div id="name-hint">TYPE ▸ KEYBOARD&ensp;·&ensp;TAP THE KEYS&ensp;·&ensp;GAMEPAD ▸ DPAD + Ⓐ</div>
+          <div id="name-actions">
+            <button id="name-cancel" class="shell-btn">✕ CANCEL</button>
+            <button id="name-confirm" class="shell-btn primary">✓ START</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="transmission-modal" class="hidden" role="dialog" aria-modal="true">
+        <div id="transmission-card" class="bracketed">
+          <div id="transmission-title">INCOMING TRANSMISSION</div>
+          <div id="transmission-body"></div>
+          <div id="transmission-hint">[ CLICK · ANY KEY · ANY BUTTON ]</div>
+        </div>
+      </div>
+
+      <div id="scout-portrait-modal" class="hidden" role="dialog" aria-modal="true">
+        <div id="scout-portrait-card" class="bracketed">
+          <button id="scout-portrait-close" class="shell-btn" title="Close portrait">✕</button>
+          <img id="scout-portrait-img" alt="" />
+          <div id="scout-portrait-name"></div>
+        </div>
+      </div>
+
+      <div id="command-center" class="hidden" role="dialog" aria-modal="true"></div>
+
+      <!-- tablet portrait nudge (shown only on touch devices in portrait) -->
+      <div id="rotate-overlay" class="hidden">
+        <div id="rotate-card">
+          <div id="rotate-icon">↻</div>
+          <div id="rotate-title">ROTATE TO LANDSCAPE</div>
+          <div id="rotate-sub">BLIP plays wide — turn your tablet sideways.</div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

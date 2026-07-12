@@ -1,0 +1,50 @@
+/**
+ * Shared touch-input state — the bridge between the DOM on-screen controls
+ * (src/ui/TouchControls.ts) and the poll-based PlayerInput (InputSystem.ts).
+ *
+ * The overlay WRITES here on pointer events; PlayerInput READS here each frame.
+ * Held flags (move/jump/shoot) are level-triggered; the *Queued flags are
+ * one-shot edges that PlayerInput.update() consumes and clears — mirroring the
+ * existing rightScanQueued pattern so tap timing never gets lost between frames.
+ *
+ * No DOM or Phaser imports here on purpose: gameplay stays decoupled from the UI.
+ */
+export interface TouchInputState {
+  active: boolean; // true only while the on-screen controls are engaged
+  moveX: -1 | 0 | 1; // D-pad left/right
+  moveY: -1 | 0 | 1; // D-pad up/down (top-down Sweep only; side-view ignores)
+  jumpHeld: boolean; // hold to hover
+  shootHeld: boolean; // hold to auto-fire
+  // one-shot edges (set by overlay, cleared by PlayerInput.update)
+  jumpQueued: boolean;
+  dashQueued: boolean;
+  scanQueued: boolean;
+  interactQueued: boolean;
+  pauseQueued: boolean;
+}
+
+export const touchInput: TouchInputState = {
+  active: false,
+  moveX: 0,
+  moveY: 0,
+  jumpHeld: false,
+  shootHeld: false,
+  jumpQueued: false,
+  dashQueued: false,
+  scanQueued: false,
+  interactQueued: false,
+  pauseQueued: false,
+};
+
+/** Clear all input (used when the overlay hides mid-press so nothing sticks). */
+export function resetTouchInput(): void {
+  touchInput.moveX = 0;
+  touchInput.moveY = 0;
+  touchInput.jumpHeld = false;
+  touchInput.shootHeld = false;
+  touchInput.jumpQueued = false;
+  touchInput.dashQueued = false;
+  touchInput.scanQueued = false;
+  touchInput.interactQueued = false;
+  touchInput.pauseQueued = false;
+}

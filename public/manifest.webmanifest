@@ -1,0 +1,13 @@
+{
+  "name": "BLIP",
+  "short_name": "BLIP",
+  "description": "You are the thing on the radar. A pixel signal adventure about staying unknown.",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#05070f",
+  "theme_color": "#0a1420",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

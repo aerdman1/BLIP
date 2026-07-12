@@ -1,0 +1,9 @@
+node_modules/
+dist/
+test-results/artifacts/
+test-results/videos/
+test-results/
+qa-reports/
+playwright-report/
+.DS_Store
+*.local
