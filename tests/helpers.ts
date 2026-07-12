@@ -54,7 +54,8 @@ export async function api<T = any>(page: Page, script: string): Promise<T> {
 }
 
 export async function startGame(page: Page, continueRun = false): Promise<void> {
-  await api(page, `api.startGame(${continueRun})`);
+  if (continueRun) await api(page, 'api.startGame(true)');
+  else await api(page, `api.enterZone('miller-field')`);
   await waitForScene(page, 'FieldScene');
   // let the fade-in + first physics settle
   await page.waitForTimeout(700);

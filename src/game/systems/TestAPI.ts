@@ -223,10 +223,6 @@ export function installTestAPI(game: Phaser.Game): void {
 
     startGame: (continueRun = false): boolean => {
       if (driveable(scenes.menu)) {
-        if (!continueRun && gameRef) {
-          api.enterZone('miller-field');
-          return true;
-        }
         scenes.menu?.startGame(continueRun);
         return true;
       }
@@ -486,11 +482,14 @@ export function installTestAPI(game: Phaser.Game): void {
 
     /* ---- QA fun-loop inspectors (read-only) + beat navigation ---- */
     getCameraState: () => {
-      const s = driveable(scenes.blipstream)
+      const sweep = gameRef && (gameRef.scene.isActive(SCENES.sweep) || gameRef.scene.isPaused(SCENES.sweep))
+        ? (gameRef.scene.getScene(SCENES.sweep) as Phaser.Scene)
+        : null;
+      const s = sweep ?? (driveable(scenes.blipstream)
         ? scenes.blipstream
         : driveable(scenes.underwater)
           ? scenes.underwater
-          : overworld();
+          : overworld());
       const cam = s?.cameras?.main;
       if (!cam) return null;
       const dz = cam.deadzone;

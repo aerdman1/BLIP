@@ -10,9 +10,9 @@ import { EVT, VIEW_H, VIEW_W, PALETTE as P, RENDER_ZOOM, SCENES, TEX } from '../
 import { ZONE_ROUTES } from '../data/zones';
 import { audio } from '../systems/AudioSystem';
 import { bus } from '../systems/EventBus';
-import { getSave, resetSave } from '../systems/SaveSystem';
+import { getSave, resetSave, updateSave } from '../systems/SaveSystem';
 import { quests } from '../systems/QuestSystem';
-import { isTestApiEnabled, registerScene, unregisterScene } from '../systems/TestAPI';
+import { registerScene, unregisterScene } from '../systems/TestAPI';
 import { attachScreenFilter, nightVisionIntro } from '../systems/ScreenFilter';
 
 const STREET_Y = 196; // the one baseline both sides of town share
@@ -600,6 +600,12 @@ export class MainMenuScene extends Phaser.Scene {
     this.starting = true;
     if (!continueRun) {
       resetSave();
+      updateSave((s) => {
+        s.flags.introSweepCleared = false;
+        s.currentZone = 'miller-field';
+        s.currentQuest = 'the-first-contact';
+        s.questStep = 'wake';
+      });
     }
     // Continue drops you into whichever zone the save is in. A FRESH START does the
     // canon cold-open (levelPlans.ts / Command Center): the top-down "Surface" Scan
@@ -608,14 +614,17 @@ export class MainMenuScene extends Phaser.Scene {
     if (!continueRun) quests.restart();
     audio.unlock();
     bus.emit(EVT.menuActive, { active: false });
-    if (!continueRun && isTestApiEnabled()) {
-      this.scene.start(SCENES.field);
-      return;
-    }
     this.cameras.main.fadeOut(350, 7, 17, 38);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       if (continueRun) {
-        const zone = getSave().currentZone;
+        const save = getSave();
+        if (!save.flags.introSweepCleared) {
+          this.registry.set('sweepReturnScene', SCENES.field);
+          this.registry.set('sweepArenaId', 'surface-z1');
+          this.scene.start(SCENES.sweep);
+          return;
+        }
+        const zone = save.currentZone;
         this.scene.start(ZONE_ROUTES[zone]?.scene ?? SCENES.field);
         return;
       }

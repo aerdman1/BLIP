@@ -23,7 +23,7 @@ import { EffectsSystem } from '../systems/EffectsSystem';
 import { FOLD_FLAG, foldCollapse } from '../systems/FoldTransition';
 import { PlayerInput } from '../systems/InputSystem';
 import { readPad } from '../systems/PadSim';
-import { addShards } from '../systems/SaveSystem';
+import { addShards, updateSave } from '../systems/SaveSystem';
 import { activeSkin } from '../systems/SkinState';
 import { uiOverlayActive } from '../systems/UIState';
 
@@ -159,7 +159,7 @@ export class SweepScene extends Phaser.Scene {
       this.arena.biome === 'motel' ? '#080810' : this.arena.biome === 'orchard' ? '#0e0a16' : '#08130d'
     );
     const coarsePointer = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
-    this.cameras.main.setZoom(RENDER_ZOOM * (coarsePointer ? 1 : SWEEP.cameraZoom));
+    this.cameras.main.setZoom(RENDER_ZOOM * (coarsePointer ? SWEEP.touchCameraZoom : SWEEP.cameraZoom));
     this.cameras.main.setBounds(0, 0, AW, AH);
 
     this.physics.world.gravity.y = 0;
@@ -1044,6 +1044,9 @@ export class SweepScene extends Phaser.Scene {
     this.fx.flash(P.white, 160);
     const returnScene = (this.registry.get('sweepReturnScene') as string) ?? SCENES.field;
     this.time.delayedCall(350, () => {
+      if (this.arena.id === 'surface-z1' && returnScene === SCENES.field) {
+        updateSave((s) => { s.flags.introSweepCleared = true; });
+      }
       this.scene.stop();
       if (this.scene.isSleeping(returnScene)) this.scene.wake(returnScene);
       else this.scene.start(returnScene);

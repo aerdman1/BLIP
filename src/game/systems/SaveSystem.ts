@@ -9,6 +9,7 @@ import { ACTIVE_SLOT_KEY, BUILD_VERSION, EVT, LEGACY_SAVE_KEY, SAVE_KEY, SLOT_CO
 import { bus } from './EventBus';
 
 export interface SaveFlags {
+  introSweepCleared: boolean; // cold-open top-down Surface arena finished; continue can enter Miller Field
   revealedHiddenPath: boolean;
   willBadgeCollected: boolean;
   chipBoxScanned: boolean;
@@ -134,6 +135,7 @@ const defaultSave = (): SaveData => ({
   discoveredScoutLogs: [],
   playerStats: { deaths: 0, enemiesDefeated: 0, scansUsed: 0, pulseShotsFired: 0, timePlayedSec: 0 },
   flags: {
+    introSweepCleared: false,
     revealedHiddenPath: false,
     willBadgeCollected: false,
     chipBoxScanned: false,

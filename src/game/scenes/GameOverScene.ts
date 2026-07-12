@@ -3,7 +3,7 @@
  * insulting and mundane; you re-establish and try again.
  */
 import Phaser from 'phaser';
-import { EVT, VIEW_H, VIEW_W, PAD, PALETTE as P, RENDER_ZOOM, SCENES, css } from '../config';
+import { EVT, VIEW_H, VIEW_W, PAD, RENDER_ZOOM, SCENES } from '../config';
 import { ZONE_ROUTES } from '../data/zones';
 import { bus } from '../systems/EventBus';
 import { audio } from '../systems/AudioSystem';
@@ -14,6 +14,7 @@ const FALSE_LABELS = ['SWAMP GAS', 'WEATHER BALLOON', 'THE PLANET VENUS', 'BIRDS
 
 export class GameOverScene extends Phaser.Scene {
   private fromScene = '';
+  private overlayEl: HTMLElement | null = null;
 
   constructor() {
     super(SCENES.gameOver);
@@ -27,49 +28,11 @@ export class GameOverScene extends Phaser.Scene {
   create(): void {
     this.cameras.main.setZoom(RENDER_ZOOM).centerOn(VIEW_W / 2, VIEW_H / 2);
     this.add.rectangle(VIEW_W / 2, VIEW_H / 2, VIEW_W, VIEW_H, 0x020308, 0.92);
-    this.add.rectangle(VIEW_W / 2, VIEW_H / 2, 360, 160, 0x090d16, 0.94).setStrokeStyle(2, P.warning, 0.72);
-    this.add.rectangle(VIEW_W / 2, VIEW_H / 2, 342, 142, 0x05080f, 0).setStrokeStyle(1, P.signal, 0.24);
-    this.add
-      .text(VIEW_W / 2, 58, 'CONNECTION LOST', {
-        fontFamily: 'Arial, Helvetica, sans-serif',
-        fontSize: '22px',
-        fontStyle: 'bold',
-        color: css(P.danger),
-      })
-      .setOrigin(0.5)
-      .setResolution(2)
-      .setLetterSpacing(2);
-    const label = FALSE_LABELS[Math.floor(Math.random() * FALSE_LABELS.length)];
-    this.add
-      .text(VIEW_W / 2, 84, 'The signal dropped. Your save is intact.', {
-        fontFamily: 'Arial, Helvetica, sans-serif',
-        fontSize: '11px',
-        color: css(P.cream),
-      })
-      .setOrigin(0.5)
-      .setResolution(2);
-    this.add
-      .text(VIEW_W / 2, 102, `Filed as: ${label}`, {
-        fontFamily: 'Arial, Helvetica, sans-serif',
-        fontSize: '10px',
-        color: css(P.warning),
-      })
-      .setOrigin(0.5)
-      .setResolution(2);
-
-    this.makeButton(VIEW_W / 2, 134, 'CONTINUE FROM LAST SAVE', css(P.signal), () => this.retry());
-    this.makeButton(VIEW_W / 2, 170, 'RETURN TO TITLE', css(P.cream), () => this.mainMenu());
-    this.add
-      .text(VIEW_W / 2, 204, 'R / ENTER / A = continue     M / B = title', {
-        fontFamily: 'Arial, Helvetica, sans-serif',
-        fontSize: '8px',
-        color: css(P.uiDim),
-      })
-      .setOrigin(0.5)
-      .setResolution(2);
+    this.renderDomOverlay();
     this.input.keyboard?.on('keydown-R', () => this.retry());
     this.input.keyboard?.on('keydown-ENTER', () => this.retry());
     this.input.keyboard?.on('keydown-M', () => this.mainMenu());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.removeDomOverlay());
 
     bus.emit(EVT.sceneChanged, { scene: SCENES.gameOver, zone: 'Connection Lost' });
     audio.bossWarning();
@@ -86,32 +49,35 @@ export class GameOverScene extends Phaser.Scene {
 
   private prevPadButtons: Record<number, boolean> = {};
 
-  private makeButton(x: number, y: number, text: string, color: string, onClick: () => void): void {
-    const bg = this.add.rectangle(x, y, 240, 24, 0x111724, 0.96).setStrokeStyle(1, P.warning, 0.56).setInteractive({ useHandCursor: true });
-    const label = this.add
-      .text(x, y, text, {
-        fontFamily: 'Arial, Helvetica, sans-serif',
-        fontSize: '11px',
-        fontStyle: 'bold',
-        color,
-      })
-      .setOrigin(0.5)
-      .setResolution(2);
-    const over = () => {
-      bg.setStrokeStyle(2, P.signal, 0.9);
-      label.setColor(css(P.signal));
-    };
-    const out = () => {
-      bg.setStrokeStyle(1, P.warning, 0.56);
-      label.setColor(color);
-    };
-    bg.on('pointerover', over);
-    bg.on('pointerout', out);
-    bg.on('pointerdown', onClick);
-    label.setInteractive({ useHandCursor: true }).on('pointerdown', onClick).on('pointerover', over).on('pointerout', out);
+  private renderDomOverlay(): void {
+    this.removeDomOverlay();
+    const frame = document.getElementById('game-frame');
+    if (!frame) return;
+    const label = FALSE_LABELS[Math.floor(Math.random() * FALSE_LABELS.length)];
+    const el = document.createElement('div');
+    el.id = 'game-over-dom';
+    el.innerHTML = `
+      <section class="go-panel" role="dialog" aria-label="Connection lost">
+        <div class="go-title">CONNECTION LOST</div>
+        <div class="go-copy">The signal dropped. Your save is intact.</div>
+        <div class="go-filed">Filed as: ${label}</div>
+        <button class="go-btn primary" data-act="continue">CONTINUE FROM LAST SAVE</button>
+        <button class="go-btn" data-act="title">RETURN TO TITLE</button>
+        <div class="go-hint">R / ENTER / A = continue · M / B = title</div>
+      </section>`;
+    el.querySelector('[data-act="continue"]')?.addEventListener('click', () => this.retry());
+    el.querySelector('[data-act="title"]')?.addEventListener('click', () => this.mainMenu());
+    frame.appendChild(el);
+    this.overlayEl = el;
+  }
+
+  private removeDomOverlay(): void {
+    this.overlayEl?.remove();
+    this.overlayEl = null;
   }
 
   private retry(): void {
+    this.removeDomOverlay();
     // stop whatever gameplay was running and restart the CURRENT zone fresh —
     // quest + flags come back from the save file (route by save.currentZone so
     // dying in Motel Nowhere re-establishes there, not back in Miller Field).
@@ -140,6 +106,7 @@ export class GameOverScene extends Phaser.Scene {
   }
 
   private mainMenu(): void {
+    this.removeDomOverlay();
     this.scene.stop(SCENES.blipstream);
     this.scene.stop(SCENES.sweep);
     this.scene.stop(SCENES.underwater);

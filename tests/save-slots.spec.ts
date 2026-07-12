@@ -25,9 +25,11 @@ test('slots are independent; playing one leaves the others empty', async ({ page
   await bootToMenu(page);
   // play slot 2 (index 1)
   await page.click('#menu-slot-1');
-  await waitScene(page, 'FieldScene');
+  await waitScene(page, 'SweepScene');
   await expect(page.locator('#btn-reset')).toBeVisible(); // reset the active run in-game
   expect(await page.evaluate(() => Number(localStorage.getItem('blip_active_slot')))).toBe(1);
+  await api(page, `api.enterZone('miller-field')`);
+  await waitScene(page, 'FieldScene');
   await api(page, `api.setQuestStep('reachDoor')`);
   await api(page, 'api.collectFragment()');
   await api(page, 'api.dismissTransmission()');
@@ -51,6 +53,8 @@ test('slots are independent; playing one leaves the others empty', async ({ page
 test('erasing an occupied slot returns it to empty', async ({ page }) => {
   await bootToMenu(page);
   await page.click('#menu-slot-0');
+  await waitScene(page, 'SweepScene');
+  await api(page, `api.enterZone('miller-field')`);
   await waitScene(page, 'FieldScene');
   await api(page, 'api.collectFragment()');
   await api(page, 'api.dismissTransmission()');
@@ -63,4 +67,17 @@ test('erasing an occupied slot returns it to empty', async ({ page }) => {
   await page.locator('#menu-slot-0 .mi-erase').click();
   await expect(page.locator('#menu-slot-0')).toContainText('NEW GAME');
   expect(await page.evaluate(() => localStorage.getItem('blip_save_v1'))).toBeNull();
+});
+
+test('refreshing after new game continues the unfinished cold-open Sweep', async ({ page }) => {
+  await bootToMenu(page);
+  await page.click('#menu-slot-0');
+  await waitScene(page, 'SweepScene');
+
+  await page.reload();
+  await waitScene(page, 'MainMenuScene');
+  await expect(page.locator('#menu-slot-0')).toContainText('CONTINUE');
+  await page.click('#menu-slot-0');
+  await waitScene(page, 'SweepScene');
+  expect(await api<string>(page, 'api.getSceneName()')).toBe('SweepScene');
 });

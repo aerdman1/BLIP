@@ -46,6 +46,16 @@ export class UIScene extends Phaser.Scene {
   private txtOd!: Phaser.GameObjects.Text;
   private txtPrompts!: Phaser.GameObjects.Text;
   private banner!: Phaser.GameObjects.Text;
+  private sweepHudEl: HTMLElement | null = null;
+  private sweepObjectiveEl: HTMLElement | null = null;
+  private sweepContactsEl: HTMLElement | null = null;
+  private sweepNodeFillEl: HTMLElement | null = null;
+  private sweepWeaponEl: HTMLElement | null = null;
+  private sweepOverdriveEl: HTMLElement | null = null;
+  private sweepOverdriveFillEl: HTMLElement | null = null;
+  private sweepPromptsEl: HTMLElement | null = null;
+  private sweepBannerEl: HTMLElement | null = null;
+  private sweepBannerTimer: number | null = null;
   private stats: SweepStats = {
     heat: 0, node: 0, breachOpen: false, traverse: true, enemies: 0,
     wave: 0, waves: 0, combo: 0, weapon: 'PULSE', overdrive: 0, odReady: false, odActive: false,
@@ -60,6 +70,7 @@ export class UIScene extends Phaser.Scene {
     this.cameras.main.setZoom(RENDER_ZOOM).centerOn(VIEW_W / 2, VIEW_H / 2);
     this.bars = this.add.graphics().setDepth(10);
     this.buildSweepHud();
+    this.buildSweepDom();
 
     const on = (evt: string, fn: (...args: unknown[]) => void) => this.unsubs.push(bus.on(evt, fn));
     on(EVT.hudHp, (d) => {
@@ -84,6 +95,8 @@ export class UIScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.unsubs.forEach((u) => u());
       this.unsubs = [];
+      this.sweepHudEl?.remove();
+      this.sweepHudEl = null;
     });
   }
 
@@ -124,11 +137,46 @@ export class UIScene extends Phaser.Scene {
       .setVisible(false);
   }
 
+  private buildSweepDom(): void {
+    const frame = document.getElementById('game-frame');
+    if (!frame || this.sweepHudEl) return;
+    const el = document.createElement('div');
+    el.id = 'sweep-hud-dom';
+    el.className = 'hidden';
+    el.innerHTML = `
+      <div class="sweep-hud-top">
+        <div class="sweep-hud-objective">CHARGE THE SIGNAL NODE</div>
+        <div class="sweep-hud-contacts">0 CONTACTS LEFT</div>
+        <div class="sweep-hud-node"><i></i></div>
+      </div>
+      <div class="sweep-hud-weapon">PULSE</div>
+      <div class="sweep-hud-overdrive">
+        <span>SIGNAL OVERDRIVE</span>
+        <div><i></i></div>
+      </div>
+      <div class="sweep-hud-prompts">DASH · SCAN · ECHO</div>
+      <div class="sweep-hud-banner"></div>`;
+    frame.appendChild(el);
+    this.sweepHudEl = el;
+    this.sweepObjectiveEl = el.querySelector('.sweep-hud-objective');
+    this.sweepContactsEl = el.querySelector('.sweep-hud-contacts');
+    this.sweepNodeFillEl = el.querySelector('.sweep-hud-node i');
+    this.sweepWeaponEl = el.querySelector('.sweep-hud-weapon');
+    this.sweepOverdriveEl = el.querySelector('.sweep-hud-overdrive span');
+    this.sweepOverdriveFillEl = el.querySelector('.sweep-hud-overdrive i');
+    this.sweepPromptsEl = el.querySelector('.sweep-hud-prompts');
+    this.sweepBannerEl = el.querySelector('.sweep-hud-banner');
+  }
+
   private setSweepMode(active: boolean): void {
     this.sweepActive = active;
-    for (const o of [this.sweepG, this.sweepGlow, this.txtWeapon, this.txtObjective, this.txtEnemies, this.txtCombo, this.txtOd, this.txtPrompts]) {
+    for (const o of [this.sweepG, this.sweepGlow]) {
       o.setVisible(active);
     }
+    for (const o of [this.txtWeapon, this.txtObjective, this.txtEnemies, this.txtCombo, this.txtOd, this.txtPrompts]) {
+      o.setVisible(false);
+    }
+    this.sweepHudEl?.classList.toggle('hidden', !active);
     if (active) {
       this.bars.clear(); // hide the side-view gauge cluster while in the Sweep
       this.drawSweepHud();
@@ -136,6 +184,7 @@ export class UIScene extends Phaser.Scene {
       this.sweepG.clear();
       this.sweepGlow.clear();
       this.banner.setAlpha(0).setVisible(false);
+      this.hideSweepBanner();
     }
   }
 
@@ -157,6 +206,7 @@ export class UIScene extends Phaser.Scene {
     // weapon underline swatch
     g.fillStyle(P.signalDim, 0.9).fillRect(bx + 1, VIEW_H - 6, 96, 1);
     this.txtWeapon.setText(`▸ ${s.weapon}`);
+    if (this.sweepWeaponEl) this.sweepWeaponEl.textContent = s.weapon;
 
     // ---- top-center: objective panel ----
     g.fillStyle(P.black, 0.45).fillRect(VIEW_W / 2 - 66, 4, 132, 24);
@@ -168,12 +218,25 @@ export class UIScene extends Phaser.Scene {
       g.fillStyle(s.breachOpen ? P.signal : P.signalGreen, 1).fillRect(ox, 28, Math.round(w * s.node), 3);
       this.txtObjective.setText(s.breachOpen ? 'BREACH OPEN ▸' : 'CHARGE THE SIGNAL NODE');
       this.txtObjective.setColor(css(s.breachOpen ? P.signal : P.white));
+      if (this.sweepObjectiveEl) {
+        this.sweepObjectiveEl.textContent = s.breachOpen ? 'BREACH OPEN' : 'CHARGE THE SIGNAL NODE';
+        this.sweepObjectiveEl.classList.toggle('ready', s.breachOpen);
+      }
     } else {
       this.txtObjective.setText(`WAVE ${s.wave} / ${s.waves}`);
       this.txtObjective.setColor(css(P.white));
+      if (this.sweepObjectiveEl) {
+        this.sweepObjectiveEl.textContent = `WAVE ${s.wave} / ${s.waves}`;
+        this.sweepObjectiveEl.classList.remove('ready');
+      }
     }
     this.txtEnemies.setText(s.enemies > 0 ? `◦ ${s.enemies} CONTACT${s.enemies === 1 ? '' : 'S'} LEFT` : 'AREA CLEAR');
     this.txtEnemies.setColor(css(s.enemies > 0 ? P.uiDim : P.signalGreen));
+    if (this.sweepContactsEl) {
+      this.sweepContactsEl.textContent = s.enemies > 0 ? `${s.enemies} CONTACT${s.enemies === 1 ? '' : 'S'} LEFT` : 'AREA CLEAR';
+      this.sweepContactsEl.classList.toggle('clear', s.enemies <= 0);
+    }
+    if (this.sweepNodeFillEl) this.sweepNodeFillEl.style.width = `${Math.round((s.breachOpen ? 1 : s.node) * 100)}%`;
 
     // ---- top-right: combo ----
     this.txtCombo.setText(s.combo >= 2 ? `x${s.combo}` : '');
@@ -192,14 +255,30 @@ export class UIScene extends Phaser.Scene {
     this.txtOd
       .setText(s.odActive ? 'OVERDRIVE ACTIVE' : s.odReady ? 'SIGNAL OVERDRIVE READY — [E]' : 'SIGNAL OVERDRIVE  [E]')
       .setColor(css(s.odActive ? P.signal : s.odReady ? P.neonCyan : P.uiDim));
+    if (this.sweepOverdriveEl) {
+      this.sweepOverdriveEl.textContent = s.odActive ? 'OVERDRIVE ACTIVE' : s.odReady ? 'SIGNAL OVERDRIVE READY' : 'SIGNAL OVERDRIVE';
+      this.sweepOverdriveEl.classList.toggle('ready', s.odReady || s.odActive);
+    }
+    if (this.sweepOverdriveFillEl) this.sweepOverdriveFillEl.style.width = `${Math.round((s.odActive ? 1 : s.overdrive) * 100)}%`;
+    if (this.sweepPromptsEl) this.sweepPromptsEl.textContent = 'DASH · SCAN · ECHO · FIRE';
   }
 
   private showBanner(text: string): void {
     if (!this.sweepActive) return;
-    this.banner.setText(text).setVisible(true).setAlpha(0).setScale(0.7);
-    this.tweens.killTweensOf(this.banner);
-    this.tweens.add({ targets: this.banner, alpha: 1, scale: 1, duration: 160, ease: 'Back.out' });
-    this.tweens.add({ targets: this.banner, alpha: 0, delay: 900, duration: 400, onComplete: () => this.banner.setVisible(false) });
+    if (this.sweepBannerEl) {
+      this.sweepBannerEl.textContent = text;
+      this.sweepBannerEl.classList.add('on');
+      if (this.sweepBannerTimer != null) window.clearTimeout(this.sweepBannerTimer);
+      this.sweepBannerTimer = window.setTimeout(() => this.hideSweepBanner(), 1200);
+    }
+  }
+
+  private hideSweepBanner(): void {
+    if (this.sweepBannerTimer != null) {
+      window.clearTimeout(this.sweepBannerTimer);
+      this.sweepBannerTimer = null;
+    }
+    this.sweepBannerEl?.classList.remove('on');
   }
 
   update(_t: number, dt: number): void {
