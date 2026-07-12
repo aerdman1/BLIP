@@ -258,7 +258,7 @@ body.crt-off #crt-overlay, body.crt-off #vignette-overlay { display: none; }
   position: absolute;
   inset: 0;
   z-index: 30;
-  pointer-events: none;
+  pointer-events: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -267,6 +267,9 @@ body.crt-off #crt-overlay, body.crt-off #vignette-overlay { display: none; }
   background: linear-gradient(180deg, rgba(7, 17, 38, 0.1) 0%, rgba(7, 17, 38, 0) 40%, rgba(7, 17, 38, 0.35) 100%);
   padding: clamp(12px, 5vh, 48px) 12px 16px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 #menu-items,
 #menu-items * {
@@ -942,6 +945,52 @@ input[type='range'].vol::-webkit-slider-thumb {
   #shell-buttons { gap: 4px; }
   .shell-btn { letter-spacing: 0.5px; }
   #objective-bar { font-size: 10px; }
+  #menu-overlay {
+    gap: 4px;
+    padding: max(8px, env(safe-area-inset-top)) 10px max(18px, env(safe-area-inset-bottom));
+    justify-content: flex-start;
+  }
+  .hero-radar { width: clamp(82px, 28vw, 118px); }
+  #menu-logo svg { width: min(248px, 72vw, 18vh); }
+  #menu-tagline {
+    margin-top: 2px;
+    font-size: 10px;
+    letter-spacing: 0.7px;
+  }
+  #menu-subtitle {
+    margin-top: 1px;
+    margin-bottom: 8px;
+    font-size: 11px;
+    letter-spacing: 0.7px;
+    text-align: center;
+  }
+  #menu-items {
+    width: min(360px, 92vw);
+    gap: 6px;
+    padding-bottom: 8px;
+  }
+  .menu-item {
+    min-height: 44px;
+    padding: 8px 12px;
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+  #menu-footer {
+    position: static;
+    margin-top: 2px;
+    padding-bottom: 2px;
+    text-align: center;
+    font-size: 8px;
+    letter-spacing: 1px;
+  }
+}
+
+@media (max-width: 420px) and (max-height: 760px) {
+  .hero-radar { width: clamp(70px, 24vw, 92px); }
+  #menu-logo svg { width: min(220px, 68vw, 15vh); }
+  #menu-subtitle { margin-bottom: 6px; }
+  .menu-item { min-height: 42px; padding: 7px 10px; }
+  .menu-item .mi-sub { font-size: 7.5px; }
 }
 
 /* ========================= ON-SCREEN TOUCH CONTROLS ======================== */

@@ -199,16 +199,19 @@ export class ShellUI {
     this.touch.setVisible(enabled && isGameplay && unobstructed);
   }
 
+  private refreshOrientationNudge(): void {
+    const coarse = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+    const portrait = typeof window.matchMedia === 'function' && window.matchMedia('(orientation: portrait)').matches;
+    const isGameplay = this.touchGameplayScenes.includes(this.lastScene);
+    const unobstructed = !this.menuVisible && !this.pauseVisible && this.modalDepth === 0;
+    $('rotate-overlay').classList.toggle('hidden', !(coarse && portrait && isGameplay && unobstructed));
+  }
+
   /** Portrait rotate nudge — only meaningful on touch devices. */
   private wireOrientation(): void {
-    const check = () => {
-      const coarse = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
-      const portrait = typeof window.matchMedia === 'function' && window.matchMedia('(orientation: portrait)').matches;
-      $('rotate-overlay').classList.toggle('hidden', !(coarse && portrait));
-    };
-    window.addEventListener('resize', check);
-    window.addEventListener('orientationchange', check);
-    check();
+    window.addEventListener('resize', () => this.refreshOrientationNudge());
+    window.addEventListener('orientationchange', () => this.refreshOrientationNudge());
+    this.refreshOrientationNudge();
   }
 
   /* --------------------------- modal pause plumbing -------------------------- */
@@ -232,6 +235,7 @@ export class ShellUI {
       this.pausedScenes.forEach((k) => this.game.scene.pause(k));
     }
     this.refreshTouch();
+    this.refreshOrientationNudge();
   }
 
   private popModal(): void {
@@ -244,6 +248,7 @@ export class ShellUI {
       this.pausedScenes = [];
     }
     this.refreshTouch();
+    this.refreshOrientationNudge();
   }
 
   /* -------------------------------- top bar --------------------------------- */
@@ -326,6 +331,7 @@ export class ShellUI {
       this.renderStatus();
       if (s.scene !== SCENES.menu) this.setMenuVisible(false);
       this.refreshTouch();
+      this.refreshOrientationNudge();
     });
     bus.on(EVT.bossSpawn, (d) => {
       const b = d as { name: string };
@@ -475,6 +481,7 @@ export class ShellUI {
       this.positionMenuScoutTargets();
     }
     this.refreshTouch();
+    this.refreshOrientationNudge();
   }
 
   /** Build the crisp radar hero once, reusing the game's own probe texture. */
