@@ -52,6 +52,7 @@ export class TouchControls {
     stick.appendChild(knob);
     stick.addEventListener('pointerdown', (e) => {
       e.preventDefault();
+      e.stopPropagation();
       this.stickPointer = e.pointerId;
       stick.setPointerCapture?.(e.pointerId);
       this.updateStick(stick, knob, e);
@@ -60,10 +61,13 @@ export class TouchControls {
     stick.addEventListener('pointermove', (e) => {
       if (this.stickPointer !== e.pointerId) return;
       e.preventDefault();
+      e.stopPropagation();
       this.updateStick(stick, knob, e);
     });
     const releaseStick = (e: PointerEvent) => {
       if (this.stickPointer !== e.pointerId) return;
+      e.preventDefault();
+      e.stopPropagation();
       this.stickPointer = null;
       touchInput.moveX = 0;
       touchInput.moveY = 0;
@@ -123,12 +127,15 @@ export class TouchControls {
     const b = this.makeButton(className, glyph);
     const down = (e: Event) => {
       e.preventDefault();
+      e.stopPropagation();
       touchInput[flag] = true;
       if (alsoQueueJump) touchInput.jumpQueued = true; // edge for jumpJustDown
       b.classList.add('active');
       audio.unlock();
     };
-    const up = () => {
+    const up = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
       touchInput[flag] = false;
       b.classList.remove('active');
     };
@@ -144,11 +151,16 @@ export class TouchControls {
     const b = this.makeButton(className, glyph);
     b.addEventListener('pointerdown', (e) => {
       e.preventDefault();
+      e.stopPropagation();
       touchInput[flag] = true;
       b.classList.add('active');
       audio.unlock();
     });
-    const clear = () => b.classList.remove('active');
+    const clear = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      b.classList.remove('active');
+    };
     b.addEventListener('pointerup', clear);
     b.addEventListener('pointercancel', clear);
     b.addEventListener('pointerleave', clear);

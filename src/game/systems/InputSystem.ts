@@ -145,9 +145,10 @@ export class PlayerInput {
   /** held — shots auto-fire on the pulse cooldown */
   get shootDown(): boolean {
     const p = this.scene.input.activePointer;
+    const pointerShoot = !touchInput.active && p.isDown && p.leftButtonDown();
     return (
       this.k.shoot.isDown ||
-      (p.isDown && p.leftButtonDown()) ||
+      pointerShoot ||
       this.padDown(PAD.shoot) ||
       this.padDown(PAD.shootAlt) ||
       touchInput.shootHeld

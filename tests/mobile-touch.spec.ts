@@ -135,9 +135,12 @@ test.describe('mobile title and touch controls', () => {
     }
 
     const p0 = await playerState(page);
+    const moveShots0 = await api<number>(page, 'api.getSaveData().playerStats.pulseShotsFired');
     await dragStick(page, 54, 0, 600);
     const p1 = await playerState(page);
+    const moveShots1 = await api<number>(page, 'api.getSaveData().playerStats.pulseShotsFired');
     expect(p1.x).toBeGreaterThan(p0.x + 25);
+    expect(moveShots1, 'left movement stick must not fire pulse shots').toBe(moveShots0);
 
     await pressTouch(page, '.tc-jump', 130);
     const rising = await playerState(page);

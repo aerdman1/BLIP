@@ -20,7 +20,8 @@ export class GameOverScene extends Phaser.Scene {
   }
 
   init(data: { from?: string }): void {
-    this.fromScene = data?.from ?? '';
+    this.fromScene = data?.from ?? (this.registry.get('gameOverRetryScene') as string) ?? '';
+    if (data?.from) this.registry.set('gameOverRetryScene', data.from);
   }
 
   create(): void {
@@ -117,8 +118,13 @@ export class GameOverScene extends Phaser.Scene {
     const zone = getSave().currentZone;
     // died in a top-down section? re-attempt that same section (arena id is still
     // in the registry) rather than dumping the player into the side-view zone.
+    const retryScene = (this.registry.get('gameOverRetryScene') as string) || this.fromScene;
+    if (retryScene === SCENES.sweep) {
+      const arenaId = this.registry.get('gameOverRetryArenaId') as string | undefined;
+      if (arenaId) this.registry.set('sweepArenaId', arenaId);
+    }
     const target =
-      this.fromScene === SCENES.sweep ? SCENES.sweep : (ZONE_ROUTES[zone]?.scene ?? SCENES.field);
+      retryScene === SCENES.sweep ? SCENES.sweep : (ZONE_ROUTES[zone]?.scene ?? SCENES.field);
     this.scene.stop(SCENES.blipstream);
     this.scene.stop(SCENES.sweep);
     this.scene.stop(SCENES.underwater);

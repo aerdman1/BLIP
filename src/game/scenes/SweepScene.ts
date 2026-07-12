@@ -1026,6 +1026,8 @@ export class SweepScene extends Phaser.Scene {
   private onDeath(): void {
     if (this.gameOverShown) return;
     this.gameOverShown = true;
+    this.registry.set('gameOverRetryScene', SCENES.sweep);
+    this.registry.set('gameOverRetryArenaId', this.arena.id);
     bus.emit(EVT.hudSweep, { active: false });
     this.fx.staticBurst(500);
     this.player.setVisible(false);

@@ -161,8 +161,7 @@ function driveable(s: { scene: Phaser.Scenes.ScenePlugin } | undefined): boolean
 
 function activeSceneName(): string {
   if (!gameRef) return 'none';
-  if (gameRef.scene.isActive(SCENES.sweep) || gameRef.scene.isPaused(SCENES.sweep)) return SCENES.blipstream;
-  const order = [SCENES.gameOver, SCENES.blipstream, SCENES.underwater, SCENES.field, SCENES.motel, SCENES.stadium, SCENES.orchard, SCENES.skyline, SCENES.menu, SCENES.boot];
+  const order = [SCENES.gameOver, SCENES.sweep, SCENES.blipstream, SCENES.underwater, SCENES.field, SCENES.motel, SCENES.stadium, SCENES.orchard, SCENES.skyline, SCENES.menu, SCENES.boot];
   for (const key of order) {
     // a scene paused by a shell modal (tutorial card, Command Center) is still
     // the scene the player is "in" — count it as active
@@ -257,6 +256,37 @@ export function installTestAPI(game: Phaser.Game): void {
         if (gameRef!.scene.isActive(k)) gameRef!.scene.stop(k);
       });
       gameRef.scene.start(target);
+      return true;
+    },
+
+    /** deterministic top-down arena entry for retry/death routing QA. */
+    enterSweep: (arenaId = 'surface-z1', returnScene = SCENES.field): boolean => {
+      if (!gameRef) return false;
+      updateSave((s) => {
+        s.currentZone = 'miller-field';
+        s.currentQuest = 'the-first-contact';
+      });
+      gameRef.registry.set('sweepArenaId', arenaId);
+      gameRef.registry.set('sweepReturnScene', returnScene);
+      gameRef.registry.set('gameOverRetryScene', SCENES.sweep);
+      gameRef.registry.set('gameOverRetryArenaId', arenaId);
+      [SCENES.menu, SCENES.field, SCENES.motel, SCENES.stadium, SCENES.orchard, SCENES.skyline, SCENES.underwater, SCENES.blipstream, SCENES.sweep, SCENES.gameOver].forEach((k) => {
+        if (gameRef!.scene.isActive(k) || gameRef!.scene.isPaused(k)) gameRef!.scene.stop(k);
+      });
+      gameRef.scene.start(SCENES.sweep);
+      return true;
+    },
+
+    /** force a Sweep death through the real GameOver path. */
+    killSweepPlayer: (): boolean => {
+      if (!gameRef || !(gameRef.scene.isActive(SCENES.sweep) || gameRef.scene.isPaused(SCENES.sweep))) return false;
+      const sc = gameRef.scene.getScene(SCENES.sweep) as unknown as {
+        player?: { hp: number };
+        onDeath?: () => void;
+      };
+      if (!sc?.player || typeof sc.onDeath !== 'function') return false;
+      sc.player.hp = 0;
+      sc.onDeath();
       return true;
     },
 
