@@ -3,7 +3,7 @@
  * layered over the pixel canvas. Buttons write the shared `touchInput` state,
  * which PlayerInput reads each frame (see src/game/systems/TouchInput.ts).
  *
- * Layout: a 4-way D-pad bottom-left, an action cluster bottom-right
+ * Layout: a virtual thumbstick bottom-left, an action cluster bottom-right
  * (JUMP · SHOOT · SCAN · DASH · ECHO · INTERACT), and a small PAUSE pip top-right.
  * Visibility is driven by ShellUI (only during unobstructed gameplay).
  */
@@ -13,22 +13,13 @@ import { audio } from '../game/systems/AudioSystem';
 export class TouchControls {
   private root: HTMLElement;
   private visible = false;
-  private left = false;
-  private right = false;
-  private up = false;
-  private down = false;
-  private anyPointerDown = false;
+  private stickPointer: number | null = null;
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div');
     this.root.id = 'touch-controls';
     this.root.className = 'hidden';
     parent.appendChild(this.root);
-    // a global "is any finger down" flag lets the D-pad support thumb-slides
-    // (pointerenter while pressed activates the button the finger moves onto)
-    window.addEventListener('pointerdown', () => (this.anyPointerDown = true));
-    window.addEventListener('pointerup', () => (this.anyPointerDown = false));
-    window.addEventListener('pointercancel', () => (this.anyPointerDown = false));
     this.build();
   }
 
@@ -43,53 +34,44 @@ export class TouchControls {
     touchInput.active = v;
     if (!v) {
       // clear everything so nothing sticks when the overlay hides mid-press
-      this.left = this.right = this.up = this.down = false;
+      this.stickPointer = null;
       resetTouchInput();
       this.root.querySelectorAll('.tc-btn.active').forEach((el) => el.classList.remove('active'));
+      this.root.querySelector<HTMLElement>('.tc-stick-knob')?.style.removeProperty('transform');
     }
-  }
-
-  private syncMove(): void {
-    touchInput.moveX = this.left && !this.right ? -1 : this.right && !this.left ? 1 : 0;
-    touchInput.moveY = this.up && !this.down ? -1 : this.down && !this.up ? 1 : 0;
   }
 
   private build(): void {
-    // ── D-pad (bottom-left) ──────────────────────────────────────────────
-    const dpad = document.createElement('div');
-    dpad.className = 'tc-dpad';
-    const dirs: Array<{ cls: string; glyph: string; set: (on: boolean) => void }> = [
-      { cls: 'tc-up', glyph: '▲', set: (on) => (this.up = on) },
-      { cls: 'tc-left', glyph: '◀', set: (on) => (this.left = on) },
-      { cls: 'tc-right', glyph: '▶', set: (on) => (this.right = on) },
-      { cls: 'tc-down', glyph: '▼', set: (on) => (this.down = on) },
-    ];
-    for (const d of dirs) {
-      const b = this.makeButton(`tc-btn tc-dir ${d.cls}`, d.glyph);
-      const on = () => {
-        d.set(true);
-        b.classList.add('active');
-        this.syncMove();
-      };
-      const off = () => {
-        d.set(false);
-        b.classList.remove('active');
-        this.syncMove();
-      };
-      b.addEventListener('pointerdown', (e) => {
-        e.preventDefault();
-        on();
-      });
-      b.addEventListener('pointerup', off);
-      b.addEventListener('pointercancel', off);
-      b.addEventListener('pointerleave', off);
-      // thumb-slide: entering a direction while a finger is already down engages it
-      b.addEventListener('pointerenter', () => {
-        if (this.anyPointerDown) on();
-      });
-      dpad.appendChild(b);
-    }
-    this.root.appendChild(dpad);
+    // ── Virtual thumbstick (bottom-left) ────────────────────────────────
+    const stick = document.createElement('div');
+    stick.className = 'tc-stick';
+    stick.setAttribute('role', 'application');
+    stick.setAttribute('aria-label', 'Move');
+    const knob = document.createElement('div');
+    knob.className = 'tc-stick-knob';
+    stick.appendChild(knob);
+    stick.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      this.stickPointer = e.pointerId;
+      stick.setPointerCapture?.(e.pointerId);
+      this.updateStick(stick, knob, e);
+      audio.unlock();
+    });
+    stick.addEventListener('pointermove', (e) => {
+      if (this.stickPointer !== e.pointerId) return;
+      e.preventDefault();
+      this.updateStick(stick, knob, e);
+    });
+    const releaseStick = (e: PointerEvent) => {
+      if (this.stickPointer !== e.pointerId) return;
+      this.stickPointer = null;
+      touchInput.moveX = 0;
+      touchInput.moveY = 0;
+      knob.style.removeProperty('transform');
+    };
+    stick.addEventListener('pointerup', releaseStick);
+    stick.addEventListener('pointercancel', releaseStick);
+    this.root.appendChild(stick);
 
     // ── action cluster (bottom-right) ────────────────────────────────────
     const actions = document.createElement('div');
@@ -115,6 +97,25 @@ export class TouchControls {
     b.setAttribute('role', 'button');
     b.textContent = glyph;
     return b;
+  }
+
+  private updateStick(stick: HTMLElement, knob: HTMLElement, e: PointerEvent): void {
+    const r = stick.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const max = Math.max(24, Math.min(r.width, r.height) * 0.34);
+    const rawX = e.clientX - cx;
+    const rawY = e.clientY - cy;
+    const len = Math.hypot(rawX, rawY);
+    const scale = len > max ? max / len : 1;
+    const x = rawX * scale;
+    const y = rawY * scale;
+    knob.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+
+    const nx = x / max;
+    const ny = y / max;
+    touchInput.moveX = nx < -0.25 ? -1 : nx > 0.25 ? 1 : 0;
+    touchInput.moveY = ny < -0.25 ? -1 : ny > 0.25 ? 1 : 0;
   }
 
   /** A hold-to-act button: sets a boolean held flag true on press, false on release. */

@@ -47,6 +47,47 @@ async function holdTouch(page: Page, selector: string, holdMs: number): Promise<
   });
 }
 
+async function dragStick(page: Page, dx: number, dy: number, holdMs = 450): Promise<void> {
+  const box = await page.locator('.tc-stick').boundingBox();
+  expect(box, 'virtual stick should be visible').not.toBeNull();
+  const x = box!.x + box!.width / 2;
+  const y = box!.y + box!.height / 2;
+  await page.locator('.tc-stick').dispatchEvent('pointerdown', {
+    pointerId: 31,
+    pointerType: 'touch',
+    isPrimary: true,
+    button: 0,
+    buttons: 1,
+    clientX: x,
+    clientY: y,
+    bubbles: true,
+    cancelable: true,
+  });
+  await page.locator('.tc-stick').dispatchEvent('pointermove', {
+    pointerId: 31,
+    pointerType: 'touch',
+    isPrimary: true,
+    button: 0,
+    buttons: 1,
+    clientX: x + dx,
+    clientY: y + dy,
+    bubbles: true,
+    cancelable: true,
+  });
+  await page.waitForTimeout(holdMs);
+  await page.locator('.tc-stick').dispatchEvent('pointerup', {
+    pointerId: 31,
+    pointerType: 'touch',
+    isPrimary: true,
+    button: 0,
+    buttons: 0,
+    clientX: x + dx,
+    clientY: y + dy,
+    bubbles: true,
+    cancelable: true,
+  });
+}
+
 test.describe('mobile title and touch controls', () => {
   test.use({ hasTouch: true, isMobile: true, deviceScaleFactor: 3 });
 
@@ -89,12 +130,12 @@ test.describe('mobile title and touch controls', () => {
     await startGame(page);
 
     await expect(page.locator('#touch-controls')).toBeVisible();
-    for (const cls of ['.tc-left', '.tc-right', '.tc-jump', '.tc-shoot', '.tc-scan', '.tc-dash', '.tc-echo', '.tc-interact', '.tc-pause']) {
+    for (const cls of ['.tc-stick', '.tc-jump', '.tc-shoot', '.tc-scan', '.tc-dash', '.tc-echo', '.tc-interact', '.tc-pause']) {
       await expect(page.locator(cls)).toBeVisible();
     }
 
     const p0 = await playerState(page);
-    await holdTouch(page, '.tc-right', 600);
+    await dragStick(page, 54, 0, 600);
     const p1 = await playerState(page);
     expect(p1.x).toBeGreaterThan(p0.x + 25);
 
@@ -142,9 +183,9 @@ test.describe('mobile title and touch controls', () => {
 
     await startGame(page);
     await expect(page.locator('#touch-controls')).toBeVisible();
-    await expect(page.locator('.tc-dpad')).toBeVisible();
+    await expect(page.locator('.tc-stick')).toBeVisible();
     await expect(page.locator('.tc-actions')).toBeVisible();
-    const dpad = await page.locator('.tc-dpad').boundingBox();
+    const dpad = await page.locator('.tc-stick').boundingBox();
     const actions = await page.locator('.tc-actions').boundingBox();
     expect(dpad).not.toBeNull();
     expect(actions).not.toBeNull();
