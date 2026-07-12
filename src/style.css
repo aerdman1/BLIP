@@ -1027,3 +1027,12 @@ input[type='range'].vol::-webkit-slider-thumb {
   0%, 100% { transform: rotate(-18deg); }
   50% { transform: rotate(72deg); }
 }
+
+/* Phones (short landscape): scale the whole touch clusters down toward their
+   screen corners so they don't crowd the small play area. Transform scales the
+   buttons AND their hit areas together, anchored to each corner. */
+@media (max-height: 500px) {
+  #touch-controls .tc-dpad { transform: scale(0.68); transform-origin: bottom left; }
+  #touch-controls .tc-actions { transform: scale(0.68); transform-origin: bottom right; }
+  #touch-controls .tc-pause { transform: scale(0.82); transform-origin: top right; }
+}
