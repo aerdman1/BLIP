@@ -104,3 +104,5 @@ This project is an experiment in AI-driven development: the game is built, playe
 ## Project Guardrails
 
 Development rules live in `.claude/skills/` (game vision, engine rules, art direction, puzzle rules, QA checklist, scope control) and are indexed from [CLAUDE.md](CLAUDE.md).
+
+<!-- vercel-github-linked: 2026-07-12 -->
