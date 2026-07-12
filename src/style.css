@@ -949,9 +949,14 @@ input[type='range'].vol::-webkit-slider-thumb {
   .shell-btn { letter-spacing: 0.5px; }
   #objective-bar { font-size: 10px; }
   #menu-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    min-height: 100dvh;
     gap: 4px;
     padding: max(8px, env(safe-area-inset-top)) 10px max(18px, env(safe-area-inset-bottom));
     justify-content: flex-start;
+    background: linear-gradient(180deg, rgba(4, 8, 18, 0.9), rgba(7, 17, 38, 0.76));
   }
   .hero-radar { width: clamp(82px, 28vw, 118px); }
   #menu-logo svg { width: min(248px, 72vw, 18vh); }
@@ -1122,6 +1127,7 @@ input[type='range'].vol::-webkit-slider-thumb {
 #touch-controls .tc-shoot { right: 96px; bottom: 4px; width: 74px; height: 74px; font-size: 26px; color: var(--warning); border-color: var(--amber-dim); }
 #touch-controls .tc-scan { right: 104px; bottom: 84px; width: 60px; height: 60px; font-size: 13px; }
 #touch-controls .tc-dash { right: 4px; bottom: 138px; width: 56px; height: 56px; font-size: 24px; }
+#touch-controls .tc-echo { right: 130px; bottom: 142px; width: 58px; height: 44px; font-size: 10px; letter-spacing: 1px; color: var(--violet); border-color: rgba(124, 92, 255, 0.65); }
 #touch-controls .tc-interact { right: 70px; bottom: 150px; width: 52px; height: 52px; font-size: 18px; }
 
 /* pause pip top-right (clears the top instrument bar which is outside the frame) */
@@ -1159,4 +1165,19 @@ input[type='range'].vol::-webkit-slider-thumb {
   #touch-controls .tc-dpad { transform: scale(0.68); transform-origin: bottom left; }
   #touch-controls .tc-actions { transform: scale(0.68); transform-origin: bottom right; }
   #touch-controls .tc-pause { transform: scale(0.82); transform-origin: top right; }
+}
+
+@media (max-width: 640px) and (min-height: 501px) {
+  #touch-controls .tc-dpad {
+    left: max(12px, env(safe-area-inset-left));
+    bottom: max(14px, env(safe-area-inset-bottom));
+    transform: scale(0.78);
+    transform-origin: bottom left;
+  }
+  #touch-controls .tc-actions {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(14px, env(safe-area-inset-bottom));
+    transform: scale(0.78);
+    transform-origin: bottom right;
+  }
 }

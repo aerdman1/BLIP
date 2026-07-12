@@ -34,6 +34,7 @@ export class PlayerInput {
   private tDashJust = false;
   private tScanJust = false;
   private tInteractJust = false;
+  private tEchoJust = false;
   private tPauseJust = false;
 
   constructor(scene: Phaser.Scene) {
@@ -65,11 +66,13 @@ export class PlayerInput {
     this.tDashJust = touchInput.dashQueued;
     this.tScanJust = touchInput.scanQueued;
     this.tInteractJust = touchInput.interactQueued;
+    this.tEchoJust = touchInput.echoQueued;
     this.tPauseJust = touchInput.pauseQueued;
     touchInput.jumpQueued = false;
     touchInput.dashQueued = false;
     touchInput.scanQueued = false;
     touchInput.interactQueued = false;
+    touchInput.echoQueued = false;
     touchInput.pauseQueued = false;
     // announce newly-seen controllers (HUD toast + settings panel)
     const id = this.pad?.id ?? null;
@@ -160,7 +163,7 @@ export class PlayerInput {
   }
 
   get echoJustDown(): boolean {
-    return Phaser.Input.Keyboard.JustDown(this.k.echo) || this.padJust(PAD.dpadUp);
+    return Phaser.Input.Keyboard.JustDown(this.k.echo) || this.padJust(PAD.dpadUp) || this.tEchoJust;
   }
 
   /** START — pause toggle (poll before any early-return in scene.update) */

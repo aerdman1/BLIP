@@ -73,6 +73,9 @@ export async function playerState(page: Page): Promise<{
   grounded: boolean;
   facing: number;
   god: boolean;
+  echoActive: boolean;
+  echoX: number;
+  echoY: number;
 }> {
   const p = await api(page, 'api.getPlayerState()');
   expect(p, 'player should exist').not.toBeNull();

@@ -20,6 +20,7 @@ export interface TouchInputState {
   dashQueued: boolean;
   scanQueued: boolean;
   interactQueued: boolean;
+  echoQueued: boolean;
   pauseQueued: boolean;
 }
 
@@ -33,6 +34,7 @@ export const touchInput: TouchInputState = {
   dashQueued: false,
   scanQueued: false,
   interactQueued: false,
+  echoQueued: false,
   pauseQueued: false,
 };
 
@@ -46,5 +48,6 @@ export function resetTouchInput(): void {
   touchInput.dashQueued = false;
   touchInput.scanQueued = false;
   touchInput.interactQueued = false;
+  touchInput.echoQueued = false;
   touchInput.pauseQueued = false;
 }

@@ -4,7 +4,7 @@
  * which PlayerInput reads each frame (see src/game/systems/TouchInput.ts).
  *
  * Layout: a 4-way D-pad bottom-left, an action cluster bottom-right
- * (JUMP · SHOOT · SCAN · DASH · INTERACT), and a small PAUSE pip top-right.
+ * (JUMP · SHOOT · SCAN · DASH · ECHO · INTERACT), and a small PAUSE pip top-right.
  * Visibility is driven by ShellUI (only during unobstructed gameplay).
  */
 import { touchInput, resetTouchInput } from '../game/systems/TouchInput';
@@ -100,6 +100,7 @@ export class TouchControls {
     // tap buttons: one-shot edges
     actions.appendChild(this.tapButton('tc-btn tc-scan', '((·))', 'scanQueued'));
     actions.appendChild(this.tapButton('tc-btn tc-dash', '»', 'dashQueued'));
+    actions.appendChild(this.tapButton('tc-btn tc-echo', 'ECHO', 'echoQueued'));
     actions.appendChild(this.tapButton('tc-btn tc-interact', 'E', 'interactQueued'));
     this.root.appendChild(actions);
 
@@ -138,7 +139,7 @@ export class TouchControls {
   }
 
   /** A tap button: queues a one-shot edge consumed by PlayerInput.update(). */
-  private tapButton(className: string, glyph: string, flag: 'scanQueued' | 'dashQueued' | 'interactQueued' | 'pauseQueued'): HTMLElement {
+  private tapButton(className: string, glyph: string, flag: 'scanQueued' | 'dashQueued' | 'echoQueued' | 'interactQueued' | 'pauseQueued'): HTMLElement {
     const b = this.makeButton(className, glyph);
     b.addEventListener('pointerdown', (e) => {
       e.preventDefault();
