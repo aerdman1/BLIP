@@ -342,8 +342,18 @@ body.crt-off #crt-overlay, body.crt-off #vignette-overlay { display: none; }
 }
 @keyframes hero-ping { 0%, 100% { opacity: 0.12; } 50% { opacity: 1; } }
 
+#menu-tagline {
+  margin-top: 6px;
+  font-family: var(--display);
+  font-size: clamp(10px, 1.45vh, 12px);
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--lime);
+  text-shadow: 0 2px 0 rgba(4, 8, 18, 0.95), 0 0 10px rgba(168, 255, 62, 0.35);
+}
+
 #menu-subtitle {
-  margin-top: 10px;
+  margin-top: 4px;
   margin-bottom: 14px;
   font-family: var(--display);
   font-size: clamp(13px, 1.9vh, 16px);

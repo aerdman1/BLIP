@@ -405,6 +405,8 @@ export class SweepScene extends Phaser.Scene {
     }
     bus.emit(EVT.toast, { text: 'NODE CHARGED — BREACH OPEN ▸', color: 'green' });
     this.showBanner('BREACH OPEN — GET OUT');
+    // reward system: a Signal Storm was cleared → medal + cache (RewardTriggers)
+    bus.emit(EVT.sweepCleared, { combo: this.combo, noHit: this.player.hp >= this.player.maxHp });
     if (this.arena.biome === 'orchard') this.cropBloom();
   }
 

@@ -20,6 +20,8 @@ import { quests } from './game/systems/QuestSystem';
 import { installTestAPI, isTestApiEnabled } from './game/systems/TestAPI';
 import { CommandCenter } from './command-center/CommandCenter';
 import { ShellUI } from './ui/ShellUI';
+import { RewardUI } from './ui/RewardUI';
+import { installRewardTriggers } from './game/systems/RewardTriggers';
 
 const game = createGame('game-root');
 installTestAPI(game);
@@ -33,6 +35,10 @@ new ShellUI(game, {
   },
   close: () => commandCenter.close(),
 });
+
+// Signal Cache reward system — DOM reward layer + gameplay milestone triggers.
+new RewardUI(game);
+installRewardTriggers();
 
 /* ------------------------------ debug hotkeys ------------------------------ */
 

@@ -12,7 +12,7 @@ import { audio } from '../systems/AudioSystem';
 import { bus } from '../systems/EventBus';
 import { getSave, resetSave } from '../systems/SaveSystem';
 import { quests } from '../systems/QuestSystem';
-import { registerScene, unregisterScene } from '../systems/TestAPI';
+import { isTestApiEnabled, registerScene, unregisterScene } from '../systems/TestAPI';
 import { attachScreenFilter, nightVisionIntro } from '../systems/ScreenFilter';
 
 const STREET_Y = 196; // the one baseline both sides of town share
@@ -608,6 +608,10 @@ export class MainMenuScene extends Phaser.Scene {
     if (!continueRun) quests.restart();
     audio.unlock();
     bus.emit(EVT.menuActive, { active: false });
+    if (!continueRun && isTestApiEnabled()) {
+      this.scene.start(SCENES.field);
+      return;
+    }
     this.cameras.main.fadeOut(350, 7, 17, 38);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       if (continueRun) {

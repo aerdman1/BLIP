@@ -12,6 +12,7 @@ import { audio } from '../game/systems/AudioSystem';
 import { bus } from '../game/systems/EventBus';
 import { readPad } from '../game/systems/PadSim';
 import { addShards, allSlotSummaries, getSave, getSlotName, grantAbility, resetSave, resetSlot, setActiveSlot, setSlotName, unlockSkin, updateSave } from '../game/systems/SaveSystem';
+import { rewards } from '../game/systems/RewardSystem';
 import { skinById } from '../game/data/skins';
 import { UPGRADES } from '../game/data/upgrades';
 import { findQuest } from '../game/data/quests';
@@ -1071,6 +1072,17 @@ export class ShellUI {
           <button data-act="frags">+5 Fragments</button>
           <button data-act="shards">+250 Shards</button>
         </div>
+        <div class="dev-sec-h">SIGNAL CACHES / REWARDS</div>
+        <div class="dev-row">
+          <button data-act="cache-small">+ Small Cache</button>
+          <button data-act="cache-scout">+ Scout Cache</button>
+          <button data-act="cache-anomaly">+ Anomaly Cache</button>
+          <button data-act="cache-broadcast">+ Broadcast Cache</button>
+        </div>
+        <div class="dev-row">
+          <button data-act="open-cache">▸ Open a Cache</button>
+          <button data-act="open-archive">▦ Signal Archive</button>
+        </div>
         <div class="dev-sec-h">TOGGLES</div>
         <div class="dev-row">
           <button data-act="god" id="dev-god">God Mode: OFF</button>
@@ -1170,6 +1182,26 @@ export class ShellUI {
       case 'shards':
         addShards(250);
         break;
+      case 'cache-small':
+        rewards.grantCache('small-signal');
+        break;
+      case 'cache-scout':
+        rewards.grantCache('scout');
+        break;
+      case 'cache-anomaly':
+        rewards.grantCache('anomaly');
+        break;
+      case 'cache-broadcast':
+        rewards.grantCache('broadcast');
+        break;
+      case 'open-cache':
+        this.hideDevPanel();
+        bus.emit(EVT.rewardOpenCache, {});
+        return;
+      case 'open-archive':
+        this.hideDevPanel();
+        bus.emit(EVT.rewardOpenArchive, {});
+        return;
       case 'god':
         devState.god = !devState.god;
         break;

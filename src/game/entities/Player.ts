@@ -11,6 +11,7 @@ import { rumble } from '../systems/PadSim';
 import { activeSkin, setActiveSkin } from '../systems/SkinState';
 import { devState } from '../systems/DevState';
 import { hasAbility } from '../systems/SaveSystem';
+import { rewards } from '../systems/RewardSystem';
 import type { EffectsSystem } from '../systems/EffectsSystem';
 import type { PlayerInput } from '../systems/InputSystem';
 
@@ -187,6 +188,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.refreshHud();
   }
 
+  private trailTint(): number {
+    return rewards.equippedTrailColor() ?? this.skinColor;
+  }
+
   /** main movement update — call from scene.update */
   /* -------------------------------- Echo Blink ------------------------------- */
   get isEchoActive(): boolean {
@@ -264,14 +269,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.dashCdUntil = now + PLAYER.dashMs + PLAYER.dashCooldownMs * (this.sm.dashCooldownMul ?? 1);
       body.setAllowGravity(false);
       audio.dash();
-      this.fx.sparks(this.x, this.y, this.skinColor, 6);
+      this.fx.sparks(this.x, this.y, this.trailTint(), 6);
     }
     if (this.isDashing) {
       body.setVelocity(this.facing * PLAYER.dashSpeed * (this.sm.dashSpeedMul ?? 1), 0);
       body.setAcceleration(0, 0);
       if (now >= this.afterimageAt) {
         this.afterimageAt = now + 40;
-        this.fx.afterimage(this, this.skinColor);
+        this.fx.afterimage(this, this.trailTint());
       }
     } else {
       body.setAllowGravity(true);

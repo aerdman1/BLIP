@@ -83,7 +83,39 @@ export interface SaveData {
   shards: number; // Signal Shard balance
   purchasedUpgrades: string[]; // Workbench upgrade ids (with tier suffix, e.g. 'max-hull-2')
   finalClassificationChoice: string; // finale choice: '' until made — UNKNOWN|CONTACT|SIGNAL|FRIEND|REFUSE
+  // Reward system (Signal Caches / Archive / Trophies) — additive, one nested blob
+  rewards: RewardSave;
 }
+
+/** Persisted state for the reward system. Kept as one nested object so hydrate
+ *  stays a single default-merge and old saves migrate cleanly. */
+export interface RewardSave {
+  caches: Record<string, number>; // unopened cache counts, keyed by cache type
+  owned: string[]; // collectible reward ids the player has (deduped)
+  seen: string[]; // reward ids the player has viewed in the Archive (NEW = owned − seen)
+  dust: number; // Signal Dust balance (from duplicates)
+  trophies: string[]; // unlocked trophy ids
+  awarded: string[]; // internal: milestone keys already granted (dedupe triggers)
+  recent: RecentReward[]; // rolling log of the last rewards earned (newest first)
+  equipped: Record<string, string>; // loadout: reward category → equipped reward id
+}
+
+export interface RecentReward {
+  id: string; // reward id, or 'trophy:<id>' / 'cache:<type>'
+  rarity: string;
+  at: string; // ISO timestamp
+}
+
+const defaultRewards = (): RewardSave => ({
+  caches: {},
+  owned: [],
+  seen: [],
+  dust: 0,
+  trophies: [],
+  awarded: [],
+  recent: [],
+  equipped: {},
+});
 
 export type SetPieceKey = 'badge' | 'log' | 'relic';
 
@@ -146,6 +178,7 @@ const defaultSave = (): SaveData => ({
   shards: 0,
   purchasedUpgrades: [],
   finalClassificationChoice: '',
+  rewards: defaultRewards(),
 });
 
 let cache: SaveData | null = null;
@@ -263,6 +296,7 @@ function hydrate(partial: Partial<SaveData>): SaveData {
     discoveredFieldNotes: partial.discoveredFieldNotes ?? [],
     shards: partial.shards ?? 0,
     purchasedUpgrades: partial.purchasedUpgrades ?? [],
+    rewards: { ...defaultRewards(), ...(partial.rewards ?? {}) },
   };
 }
 

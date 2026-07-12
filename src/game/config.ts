@@ -1003,6 +1003,15 @@ export const EVT = {
   abilityUnlocked: 'ability:unlocked',
   shardsChanged: 'shards:changed',
   upgradePurchased: 'upgrade:purchased',
+  // reward system (Signal Caches / Archive / Trophies)
+  rewardCacheEarned: 'reward:cache-earned', // {cacheType, count} — a cache was granted
+  rewardOpened: 'reward:opened', // OpenResult — a cache finished opening
+  rewardTrophy: 'reward:trophy', // {id} — a trophy just unlocked
+  rewardChanged: 'reward:changed', // reward save state changed (refresh UIs)
+  rewardBanner: 'reward:banner', // {kind, title, sub, color, icon, rarity} — juicy popup
+  rewardOpenArchive: 'reward:open-archive', // request: open the Signal Archive
+  rewardOpenCache: 'reward:open-cache', // {cacheType?} — request: open the cache-opening screen
+  sweepCleared: 'sweep:cleared', // {combo, noHit} — a Signal Storm arena was cleared
 } as const;
 
 /** TEX key for a skin's player body ('' → use TEX.player for contact47) */

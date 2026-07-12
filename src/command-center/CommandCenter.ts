@@ -16,6 +16,11 @@ import { DESIGN_PILLARS, LEVEL_PLANS } from '../game/data/levelPlans';
 import { ZONES } from '../game/data/zones';
 import { UPGRADES } from '../game/data/upgrades';
 import { selectSkin, setProgress } from '../game/systems/SaveSystem';
+import { rewards } from '../game/systems/RewardSystem';
+import { RARITIES, type RarityId } from '../game/data/rewards';
+import { CACHES, CACHE_ORDER } from '../game/data/caches';
+import { rewardById } from '../game/data/rewards';
+import { trophyById } from '../game/data/trophies';
 import {
   ART_DIRECTION,
   BUILD_TODO,
@@ -121,6 +126,7 @@ export class CommandCenter {
       ['scouts', 'SIGNAL SCOUTS'],
       ['portraits', 'SIGNAL PORTRAITS'],
       ['fieldnotes', 'FIELD NOTES'],
+      ['rewards', 'SIGNAL ARCHIVE'],
       ['wardrobe', 'WARDROBE'],
       ['mechanics', 'MECHANICS'],
       ['controls', 'CONTROLS'],
@@ -164,6 +170,7 @@ export class CommandCenter {
             ${this.sectionScouts()}
             ${this.sectionPortraits()}
             ${this.sectionFieldNotes()}
+            ${this.sectionRewards()}
             ${this.sectionWardrobe()}
             ${this.sectionMechanics()}
             ${this.sectionControls()}
@@ -200,6 +207,13 @@ export class CommandCenter {
         const target = this.root.querySelector('#' + (a as HTMLElement).dataset.target);
         target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
+    });
+    // reward system entry points
+    (this.root.querySelector('#cc-open-archive') as HTMLButtonElement | null)?.addEventListener('click', () => {
+      bus.emit(EVT.rewardOpenArchive, {});
+    });
+    (this.root.querySelector('#cc-open-cache') as HTMLButtonElement | null)?.addEventListener('click', () => {
+      bus.emit(EVT.rewardOpenCache, {});
     });
     // wardrobe SELECT — delegated so it survives re-renders
     this.root.querySelector('#cc-wardrobe-grid')?.addEventListener('click', (ev) => {
@@ -293,6 +307,32 @@ export class CommandCenter {
       `
       <p class="cc-note">Notebook pages the Scouts left in the field — hidden until you scan the right spot. Each one teaches a trick in their own voice. <b id="cc-fieldnotes-count">0 / ${FIELD_NOTES.length} RECOVERED</b></p>
       <div class="cc-cards" id="cc-fieldnotes-grid"></div>`
+    );
+  }
+
+  private sectionRewards(): string {
+    return this.panel(
+      'rewards',
+      'SIGNAL ARCHIVE / REWARDS',
+      `
+      <p class="cc-note">Intercepted signals — Scout relics, glitch shards, cosmetic frequencies and weird trophies.
+      Earn <b>Signal Caches</b> from play and crack them open in the flashy reveal screen. Duplicates melt into <b>Signal Dust</b>.</p>
+      <div class="cc-grid-3">
+        <div class="cc-stat"><label>UNOPENED CACHES</label><b id="cc-rw-caches" class="ok">0</b></div>
+        <div class="cc-stat"><label>COLLECTION</label><b id="cc-rw-collection">0%</b></div>
+        <div class="cc-stat"><label>TROPHIES</label><b id="cc-rw-trophies">0 / 0</b></div>
+        <div class="cc-stat"><label>SIGNAL DUST</label><b id="cc-rw-dust" class="warn">0</b></div>
+        <div class="cc-stat"><label>SWEEP MEDALS</label><b id="cc-rw-medals">0</b></div>
+        <div class="cc-stat"><label>RECENT RARE</label><b id="cc-rw-recent-top">—</b></div>
+      </div>
+      <div class="cc-actions" style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 0">
+        <button id="cc-open-archive" class="cc-btn">▦ OPEN SIGNAL ARCHIVE</button>
+        <button id="cc-open-cache" class="cc-btn">▸ OPEN A CACHE</button>
+      </div>
+      <h3>CACHES ON HAND</h3>
+      <div class="cc-chips" id="cc-rw-cachechips"></div>
+      <h3>RECENT REWARDS</h3>
+      <div class="cc-chips" id="cc-rw-recent"></div>`
     );
   }
 
@@ -1095,6 +1135,42 @@ export class CommandCenter {
     set('cc-debug-scene', this.standalone ? 'STANDALONE' : this.lastScene);
     set('cc-testapi', (window as unknown as Record<string, unknown>).__BLIP_TEST_API__ ? 'ACTIVE' : 'DISABLED (prod)');
     set('cc-webgpu', 'gpu' in navigator ? 'SUPPORTED ✦' : 'NOT AVAILABLE — game unaffected');
+
+    // reward system status
+    const col = rewards.collection();
+    const tp = rewards.trophyProgress();
+    set('cc-rw-caches', String(rewards.totalCaches()));
+    set('cc-rw-collection', `${Math.round(col.percent * 100)}%`);
+    set('cc-rw-trophies', `${tp.unlocked} / ${tp.total}`);
+    set('cc-rw-dust', `${rewards.dust()} ✦`);
+    set('cc-rw-medals', String(rewards.medals()));
+    const topRare = rewards.recentRares(1)[0];
+    set('cc-rw-recent-top', topRare ? (rewardById(topRare.id.replace(/^trophy:|^cache:/, ''))?.name ?? RARITIES[topRare.rarity as RarityId]?.name ?? '—') : '—');
+    const cacheChips = this.root.querySelector('#cc-rw-cachechips');
+    if (cacheChips) {
+      const chips = CACHE_ORDER.map((t) => {
+        const n = rewards.cacheCount(t);
+        return `<span class="cc-chip${n > 0 ? ' ok' : ''}"><i class="cc-legend-swatch" style="background:${CACHES[t].color}"></i>${esc(CACHES[t].name)}: <b>${n}</b></span>`;
+      }).join('');
+      cacheChips.innerHTML = chips;
+    }
+    const recentEl = this.root.querySelector('#cc-rw-recent');
+    if (recentEl) {
+      const recent = save.rewards.recent.slice(0, 10);
+      recentEl.innerHTML = recent.length
+        ? recent
+            .map((r) => {
+              const rar = RARITIES[r.rarity as RarityId];
+              const label = r.id.startsWith('trophy:')
+                ? (trophyById(r.id.slice(7))?.name ?? 'Trophy')
+                : r.id.startsWith('cache:')
+                  ? (CACHES[r.id.slice(6) as keyof typeof CACHES]?.name ?? 'Cache')
+                  : (rewardById(r.id)?.name ?? r.id);
+              return `<span class="cc-chip" style="border-color:${rar?.color ?? '#8a5e20'}"><i class="cc-legend-swatch" style="background:${rar?.color ?? '#8a5e20'}"></i>${esc(label)}</span>`;
+            })
+            .join('')
+        : `<span class="cc-chip">No rewards intercepted yet — play to earn caches.</span>`;
+    }
 
     // story bible: decrypt fragment-locked entries
     this.root.querySelectorAll('.cc-bible-body[data-locked="1"]').forEach((el) => {
