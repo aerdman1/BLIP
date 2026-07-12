@@ -73,6 +73,7 @@ export class RewardUI {
   private rafId: number | null = null;
   private canvas: HTMLCanvasElement | null = null;
   private ctx: CanvasRenderingContext2D | null = null;
+  private deferredBanners: BannerPayload[] = [];
 
   // archive state
   private activeTab = 'caches';
@@ -143,6 +144,11 @@ export class RewardUI {
   /* ============================ 1. CACHE-EARNED POPUPS ===================== */
 
   private showBanner(p: BannerPayload): void {
+    if (this.cacheOpen) {
+      this.deferredBanners.push(p);
+      if (this.deferredBanners.length > 3) this.deferredBanners.shift();
+      return;
+    }
     const el = document.createElement('div');
     el.className = `rw-banner${p.big ? ' big' : ''}`;
     el.style.setProperty('--c', p.color || '#a8ff3e');
@@ -160,6 +166,11 @@ export class RewardUI {
     window.setTimeout(() => el.remove(), life + 450);
   }
 
+  private flushDeferredBanners(): void {
+    const queued = this.deferredBanners.splice(0, 3);
+    queued.forEach((p, i) => window.setTimeout(() => this.showBanner(p), i * 260));
+  }
+
   /* ============================ 2. CACHE-OPENING SCREEN =================== */
 
   /** Open the reveal screen. If no type given, pick the first the player owns. */
@@ -174,6 +185,7 @@ export class RewardUI {
     }
     this.cacheType = t;
     this.cacheState = 'idle';
+    this.banners.innerHTML = '';
     this.renderCacheIdle();
     this.cacheEl.classList.remove('hidden');
     if (!this.cacheOpen) {
@@ -191,6 +203,7 @@ export class RewardUI {
     this.cacheEl.classList.add('hidden');
     this.cacheEl.innerHTML = '';
     this.popModal();
+    this.flushDeferredBanners();
     bus.emit(EVT.rewardChanged, {});
   }
 
@@ -229,7 +242,7 @@ export class RewardUI {
     const result = rewards.openCache(this.cacheType);
     if (!result) { this.closeCacheScreen(); return; }
     this.cacheState = 'revealing';
-    try { audio.uiToggle(); } catch { /* */ }
+    try { audio.rewardScan(); } catch { try { audio.uiToggle(); } catch { /* */ } }
 
     const shell = this.cacheEl.querySelector('.rw-cache-shell') as HTMLElement | null;
     const rings = this.cacheEl.querySelectorAll('.rw-ring-spin');
@@ -275,16 +288,27 @@ export class RewardUI {
 
   private renderReveal(result: OpenResult, topRarity: RarityId): void {
     const def = result.cache;
+    const reward = result.rewards[0];
     const newCount = result.newCount;
     const cardsHtml = result.rewards.map((r, i) => this.cardHtml(r, i)).join('');
+    const outcome = reward
+      ? reward.dust > 0
+        ? `DUPLICATE MELTED INTO +${reward.dust} SIGNAL DUST`
+        : reward.amount > 0
+          ? `BALANCE INCREASED BY +${reward.amount}`
+          : reward.isNew
+            ? 'NEW COLLECTION ITEM UNLOCKED'
+            : 'SIGNAL LOG UPDATED'
+      : 'SIGNAL LOG UPDATED';
     this.cacheEl.innerHTML =
       `<div class="rw-grid-bg"></div>` +
       `<canvas class="rw-cache-canvas"></canvas>` +
       `<div class="rw-beams${RARITIES[topRarity].rank >= 5 ? ' on' : ''}" style="--cc:${def.color}"></div>` +
       `<div class="rw-reveal">` +
-      `  <div class="rw-reveal-title" style="color:${def.color}">${esc(def.name.toUpperCase())} — DECODED</div>` +
+      `  <div class="rw-reveal-title" style="color:${def.color}">${esc(def.name.toUpperCase())} DECODED</div>` +
       `  <div class="rw-cards">${cardsHtml}</div>` +
       `  <div class="rw-summary">` +
+      `    <span class="rw-sum-chip primary">${esc(outcome)}</span>` +
       `    ${newCount > 0 ? `<span class="rw-sum-chip">NEW <b>${newCount}</b></span>` : ''}` +
       `    ${result.dustTotal > 0 ? `<span class="rw-sum-chip">${iconSvg('dust', '#f2a93b')} DUST <b>+${result.dustTotal}</b></span>` : ''}` +
       `    <span class="rw-sum-chip">TOTAL DUST <b>${rewards.dust()}</b></span>` +
@@ -300,7 +324,7 @@ export class RewardUI {
     this.rebindCanvas();
     this.cacheState = 'summary';
 
-    // staggered card flip-in + a per-card burst
+    // one big prize reveal + rarity fanfare
     const cards = Array.from(this.cacheEl.querySelectorAll('.rw-card')) as HTMLElement[];
     cards.forEach((card, i) => {
       this.revealTimers.push(window.setTimeout(() => {
@@ -309,7 +333,7 @@ export class RewardUI {
         const rar = card.dataset.rarity as RarityId;
         const col = RARITIES[rar]?.color ?? '#fff';
         this.burst(rect.left + rect.width / 2, rect.top + rect.height / 2, col, RARITIES[rar]?.rank >= 4 ? 20 : 8);
-        try { audio.uiToggle(); } catch { /* */ }
+        try { audio.rewardReveal(RARITIES[rar]?.rank ?? 1); } catch { try { audio.uiToggle(); } catch { /* */ } }
       }, i * 230));
     });
 
@@ -319,8 +343,8 @@ export class RewardUI {
         e.stopPropagation();
         const act = (b as HTMLElement).dataset.act;
         if (act === 'again') this.openCacheScreen(this.cacheType);
-        else if (act === 'archive') { this.closeCacheScreen(); this.openArchive(); }
-        else this.closeCacheScreen();
+        else if (act === 'archive') { try { audio.rewardCollect(); } catch { /* */ } this.closeCacheScreen(); this.openArchive(); }
+        else { try { audio.rewardCollect(); } catch { /* */ } this.closeCacheScreen(); }
       })
     );
   }
@@ -328,16 +352,20 @@ export class RewardUI {
   private cardHtml(r: OpenedReward, i: number): string {
     const rar = RARITIES[r.def.rarity];
     const dupe = !r.isNew && r.dust > 0;
+    const category = CATEGORY_LABEL[r.def.category];
     const amountTag =
       r.amount > 0 ? `<span class="rw-tag dust">+${r.amount}</span>` : '';
     const dustTag = dupe ? `<span class="rw-tag dust">+${r.dust} DUST</span>` : '';
     const newTag = r.isNew ? `<span class="rw-tag new">NEW!</span>` : '';
     return (
       `<div class="rw-card rw-r-${r.def.rarity}${dupe ? ' dupe' : ''}" data-rarity="${r.def.rarity}" style="animation-delay:${i * 0.05}s">` +
+      `<div class="rw-card-rays"></div>` +
       `${newTag}${dustTag}${amountTag}` +
-      `<div class="rw-card-icon">${iconSvg(r.def.icon, r.def.color ?? rar.color)}</div>` +
-      `<div class="rw-card-name">${esc(r.def.name)}</div>` +
       `<div class="rw-card-rarity">${rar.name}</div>` +
+      `<div class="rw-card-icon">${iconSvg(r.def.icon, r.def.color ?? rar.color)}</div>` +
+      `<div class="rw-card-category">${esc(category)}</div>` +
+      `<div class="rw-card-name">${esc(r.def.name)}</div>` +
+      `<div class="rw-card-flavor">${esc(r.def.flavor)}</div>` +
       `</div>`
     );
   }

@@ -478,6 +478,22 @@ class AudioSystem {
   bossWarning(): void { [0, 0.28, 0.56].forEach((d) => this.tone(88, 0.24, 'sawtooth', 0.24, 66, d)); }
   bossStagger(): void { this.tone(1400, 0.3, 'square', 0.13, 200); }
   uiToggle(): void { this.tone(740, 0.05, 'square', 0.1, 500); }
+  rewardScan(): void {
+    this.noise(0.38, 0.08, 5200);
+    this.tone(180, 0.45, 'sawtooth', 0.08, 760);
+    this.tone(360, 0.28, 'triangle', 0.08, 1320, 0.16);
+  }
+  rewardReveal(rank = 1): void {
+    const lift = Math.max(0, rank - 1) * 0.02;
+    const chord = rank >= 6 ? [392, 587, 784, 1175, 1568] : rank >= 4 ? [330, 494, 659, 988] : [262, 392, 523];
+    chord.forEach((f, i) => this.tone(f, 0.22 + lift, 'sine', 0.14, undefined, i * 0.045));
+    this.tone(rank >= 6 ? 96 : 128, 0.34, 'sawtooth', 0.13, rank >= 6 ? 64 : 92);
+    this.noise(0.22 + rank * 0.025, 0.08 + rank * 0.015, rank >= 5 ? 6800 : 4200);
+  }
+  rewardCollect(): void {
+    this.tone(784, 0.08, 'triangle', 0.12);
+    this.tone(1175, 0.12, 'triangle', 0.1, undefined, 0.07);
+  }
   transitionWarp(): void { this.tone(200, 0.5, 'sawtooth', 0.16, 1600); this.noise(0.5, 0.15, 3200); }
   hazardZap(): void { this.tone(1800, 0.09, 'square', 0.13, 300); this.noise(0.1, 0.13, 4000); }
   questAdvance(): void { this.tone(587, 0.09, 'sine', 0.17); this.tone(880, 0.14, 'sine', 0.17, undefined, 0.07); }

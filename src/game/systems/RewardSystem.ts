@@ -5,7 +5,8 @@
  * reward UI (ui/RewardUI.ts) and the Command Center render from here.
  *
  * Fantasy: intercept classified signals → crack caches → collect relics, glitch
- * shards, cosmetic frequencies, weird trophies. Duplicates melt to Signal Dust.
+ * shards, cosmetic frequencies, weird trophies. One cache reveals one prize;
+ * duplicates melt to Signal Dust.
  * Cosmetic / collectible / lore only — never pay-to-win, no monetization.
  */
 import { EVT } from '../config';
@@ -157,7 +158,7 @@ export const rewards = {
   },
 
   /**
-   * Open one cache of a type. Rolls its drops, converts duplicates to dust,
+   * Open one cache of a type. Rolls one prize, converts duplicates to dust,
    * banks currency, records NEW collectibles, and returns a full OpenResult for
    * the reveal screen. Returns null if the player has none of that cache.
    */
@@ -166,11 +167,7 @@ export const rewards = {
     if (!def || this.cacheCount(type) <= 0) return null;
 
     // roll BEFORE mutating so we can apply everything atomically
-    const drops: RewardDef[] = [];
-    for (let i = 0; i < def.drops; i++) {
-      const rarity = pickRarity(def.rarityWeights, i === 0 ? def.floor : undefined);
-      drops.push(pickReward(rarity, def.categoryBias));
-    }
+    const drops: RewardDef[] = [pickReward(pickRarity(def.rarityWeights, def.floor), def.categoryBias)];
 
     const opened: OpenedReward[] = [];
     let dustTotal = 0;
