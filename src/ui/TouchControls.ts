@@ -84,7 +84,7 @@ export class TouchControls {
     actions.className = 'tc-actions';
     // held buttons: level-triggered (hold JUMP to hover, hold SHOOT to autofire)
     actions.appendChild(this.heldButton('tc-btn tc-jump', 'JUMP', 'jumpHeld', true));
-    actions.appendChild(this.heldButton('tc-btn tc-shoot', '◎', 'shootHeld', false));
+    actions.appendChild(this.aimFireButton('tc-btn tc-shoot', '◎'));
     // tap buttons: one-shot edges
     actions.appendChild(this.tapButton('tc-btn tc-scan', '((·))', 'scanQueued'));
     actions.appendChild(this.tapButton('tc-btn tc-dash', '»', 'dashQueued'));
@@ -120,10 +120,71 @@ export class TouchControls {
 
     const nx = x / max;
     const ny = y / max;
-    touchInput.aimX = Math.abs(nx) < 0.12 ? 0 : nx;
-    touchInput.aimY = Math.abs(ny) < 0.12 ? 0 : ny;
+    // Left stick is MOVEMENT ONLY. Aiming lives on the drag-aim SHOOT button so the
+    // gun can be aimed independently of where you're moving/facing. (Top-down Sweep
+    // auto-aims the nearest enemy, so it ignores aimX/aimY regardless.)
     touchInput.moveX = nx < -0.25 ? -1 : nx > 0.25 ? 1 : 0;
     touchInput.moveY = ny < -0.25 ? -1 : ny > 0.25 ? 1 : 0;
+  }
+
+  /** SHOOT doubles as an aim control: hold to fire, DRAG in any direction to aim
+   *  the shot there (360°). A small tap = fire along the current facing. */
+  private aimFireButton(className: string, glyph: string): HTMLElement {
+    const b = this.makeButton(className, glyph);
+    let pid: number | null = null;
+    let cx = 0;
+    let cy = 0;
+    const DEAD = 16; // px drag before directional aim kicks in
+    const setAim = (e: PointerEvent) => {
+      const dx = e.clientX - cx;
+      const dy = e.clientY - cy;
+      const len = Math.hypot(dx, dy);
+      if (len < DEAD) {
+        touchInput.aimX = 0;
+        touchInput.aimY = 0;
+        return;
+      }
+      touchInput.aimX = dx / len;
+      touchInput.aimY = dy / len;
+    };
+    const down = (e: PointerEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      pid = e.pointerId;
+      try {
+        b.setPointerCapture?.(e.pointerId);
+      } catch {
+        /* capture can fail (e.g. stale pointer) — drag-aim still works via move events */
+      }
+      const r = b.getBoundingClientRect();
+      cx = r.left + r.width / 2;
+      cy = r.top + r.height / 2;
+      touchInput.shootHeld = true;
+      setAim(e);
+      b.classList.add('active');
+      audio.unlock();
+    };
+    const move = (e: PointerEvent) => {
+      if (pid !== e.pointerId) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setAim(e); // pointer is captured, so this keeps tracking outside the button
+    };
+    const up = (e: PointerEvent) => {
+      if (pid !== null && pid !== e.pointerId) return;
+      e.preventDefault();
+      e.stopPropagation();
+      pid = null;
+      touchInput.shootHeld = false;
+      touchInput.aimX = 0;
+      touchInput.aimY = 0;
+      b.classList.remove('active');
+    };
+    b.addEventListener('pointerdown', down);
+    b.addEventListener('pointermove', move);
+    b.addEventListener('pointerup', up);
+    b.addEventListener('pointercancel', up);
+    return b;
   }
 
   /** A hold-to-act button: sets a boolean held flag true on press, false on release. */
