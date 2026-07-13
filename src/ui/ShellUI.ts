@@ -190,6 +190,42 @@ export class ShellUI {
       this.refreshGameplayChrome();
     }, 120));
     window.addEventListener('keydown', (ev) => this.onKeyDown(ev), { capture: true });
+
+    // iOS Safari ignores `user-scalable=no`, so block its pinch-zoom gestures
+    // directly. `{ passive: false }` is required for preventDefault to take. This
+    // only cancels multi-finger pinch — normal single taps/clicks are untouched.
+    const blockGesture = (ev: Event) => ev.preventDefault();
+    document.addEventListener('gesturestart', blockGesture, { passive: false });
+    document.addEventListener('gesturechange', blockGesture, { passive: false });
+    document.addEventListener('gestureend', blockGesture, { passive: false });
+
+    this.wireTouchDevAccess();
+  }
+
+  /** True on touch/tablet devices (iPad, phones) where there's no keyboard. */
+  private isTouchDevice(): boolean {
+    return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  }
+
+  /** DEV access without a keyboard (iPad): surface the ▚ DEV button and add a
+   *  secret rapid multi-tap on the unit badge — both open the ERD dev console. */
+  private wireTouchDevAccess(): void {
+    if (this.isTouchDevice()) {
+      // reveal the DEV console launcher so touch players can enable God / Fly / warp
+      $('btn-dev').classList.remove('hidden');
+    }
+    // secret fallback (works on any device): 5 quick taps/clicks on the unit badge
+    let taps = 0;
+    let lastTap = 0;
+    $('unit-badge').addEventListener('click', () => {
+      const now = Date.now();
+      taps = now - lastTap < 600 ? taps + 1 : 1;
+      lastTap = now;
+      if (taps >= 5) {
+        taps = 0;
+        this.showDevPanel();
+      }
+    });
   }
 
   private wireBeforeUnload(): void {
@@ -321,7 +357,9 @@ export class ShellUI {
     const showButtons = devState.god && !this.onMenu;
     $('btn-command-center').classList.toggle('hidden', !showButtons);
     $('btn-debug').classList.toggle('hidden', !showButtons);
-    $('btn-dev').classList.toggle('hidden', !showButtons);
+    // The DEV console launcher is the ENTRY point to enabling god/fly, so on touch
+    // devices (no keyboard, no "erd" path) it must stay visible regardless of god state.
+    $('btn-dev').classList.toggle('hidden', !showButtons && !this.isTouchDevice());
     $('god-indicator').classList.toggle('hidden', !showButtons);
   }
 
@@ -1175,6 +1213,7 @@ export class ShellUI {
         <div class="dev-sec-h">TOGGLES</div>
         <div class="dev-row">
           <button data-act="god" id="dev-god">God Mode: OFF</button>
+          <button data-act="fly" id="dev-fly">Fly Mode: OFF</button>
           <button data-act="reset" class="danger">Reset Save</button>
         </div>
         <div class="dev-hint">In a level: <b>F</b> = FLY-THROUGH (noclip · WASD + ↑↓) · <b>G</b> = god mode · <b>X</b> shoots, <b>right-click</b> sonar.<br>God Mode here applies when you next enter a level (warp / continue); or just press <b>G</b> while playing.</div>
@@ -1206,6 +1245,9 @@ export class ShellUI {
     const god = this.devEl.querySelector('#dev-god');
     if (god) god.textContent = `God Mode: ${devState.god ? 'ON' : 'OFF'}`;
     (this.devEl.querySelector('#dev-god') as HTMLElement)?.classList.toggle('on', devState.god);
+    const fly = this.devEl.querySelector('#dev-fly');
+    if (fly) fly.textContent = `Fly Mode: ${devState.fly ? 'ON' : 'OFF'}`;
+    (this.devEl.querySelector('#dev-fly') as HTMLElement)?.classList.toggle('on', devState.fly);
     this.devStatus(
       `${s.unlockedAbilities.length} abilities · ${s.unlockedSkins.length} skins · ${s.signalFragments} frags · ${s.shards} shards`
     );
@@ -1294,6 +1336,14 @@ export class ShellUI {
       case 'god':
         devState.god = !devState.god;
         bus.emit(EVT.godMode, { on: devState.god });
+        break;
+      case 'fly':
+        devState.fly = !devState.fly;
+        bus.emit(EVT.flyMode, { on: devState.fly });
+        bus.emit(EVT.toast, {
+          text: devState.fly ? 'FLY MODE ON — noclip · move stick + JUMP/↑ up · ↓ down' : 'FLY MODE OFF',
+          color: devState.fly ? 'green' : 'orange',
+        });
         break;
       case 'reset':
         if (window.confirm('Reset this save slot?')) {

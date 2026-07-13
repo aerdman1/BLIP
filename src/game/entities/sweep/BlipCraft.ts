@@ -5,7 +5,7 @@
  * can't perturb core platformer movement. Tuning in config.SWEEP.
  */
 import Phaser from 'phaser';
-import { EVT, PALETTE as P, SWEEP, TEX } from '../../config';
+import { EVT, FLY_SPEED, PALETTE as P, SWEEP, TEX } from '../../config';
 import { audio } from '../../systems/AudioSystem';
 import { bus } from '../../systems/EventBus';
 import { activeSkin } from '../../systems/SkinState';
@@ -58,6 +58,13 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
     this.barrel = scene.add.rectangle(x, y, 11, 4, activeSkin().color, 1).setOrigin(0, 0.5).setDepth(21);
     this.hp = this.maxHp; // ANCHOR +1 hull / ROCKET −1 hull etc. apply here
 
+    // Fly mode (shared dev flag) — noclip through walls, driven by the dev panel
+    // so it's reachable on touch/iPad. Apply on spawn + react to live toggles.
+    if (devState.fly) this.setFly(true);
+    const onFly = (p: unknown) => this.setFly((p as { on: boolean }).on);
+    bus.on(EVT.flyMode, onFly);
+    this.once('destroy', () => bus.off(EVT.flyMode, onFly));
+
     // G toggles god mode in the top-down too (shared devState with the side-view).
     // Live whenever dev tools are on OR god mode is already enabled via the console.
     if (DEV_TOOLS || devState.god) {
@@ -67,6 +74,20 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
         bus.emit(EVT.godMode, { on: devState.god });
       });
     }
+  }
+
+  /** DEV noclip free-fly. Top-down is already gravity-free, so fly just lifts wall
+   *  collision + moves at FLY_SPEED. Toggling off restores collision cleanly. */
+  private flying = false;
+  setFly(on: boolean): void {
+    if (this.flying === on) return;
+    this.flying = on;
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    body.setVelocity(0, 0);
+    body.setAcceleration(0, 0);
+    body.checkCollision.none = on; // noclip: pass through geometry
+    this.setTint(on ? 0x8fdcff : 0xffffff);
+    if (!on) this.clearTint();
   }
 
   get isDashing(): boolean {
@@ -106,6 +127,18 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
     const ax = input.moveDir; // -1 / 0 / 1  (A / D / arrows / left-stick X / dpad)
     const ay = input.moveY; //  -1 up / 0 / 1 down (W/S / arrows / left-stick Y / dpad)
     const len = Math.hypot(ax, ay) || 1;
+
+    // DEV free-fly: fly straight from the (touch) stick at FLY_SPEED, noclip.
+    if (this.flying) {
+      body.setAcceleration(0, 0);
+      body.setVelocity((ax / len) * FLY_SPEED, (ay / len) * FLY_SPEED);
+      this.setFlipX(Math.cos(this.aimAngle) < 0);
+      this.shadow.setPosition(this.x, this.y + 10);
+      this.glow.setPosition(this.x, this.y + 7);
+      this.barrel.setPosition(this.x, this.y + BlipCraft.GUN_OFFSET_Y).setRotation(this.aimAngle);
+      this.setAlpha(1);
+      return;
+    }
 
     // phase-drift dash — i-frames; toward movement, or toward aim if standing still
     if (input.dashJustDown && !this.isDashing && now >= this.dashCdUntil) {

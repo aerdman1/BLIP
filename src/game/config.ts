@@ -354,6 +354,9 @@ export const PLAYER = {
   echoCooldownMs: 600, // lockout after a blink
 } as const;
 
+/** DEV free-fly / noclip speed (px/sec) — shared by side-view + top-down fly mode. */
+export const FLY_SPEED = 360;
+
 /* ------------------------------ camera feel -------------------------------- */
 // Follow-camera tuning. lookaheadX leads the view in the direction CONTACT-47
 // faces so drops, drones and the ravine are visible BEFORE you reach them;
@@ -1065,6 +1068,7 @@ export const EVT = {
   rewardOpenCache: 'reward:open-cache', // {cacheType?} — request: open the cache-opening screen
   sweepCleared: 'sweep:cleared', // {combo, noHit} — a Signal Storm arena was cleared
   godMode: 'dev:god-mode', // {on:boolean} — god mode toggled; drives HUD indicator + dev chrome
+  flyMode: 'dev:fly-mode', // {on:boolean} — free-fly / noclip toggled from the dev panel
 } as const;
 
 /** TEX key for a skin's player body ('' → use TEX.player for contact47) */

@@ -4,7 +4,7 @@
  * All tuning in config.PLAYER.
  */
 import Phaser from 'phaser';
-import { EVT, PALETTE as P, PLAYER, PROGRESSION, PULSE, SCAN, SKIN_TEX, TEX } from '../config';
+import { EVT, FLY_SPEED, PALETTE as P, PLAYER, PROGRESSION, PULSE, SCAN, SKIN_TEX, TEX } from '../config';
 import { bus } from '../systems/EventBus';
 import { audio } from '../systems/AudioSystem';
 import { rumble } from '../systems/PadSim';
@@ -72,6 +72,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       .setAlpha(0.7);
     scene.tweens.add({ targets: this.antennaTip, alpha: { from: 0.35, to: 0.85 }, duration: 900, yoyo: true, repeat: -1 });
 
+    // Fly mode can be toggled from the ERD dev panel (works on touch/iPad — no
+    // keyboard needed). Apply the current dev flag on spawn and react to changes.
+    if (devState.fly) this.setFly(true);
+    const onFly = (p: unknown) => this.setFly((p as { on: boolean }).on);
+    bus.on(EVT.flyMode, onFly);
+    this.once('destroy', () => bus.off(EVT.flyMode, onFly));
+
     // DEV keys: F = fly-through (dev/test only), G = god mode. G stays live once
     // god mode is enabled (via the ERD console) so players can toggle it in-play.
     if (DEV_TOOLS || devState.god) {
@@ -79,6 +86,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       if (DEV_TOOLS) {
         kb?.on('keydown-F', () => {
           const on = this.toggleFly();
+          devState.fly = on; // keep the shared dev flag + panel in sync
           bus.emit(EVT.toast, { text: on ? 'FLY MODE — noclip · WASD + ↑↓ · F to land' : 'FLY MODE OFF', color: on ? 'green' : 'orange' });
         });
       }
@@ -110,7 +118,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   flying = false;
 
   toggleFly(): boolean {
-    this.flying = !this.flying;
+    return this.setFly(!this.flying);
+  }
+
+  /** Enter/leave noclip free-fly. Toggling off cleanly restores gravity +
+   *  collision so normal play is unaffected. Independent of god mode. */
+  setFly(on: boolean): boolean {
+    if (this.flying === on) return this.flying;
+    this.flying = on;
     const body = this.body as Phaser.Physics.Arcade.Body;
     body.setAllowGravity(!this.flying);
     body.setVelocity(0, 0);
@@ -124,10 +139,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   private updateFly(input: PlayerInput): void {
     const body = this.body as Phaser.Physics.Arcade.Body;
-    const speed = 360;
+    const speed = FLY_SPEED;
     const dir = input.moveDir;
     if (dir !== 0) this.facing = dir;
-    const vy = input.jumpDown ? -speed : input.flyDownHeld ? speed : 0;
+    // Vertical: JUMP button / ↑ / stick-up climbs; ↓ / stick-down descends. The
+    // touch thumbstick (moveY) drives up+down so fly works with no keyboard.
+    const up = input.jumpDown || input.moveY < 0;
+    const down = input.flyDownHeld || input.moveY > 0;
+    const vy = up && !down ? -speed : down && !up ? speed : 0;
     body.setVelocity(dir * speed, vy);
     this.setFlipX(this.facing < 0);
     this.setDisplayOrigin(8, 10);

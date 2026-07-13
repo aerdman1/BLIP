@@ -6,4 +6,6 @@
 export const devState = {
   /** invulnerability — applied to the player on spawn */
   god: false,
+  /** free-fly / noclip — float through a level ignoring gravity + collision */
+  fly: false,
 };

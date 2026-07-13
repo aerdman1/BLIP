@@ -58,6 +58,14 @@ html, body {
   user-select: none;
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
+  /* iPad Safari: double-tap on a button must not zoom; keep single taps instant */
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+/* interactive controls: no double-tap zoom, taps stay fast on touch */
+.shell-btn, .menu-item, button, .toggle, .nk, .tc-btn {
+  touch-action: manipulation;
 }
 /* text fields stay selectable (e.g. the save-name input) */
 input, textarea { -webkit-user-select: text; user-select: text; }
