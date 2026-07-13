@@ -9,7 +9,7 @@
  * HTML shell.
  */
 import Phaser from 'phaser';
-import { EVT, PALETTE as P, PLAYER, RENDER_ZOOM, SCENES, VIEW_H, VIEW_W, css } from '../config';
+import { EVT, HUD_HEALTH, PALETTE as P, PLAYER, RENDER_ZOOM, SCENES, VIEW_H, VIEW_W, css } from '../config';
 import { bus } from '../systems/EventBus';
 
 interface SweepStats {
@@ -149,22 +149,22 @@ export class UIScene extends Phaser.Scene {
         <div class="sweep-hud-contacts">0 CONTACTS LEFT</div>
         <div class="sweep-hud-node"><i></i></div>
       </div>
-      <div class="sweep-hud-weapon">PULSE</div>
+      <div class="sweep-hud-weapon"><span class="cap">WEAPON</span><span class="val">PULSE</span></div>
       <div class="sweep-hud-overdrive">
         <span>SIGNAL OVERDRIVE</span>
         <div><i></i></div>
       </div>
-      <div class="sweep-hud-prompts">DASH · SCAN · ECHO</div>
+      <div class="sweep-hud-prompts"><span class="cap">CONTROLS</span><span class="val">DASH · SCAN · ECHO</span></div>
       <div class="sweep-hud-banner"></div>`;
     frame.appendChild(el);
     this.sweepHudEl = el;
     this.sweepObjectiveEl = el.querySelector('.sweep-hud-objective');
     this.sweepContactsEl = el.querySelector('.sweep-hud-contacts');
     this.sweepNodeFillEl = el.querySelector('.sweep-hud-node i');
-    this.sweepWeaponEl = el.querySelector('.sweep-hud-weapon');
+    this.sweepWeaponEl = el.querySelector('.sweep-hud-weapon .val');
     this.sweepOverdriveEl = el.querySelector('.sweep-hud-overdrive span');
     this.sweepOverdriveFillEl = el.querySelector('.sweep-hud-overdrive i');
-    this.sweepPromptsEl = el.querySelector('.sweep-hud-prompts');
+    this.sweepPromptsEl = el.querySelector('.sweep-hud-prompts .val');
     this.sweepBannerEl = el.querySelector('.sweep-hud-banner');
   }
 
@@ -194,14 +194,34 @@ export class UIScene extends Phaser.Scene {
     const g = this.sweepG;
     g.clear();
 
-    // ---- bottom-left: HP pips + weapon plate ----
-    const bx = 8;
-    const by = VIEW_H - 30;
-    g.fillStyle(P.black, 0.5).fillRect(bx - 2, by - 3, 108, 30);
+    // ---- bottom-left: integrity (HP) bar + weapon plate ----
+    const { x: bx, y: by, segW, segH, gap, iconW } = HUD_HEALTH;
+    const barX = bx + iconW + 3; // segments start after the heart icon
+    const barW = this.hpMax * segW + (this.hpMax - 1) * gap;
+    g.fillStyle(P.black, 0.5).fillRect(bx - 2, by - 6, barW + iconW + 8, 34);
+
+    // leading heart icon (a tiny palette-locked pixel heart reads as "integrity")
+    const hy = by;
+    g.fillStyle(P.danger, 1);
+    g.fillRect(bx, hy + 1, 3, 3);
+    g.fillRect(bx + 4, hy + 1, 3, 3);
+    g.fillRect(bx, hy + 2, iconW, 3);
+    g.fillRect(bx + 1, hy + 5, iconW - 2, 1);
+    g.fillStyle(0xffffff, 0.35).fillRect(bx + 1, hy + 1, 1, 1); // spec highlight
+
+    // recessed track behind the segments, then filled/empty segments
+    g.fillStyle(P.black, 0.6).fillRect(barX - 1, by - 1, barW + 2, segH + 2);
     for (let i = 0; i < this.hpMax; i++) {
       const on = i < this.hp;
-      g.fillStyle(on ? P.danger : P.dangerDark, on ? 1 : 0.5);
-      g.fillRect(bx + i * 9, by, 7, 6);
+      const sx = barX + i * (segW + gap);
+      if (on) {
+        g.fillStyle(P.danger, 1).fillRect(sx, by, segW, segH);
+        g.fillStyle(0xffffff, 0.22).fillRect(sx, by, segW, 1); // top sheen
+        g.fillStyle(P.dangerDark, 0.6).fillRect(sx, by + segH - 1, segW, 1); // base shade
+      } else {
+        g.fillStyle(P.dangerDark, 0.45).fillRect(sx, by, segW, segH);
+        g.fillStyle(P.uiDim, 0.25).fillRect(sx, by, segW, 1);
+      }
     }
     // weapon underline swatch
     g.fillStyle(P.signalDim, 0.9).fillRect(bx + 1, VIEW_H - 6, 96, 1);

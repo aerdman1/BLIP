@@ -303,23 +303,26 @@ export class ShellUI {
       this.ccVisible ? this.closeCommandCenter() : this.openCommandCenter();
     });
     $('btn-debug').addEventListener('click', () => bus.emit(EVT.debugToggle, {}));
-    $('btn-reset').addEventListener('click', () => this.confirmReset());
+    $('btn-dev').addEventListener('click', () => this.showDevPanel());
     $('btn-mute').addEventListener('click', () => {
       audio.unlock();
       audio.toggleMute();
       this.renderVolumePips();
     });
-    this.refreshResetButton();
+    this.refreshDevChrome();
   }
 
   private onMenu = true;
 
-  /** Top-bar RESET is only meaningful during a run — on the menu the slot
-   *  picker owns erasing, so hide it there (fixes "reset shows with no save"). */
-  private refreshResetButton(): void {
-    const btn = $('btn-reset');
-    const show = !this.onMenu; // in a run → reset the active slot; on menu → hidden
-    btn.classList.toggle('hidden', !show);
+  /** Dev tools (Command Center / Debug / DEV console buttons + the GOD MODE
+   *  indicator) only clutter the HUD when god mode is on and a run is active.
+   *  Normal players see just the SOUND toggle. */
+  private refreshDevChrome(): void {
+    const showButtons = devState.god && !this.onMenu;
+    $('btn-command-center').classList.toggle('hidden', !showButtons);
+    $('btn-debug').classList.toggle('hidden', !showButtons);
+    $('btn-dev').classList.toggle('hidden', !showButtons);
+    $('god-indicator').classList.toggle('hidden', !showButtons);
   }
 
   private confirmReset(): void {
@@ -375,7 +378,9 @@ export class ShellUI {
       this.refreshGameplayChrome();
       this.refreshTouch();
       this.refreshOrientationNudge();
+      this.refreshDevChrome();
     });
+    bus.on(EVT.godMode, () => this.refreshDevChrome());
     bus.on(EVT.bossSpawn, (d) => {
       const b = d as { name: string };
       $('boss-name').textContent = b.name;
@@ -519,7 +524,7 @@ export class ShellUI {
     $('game-frame').classList.toggle('menu-open', v);
     this.refreshGameplayChrome();
     $('menu-overlay').classList.toggle('hidden', !v);
-    this.refreshResetButton();
+    this.refreshDevChrome();
     if (v) {
       this.buildHero();
       this.buildMenuScoutTargets();
@@ -645,6 +650,7 @@ export class ShellUI {
     }
     this.menuEntries.push(
       { label: 'COMMAND CENTER', icon: '▦', id: 'menu-command-center', action: () => this.openCommandCenter() },
+      { label: 'SIGNAL ARCHIVE', icon: '▤', id: 'menu-archive', action: () => bus.emit(EVT.rewardOpenArchive, {}) },
       { label: 'FIELD MANUAL', icon: '❏', id: 'menu-field-manual', action: () => this.openCommandCenter('controls') },
       { label: 'SETTINGS', icon: '⚙', id: 'menu-settings', action: () => this.openSettings() }
     );
@@ -665,7 +671,6 @@ export class ShellUI {
     if (window.confirm(`Erase Save Slot ${index + 1}? This can’t be undone.`)) {
       resetSlot(index);
       this.buildMenuEntries(); // re-render the picker
-      this.refreshResetButton();
     }
   }
 
@@ -710,7 +715,8 @@ export class ShellUI {
     this.pauseEntries = [
       { label: 'RESUME', icon: '▶', cls: 'primary', id: 'pause-resume', action: () => bus.emit(EVT.uiResume, {}) },
       { label: 'SETTINGS', icon: '⚙', id: 'pause-settings', action: () => this.openSettings() },
-      { label: 'COMMAND CENTER', icon: '▦', id: 'pause-command-center', action: () => this.openCommandCenter() },
+      { label: 'SIGNAL ARCHIVE', icon: '▦', id: 'pause-archive', action: () => bus.emit(EVT.rewardOpenArchive, {}) },
+      { label: 'COMMAND CENTER', icon: '▤', id: 'pause-command-center', action: () => this.openCommandCenter() },
       { label: 'MAIN MENU', icon: '⌂', id: 'pause-main-menu', action: () => bus.emit(EVT.uiMainMenu, {}) },
       { label: 'RESET SAVE', icon: '⚠', cls: 'danger', id: 'pause-reset', action: () => this.confirmReset() },
     ];
@@ -1287,6 +1293,7 @@ export class ShellUI {
         return;
       case 'god':
         devState.god = !devState.god;
+        bus.emit(EVT.godMode, { on: devState.god });
         break;
       case 'reset':
         if (window.confirm('Reset this save slot?')) {

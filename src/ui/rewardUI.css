@@ -42,22 +42,68 @@
 
 .rw-banner {
   --c: var(--lime, #a8ff3e);
+  --rw-enter: 480ms;
+  --rw-exit: 420ms;
   position: relative;
   width: 100%;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
+  padding: 12px 14px;
   background: linear-gradient(100deg, rgba(9, 13, 22, 0.96), rgba(9, 13, 22, 0.82));
   border: 1px solid var(--c);
   border-left: 5px solid var(--c);
   border-radius: 4px;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 6px 22px rgba(0, 0, 0, 0.55), 0 0 22px -6px var(--c);
   overflow: hidden;
-  animation: rw-banner-in 0.42s cubic-bezier(0.2, 1.3, 0.4, 1) both;
+  animation: rw-banner-in var(--rw-enter) cubic-bezier(0.2, 1.3, 0.4, 1) both;
 }
 .rw-banner.out {
-  animation: rw-banner-out 0.4s ease forwards;
+  animation: rw-banner-out var(--rw-exit) cubic-bezier(0.5, 0, 0.75, 0) forwards;
+}
+/* soft rarity halo that breathes for the banner's whole life */
+.rw-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  box-shadow: inset 0 0 26px -10px var(--c);
+  opacity: 0.9;
+  pointer-events: none;
+}
+/* diagonal shine sweep on entrance */
+.rw-banner .rw-b-shine {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: linear-gradient(105deg, transparent 32%, rgba(255, 255, 255, 0.22) 48%, rgba(255, 255, 255, 0.05) 54%, transparent 68%);
+  transform: translateX(-130%);
+  animation: rw-sheen 0.7s ease 0.18s 1 both;
+  pointer-events: none;
+}
+/* "+N more" chip — extra rewards are queued behind this one */
+.rw-banner .rw-b-more {
+  flex: 0 0 auto;
+  margin-left: auto;
+  align-self: center;
+  font-family: var(--display, sans-serif);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  color: #05070f;
+  background: var(--c);
+  border-radius: 10px;
+  padding: 3px 9px;
+  box-shadow: 0 0 10px -2px var(--c);
+}
+.rw-banner .rw-b-desc {
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--muted, #afa27c);
+  margin-top: 1px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 .rw-banner .rw-b-icon {
   width: 40px;
@@ -91,15 +137,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-/* animated sheen sweep */
-.rw-banner::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.14) 50%, transparent 70%);
-  transform: translateX(-120%);
-  animation: rw-sheen 1.1s ease 0.15s;
 }
 .rw-banner.big {
   padding: 16px 18px;
@@ -855,6 +892,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rw-banner, .rw-banner::after, .rw-card, .rw-cache-shell, .rw-ring-spin, .rw-beams, .rw-btn { animation: none !important; }
+  .rw-banner, .rw-banner .rw-b-shine, .rw-card, .rw-cache-shell, .rw-ring-spin, .rw-beams, .rw-btn { animation: none !important; }
   .rw-card { opacity: 1; transform: none; }
 }

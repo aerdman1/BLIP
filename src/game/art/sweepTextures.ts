@@ -370,20 +370,34 @@ export function buildSweepTextures(scene: Phaser.Scene): void {
   // CONTACT-47 top-down hero — cream shell, green eyes, outline, top highlight
   {
     const g = gfx(scene);
-    // body
-    g.fillStyle(P.shellShade, 1).fillRoundedRect(5, 8, 14, 15, 5);
-    g.fillStyle(P.shellWhite, 1).fillRoundedRect(5, 7, 14, 12, 5);
-    g.fillStyle(P.white, 0.5).fillRoundedRect(6, 8, 6, 4, 2); // top-left highlight
-    // head/face plate
+    // body — full form ramp (deep underside → midtone → lit crown), same
+    // 14×16 rounded shell footprint so collision/aim math is unchanged.
+    g.fillStyle(P.shellDeep, 1).fillRoundedRect(5, 9, 14, 14, 6); // underside shadow
+    g.fillStyle(P.shellShade, 1).fillRoundedRect(5, 8, 14, 14, 6); // midtone
+    g.fillStyle(P.shellMid, 1).fillRoundedRect(5, 7, 14, 12, 6); // lit shell base
+    g.fillStyle(P.shellWhite, 1).fillRoundedRect(5, 7, 13, 6, 5); // top light band
+    g.fillStyle(P.shellHi, 0.85).fillRoundedRect(6, 8, 6, 3, 2); // top-left catch-light
+    // cool moonlit rim down the shaded right + bottom edges
+    g.fillStyle(P.shellRim, 0.5).fillRect(18, 10, 1, 9);
+    g.fillStyle(P.shellRim, 0.3).fillRect(7, 20, 10, 1);
+    // visor faceplate with a glass sheen
     g.fillStyle(P.faceplate, 1).fillRoundedRect(6, 9, 12, 8, 3);
-    g.fillStyle(P.signal, 1).fillCircle(10, 13, 2.2).fillCircle(15, 13, 2.2); // eyes
-    g.fillStyle(P.white, 1).fillCircle(10.4, 12.4, 0.8).fillCircle(15.4, 12.4, 0.8);
-    // little feet
-    g.fillStyle(P.shellShade, 1).fillRect(7, 22, 4, 3).fillRect(13, 22, 4, 3);
-    // antenna
-    g.fillStyle(P.shellShade, 1).fillRect(11, 3, 2, 5);
-    g.fillStyle(P.signal, 1).fillCircle(12, 3, 1.6);
-    g.lineStyle(1, P.faceplate, 0.5).strokeRoundedRect(5, 7, 14, 16, 5);
+    g.fillStyle(P.faceplateLit, 0.9).fillRoundedRect(6, 9, 12, 2, 2);
+    // eyes: soft inner bloom → bright accent → white catch-light + roundness shade
+    g.fillStyle(P.visorGlow, 0.18).fillCircle(10, 13, 3.4).fillCircle(15, 13, 3.4);
+    g.fillStyle(P.signal, 1).fillCircle(10, 13, 2.2).fillCircle(15, 13, 2.2);
+    g.fillStyle(P.signalDim, 0.7).fillCircle(10, 13.9, 1.1).fillCircle(15, 13.9, 1.1);
+    g.fillStyle(P.white, 1).fillCircle(10.4, 12.4, 0.9).fillCircle(15.4, 12.4, 0.9);
+    g.fillStyle(P.visorGlow, 0.4).fillRect(12, 12, 1, 2); // scanner line between eyes
+    // little feet — shaded, lit top lip
+    g.fillStyle(P.shellDeep, 1).fillRect(7, 22, 4, 3).fillRect(13, 22, 4, 3);
+    g.fillStyle(P.shellShade, 1).fillRect(7, 22, 4, 1).fillRect(13, 22, 4, 1);
+    // antenna — shaded shaft + glowing signal bulb
+    g.fillStyle(P.shellDeep, 1).fillRect(11, 3, 2, 5);
+    g.fillStyle(P.shellShade, 1).fillRect(11, 3, 1, 5);
+    g.fillStyle(P.signal, 1).fillCircle(12, 3, 1.8);
+    g.fillStyle(P.white, 0.8).fillCircle(11.6, 2.6, 0.7);
+    g.lineStyle(1, P.faceplate, 0.5).strokeRoundedRect(5, 7, 14, 16, 6);
     g.generateTexture(TEX.sweepBlipBody, 24, 27);
     g.destroy();
   }
@@ -433,6 +447,102 @@ export function buildSweepTextures(scene: Phaser.Scene): void {
     g.fillStyle(P.danger, 1).fillCircle(4, 2, 1.4).fillCircle(w - 4, 2, 1.4);
     g.lineStyle(1, P.black, 0.55).strokeRoundedRect(3, 3, w - 6, w - 6, 5);
     g.generateTexture(TEX.sweepElite, w, w);
+    g.destroy();
+  }
+  // FIREWALL "warden" — armoured hull with a bright shield plate on its +x (front) edge.
+  // The sprite ROTATES in-game so the plate always faces the player (shoot the back).
+  {
+    const g = gfx(scene);
+    const w = 22;
+    const cx = w / 2;
+    g.fillStyle(P.black, 0.3).fillEllipse(cx, w - 2, w - 6, 4);
+    // hull
+    g.fillStyle(P.fuseSteelDark, 1).fillRoundedRect(3, 4, w - 8, w - 8, 4);
+    g.fillStyle(P.slate, 1).fillRoundedRect(3, 3, w - 8, (w - 8) * 0.55, 4);
+    // red core eye
+    g.fillStyle(P.dangerDark, 1).fillCircle(cx - 1, cx, 3.2);
+    g.fillStyle(P.danger, 1).fillCircle(cx - 1, cx, 2.2);
+    // shield plate hugging the front (+x) edge — thick, lit cyan rim
+    g.fillStyle(P.bluestone, 1).fillRoundedRect(w - 7, 2, 5, w - 4, 2);
+    g.fillStyle(P.neonCyan, 1).fillRect(w - 3, 3, 2, w - 6);
+    g.fillStyle(P.white, 0.7).fillRect(w - 3, 4, 2, 3);
+    g.lineStyle(1, P.black, 0.5).strokeRoundedRect(3, 3, w - 8, w - 6, 4);
+    g.generateTexture(TEX.sweepWarden, w, w);
+    g.destroy();
+  }
+  // PINPOINT "sniper" — slim scope drone: dark body, long cyan lens, single sharp eye.
+  {
+    const g = gfx(scene);
+    const w = 18;
+    const cx = w / 2;
+    g.fillStyle(P.black, 0.28).fillEllipse(cx, w - 2, w - 6, 4);
+    g.fillStyle(P.slateDark, 1).fillRoundedRect(4, 5, w - 8, w - 9, 3);
+    g.fillStyle(P.slate, 1).fillRoundedRect(4, 4, w - 8, 3, 3);
+    // long lens barrel across the middle
+    g.fillStyle(P.fuseSteel, 1).fillRect(2, cx - 1, w - 4, 3);
+    g.fillStyle(P.neonCyan, 1).fillRect(w - 5, cx - 1, 3, 3); // glinting lens tip
+    g.fillStyle(P.white, 0.8).fillRect(w - 4, cx - 1, 1, 1);
+    // targeting eye
+    g.fillStyle(P.dangerDark, 1).fillCircle(cx, cx + 3, 2.4);
+    g.fillStyle(P.danger, 1).fillCircle(cx, cx + 3, 1.5);
+    g.lineStyle(1, P.black, 0.5).strokeRoundedRect(4, 4, w - 8, w - 7, 3);
+    g.generateTexture(TEX.sweepSniper, w, w);
+    g.destroy();
+  }
+  // REPLICATOR "splitter" — a clustered pod that obviously breaks apart.
+  {
+    const g = gfx(scene);
+    const w = 20;
+    const cx = w / 2;
+    g.fillStyle(P.black, 0.3).fillEllipse(cx, w - 2, w - 5, 4);
+    const pods: [number, number, number][] = [[cx, cx - 3, 4], [cx - 4, cx + 3, 3.5], [cx + 4, cx + 3, 3.5]];
+    pods.forEach(([x, y, r]) => {
+      g.fillStyle(P.slateDark, 1).fillCircle(x, y, r);
+      g.fillStyle(P.violetGlitch, 0.9).fillCircle(x, y, r - 1.5);
+      g.fillStyle(P.dangerDark, 1).fillCircle(x, y, 1.4);
+    });
+    g.fillStyle(P.black, 0.4).lineStyle(1, P.black, 0.4);
+    g.lineBetween(cx, cx - 1, cx - 3, cx + 2).lineBetween(cx, cx - 1, cx + 3, cx + 2); // seams
+    g.fillStyle(P.white, 0.5).fillCircle(cx - 1, cx - 4, 0.9);
+    g.generateTexture(TEX.sweepSplitter, w, w);
+    g.destroy();
+  }
+  // JITTER "weaver" — sleek fast dart with swept fins; reads as speed.
+  {
+    const g = gfx(scene);
+    const w = 16;
+    const cx = w / 2;
+    g.fillStyle(P.black, 0.26).fillEllipse(cx, w - 2, w - 6, 3);
+    g.fillStyle(P.signalDim, 1).fillTriangle(1, cx - 3, 5, cx, 1, cx + 3); // swept fins
+    g.fillStyle(P.signalDim, 1).fillTriangle(w - 1, cx - 3, w - 5, cx, w - 1, cx + 3);
+    g.fillStyle(P.slateDark, 1).fillRoundedRect(4, 3, w - 8, w - 6, 4);
+    g.fillStyle(P.slate, 1).fillRoundedRect(4, 3, w - 8, 3, 3);
+    g.fillStyle(P.dangerDark, 1).fillCircle(cx, cx, 2.6);
+    g.fillStyle(P.danger, 1).fillCircle(cx, cx, 1.7);
+    g.fillStyle(P.signal, 0.8).fillRect(cx - 1, 1, 2, 2); // nose light
+    g.lineStyle(1, P.black, 0.5).strokeRoundedRect(4, 3, w - 8, w - 6, 4);
+    g.generateTexture(TEX.sweepWeaver, w, w);
+    g.destroy();
+  }
+  // PYLON "turret" — rooted hex emitter with muzzles around the rim.
+  {
+    const g = gfx(scene);
+    const w = 20;
+    const cx = w / 2;
+    g.fillStyle(P.black, 0.32).fillEllipse(cx, w - 2, w - 4, 5);
+    // hex base
+    const hex = V([[cx, 2], [w - 3, 6], [w - 3, w - 5], [cx, w - 1], [3, w - 5], [3, 6]]);
+    g.fillStyle(P.fuseSteelDark, 1).fillPoints(hex, true);
+    g.fillStyle(P.slate, 1).fillPoints(V([[cx, 2], [w - 3, 6], [cx, w / 2], [3, 6]]), true); // lit top facets
+    // muzzles poking out at the cardinals
+    g.fillStyle(P.slateDark, 1);
+    [[cx, 1], [w - 1, cx], [cx, w - 1], [1, cx]].forEach(([x, y]) => g.fillCircle(x, y, 1.8));
+    // charged core
+    g.fillStyle(P.dangerDark, 1).fillCircle(cx, cx, 4);
+    g.fillStyle(P.danger, 1).fillCircle(cx, cx, 2.6);
+    g.fillStyle(P.warning, 1).fillCircle(cx - 0.6, cx - 0.6, 1);
+    g.lineStyle(1, P.black, 0.5).strokePoints(hex, true);
+    g.generateTexture(TEX.sweepTurret, w, w);
     g.destroy();
   }
 

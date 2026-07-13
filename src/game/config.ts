@@ -101,8 +101,14 @@ export const PALETTE = {
   hairBrown: 0x4a3120,
   hairDark: 0x241a12,
   shellWhite: 0xf2ead8, // CONTACT-47's casing
+  shellHi: 0xfffbef, // brightest catch-light (top-left)
+  shellMid: 0xddd1b7, // casing midtone (form ramp)
   shellShade: 0xc9bda4,
+  shellDeep: 0x9a8c70, // deep casing shadow (belly / underside)
+  shellRim: 0x74dbe4, // cool moonlit rim light down the shaded edge
   faceplate: 0x161d24,
+  faceplateLit: 0x24384a, // visor upper sheen
+  visorGlow: 0xc9ffe0, // faint inner-visor bloom around the eyes
   signal: 0xa8ff3e, // electric lime — the player's color
   signalGreen: 0x7cdc6a,
   signalDim: 0x5f9e2e,
@@ -696,11 +702,30 @@ export const SWEEP_ELITE = {
   points: 6,
 } as const;
 
-// Enemy archetypes (uniform shape so a single update path can read every field).
+// Enemy archetypes — the Interpretation Engine's labelling constructs. UNIFORM shape
+// (every kind carries every field) so one drive() path can read any of them; a `behavior`
+// tag picks the movement/attack style. Counters are in the comments (keep the roster fair).
+//   behavior: 'chase' straight rush · 'gunner' standoff + aimed bolt · 'diver' lock-on lunge
+//             'weaver' fast sine rush · 'turret' rooted radial emitter
+//   shielded : blocks player bolts on its FRONT arc (it rotates to face you) → flank / dash / scan
+//   telegraphMs: charge/wind-up (blinks) before a gunner/turret volley → a readable tell
+//   splitInto: shards spawned on death (mini drifters) → clear with Scan / Overdrive
 export const SWEEP_ENEMIES = {
-  drifter: { hp: 2, speed: 40, fireMs: 0, boltSpeed: 0, diveSpeed: 0, lockRange: 0, points: 1 }, // stray interpretation drone
-  tagger: { hp: 2, speed: 52, fireMs: 1600, boltSpeed: 130, diveSpeed: 0, lockRange: 0, points: 2 }, // fires aimed "labels"
-  diver: { hp: 1, speed: 44, fireMs: 0, boltSpeed: 0, diveSpeed: 300, lockRange: 200, points: 2 }, // THREAT-tag lunge
+  // ── grunts (Zone-1 vocabulary) ──────────────────────────────────────────
+  drifter:  { behavior: 'chase',  hp: 2, speed: 40, points: 1, fireMs: 0,    boltSpeed: 0,   keepRange: 0,   diveSpeed: 0,   lockRange: 0,   weave: 0,  telegraphMs: 0,   burst: 0, shielded: false, splitInto: 0 }, // stray interpretation drone
+  tagger:   { behavior: 'gunner', hp: 2, speed: 52, points: 2, fireMs: 1600, boltSpeed: 130, keepRange: 130, diveSpeed: 0,   lockRange: 0,   weave: 0,  telegraphMs: 0,   burst: 0, shielded: false, splitInto: 0 }, // fires aimed "labels"
+  diver:    { behavior: 'diver',  hp: 1, speed: 44, points: 2, fireMs: 0,    boltSpeed: 0,   keepRange: 0,   diveSpeed: 300, lockRange: 200, weave: 0,  telegraphMs: 0,   burst: 0, shielded: false, splitInto: 0 }, // THREAT-tag lunge
+  // ── new archetypes (per-zone variety) ───────────────────────────────────
+  // FIREWALL — armoured; frontal shield blocks bolts, so flank it, dash through, or Scan it.
+  warden:   { behavior: 'chase',  hp: 5, speed: 30, points: 3, fireMs: 0,    boltSpeed: 0,   keepRange: 0,   diveSpeed: 0,   lockRange: 0,   weave: 0,  telegraphMs: 0,   burst: 0, shielded: true,  splitInto: 0 },
+  // PINPOINT — keeps its distance, blinks a wind-up, then fires ONE fast locked line-shot. Sidestep it / break line of sight behind a wall.
+  sniper:   { behavior: 'gunner', hp: 2, speed: 40, points: 3, fireMs: 2400, boltSpeed: 300, keepRange: 200, diveSpeed: 0,   lockRange: 0,   weave: 0,  telegraphMs: 620, burst: 0, shielded: false, splitInto: 0 },
+  // REPLICATOR — splits into two chasing shards on death. Finish it near a wall or clear the shards with an AoE.
+  splitter: { behavior: 'chase',  hp: 3, speed: 34, points: 3, fireMs: 0,    boltSpeed: 0,   keepRange: 0,   diveSpeed: 0,   lockRange: 0,   weave: 0,  telegraphMs: 0,   burst: 0, shielded: false, splitInto: 2 },
+  // JITTER — fast zig-zag interceptor; weaves so aimed shots miss. Lead it, or catch it with a Scan pulse.
+  weaver:   { behavior: 'weaver', hp: 2, speed: 68, points: 3, fireMs: 0,    boltSpeed: 0,   keepRange: 0,   diveSpeed: 0,   lockRange: 0,   weave: 88, telegraphMs: 0,   burst: 0, shielded: false, splitInto: 0 },
+  // PYLON — rooted emitter; blinks, then fires a radial bolt-ring. Rush it and kill it between volleys.
+  turret:   { behavior: 'turret', hp: 4, speed: 0,  points: 3, fireMs: 2200, boltSpeed: 118, keepRange: 0,   diveSpeed: 0,   lockRange: 0,   weave: 0,  telegraphMs: 520, burst: 8, shielded: false, splitInto: 0 },
 } as const;
 export type SweepEnemyKind = keyof typeof SWEEP_ENEMIES;
 
@@ -892,6 +917,11 @@ export const TEX = {
   sweepDrifter: 'sweep-drifter',
   sweepTagger: 'sweep-tagger',
   sweepDiver: 'sweep-diver',
+  sweepWarden: 'sweep-warden', // FIREWALL — rotating frontal shield
+  sweepSniper: 'sweep-sniper', // PINPOINT — long-lens line-shot drone
+  sweepSplitter: 'sweep-splitter', // REPLICATOR — clustered shards
+  sweepWeaver: 'sweep-weaver', // JITTER — fast zig-zag interceptor
+  sweepTurret: 'sweep-turret', // PYLON — rooted radial emitter
   sweepShotP: 'sweep-shot-p', // player pulse
   sweepShotE: 'sweep-shot-e', // enemy label bolt
   sweepReticle: 'sweep-reticle', // mouse aim crosshair
@@ -1013,6 +1043,7 @@ export const EVT = {
   rewardOpenArchive: 'reward:open-archive', // request: open the Signal Archive
   rewardOpenCache: 'reward:open-cache', // {cacheType?} — request: open the cache-opening screen
   sweepCleared: 'sweep:cleared', // {combo, noHit} — a Signal Storm arena was cleared
+  godMode: 'dev:god-mode', // {on:boolean} — god mode toggled; drives HUD indicator + dev chrome
 } as const;
 
 /** TEX key for a skin's player body ('' → use TEX.player for contact47) */
@@ -1025,7 +1056,32 @@ export const SKIN_TEX: Record<string, string> = {
   danny: 'player-danny',
 };
 
+/* ------------------------------- HUD layout -------------------------------- */
+// Segmented integrity (HP) bar drawn on the Scan HUD canvas (UIScene.drawSweepHud).
+export const HUD_HEALTH = {
+  x: 8,
+  y: VIEW_H - 30,
+  segW: 11, // width of one integrity segment
+  segH: 7, // height of the bar
+  gap: 3, // space between segments
+  iconW: 7, // leading heart icon column
+} as const;
+
 /* ---------------------------- misc gameplay values -------------------------- */
 export const FALL_DAMAGE_Y_PAD = 60;   // px below world bottom before respawn-damage
 export const TOAST_MS = 3200;
 export const HIDDEN_REVEAL_STAGGER = 40; // ms per px distance-ish stagger feel
+
+/* Reward banners show ONE AT A TIME — earned trophies/caches queue and each gets
+   its own spotlight (enter → hold → exit → next). Never stack multiple on screen. */
+export const REWARD_BANNER = {
+  enterMs: 480,   // entrance animation length (slide/scale + shine sweep)
+  holdMs: 1900,   // normal on-screen dwell before it animates out
+  bigHoldMs: 2600, // dwell for a `big` (mythic+) trophy — extra spotlight
+  exitMs: 420,    // exit animation length
+  gapMs: 140,     // beat between one banner leaving and the next entering
+  // When a backlog builds up, keep the cadence snappy so the player isn't stuck
+  // watching a parade — shorten the dwell (but still one-at-a-time, never stacked).
+  backlogThreshold: 2, // queued-after-this many → use the snappier dwell
+  backlogHoldMs: 1050,
+} as const;

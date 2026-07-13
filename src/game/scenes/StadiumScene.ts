@@ -47,11 +47,18 @@ import { activeSkin } from '../systems/SkinState';
 import { registerScene, unregisterScene } from '../systems/TestAPI';
 import { uiOverlayActive } from '../systems/UIState';
 
+// local tuning (kept out of config.ts to avoid a merge conflict with the
+// concurrent config edit)
+const SWEEP_LOOKAHEAD_MS = 560; // how far ahead the ghost "next sweep" spot previews the beam
+const TRACK_SURFACE_Y = TIGER_STADIUM.meta.arena.surfaceY; // track surface the cones sweep across
+
 interface LightTower {
   cone: DetectionCone;
   headX: number;
   headY: number;
   phase: number;
+  spot: Phaser.GameObjects.Image; // where the beam hits the track RIGHT NOW
+  ghost: Phaser.GameObjects.Image; // where it will sweep to next (telegraph)
 }
 interface SafeZone {
   x: number;
@@ -95,6 +102,12 @@ export class StadiumScene extends Phaser.Scene {
   private crowdSwellUntil = 0;
   private exitToasted = false;
 
+  // stealth-legibility feedback
+  private alertIcon?: Phaser.GameObjects.Text; // floats over the player: SEEN vs HIDDEN
+  private anchorHintShown = false;
+  private poolHintShown = false;
+  private crossedCleanToasted = false;
+
   private spawnPoint = { x: 0, y: 0 };
   private lastSafe = { x: 0, y: 0 };
   private sky!: Phaser.GameObjects.Image;
@@ -131,10 +144,22 @@ export class StadiumScene extends Phaser.Scene {
     this.bossDeathHandled = false;
     this.fragment = undefined;
     this.exitToasted = false;
+    this.anchorHintShown = false;
+    this.poolHintShown = false;
+    this.crossedCleanToasted = false;
 
     this.buildParallax();
     this.buildWorld();
     this.dressPool();
+
+    // alert badge that rides above the player — the single clearest read of
+    // "the lights SEE you" vs "you're HIDDEN" (shadow / anchor / dash)
+    this.alertIcon = this.add
+      .text(this.player.x, this.player.y - 18, '', { fontFamily: 'monospace', fontSize: '9px', color: css(P.scoreboardKnown), fontStyle: 'bold' })
+      .setOrigin(0.5)
+      .setDepth(20)
+      .setResolution(2)
+      .setAlpha(0);
 
     this.physics.world.setBounds(0, -VIEW_H, def.meta.widthPx, def.meta.heightPx + VIEW_H);
     this.physics.world.setBoundsCollision(true, true, false, false);
@@ -269,7 +294,37 @@ export class StadiumScene extends Phaser.Scene {
     this.add.image(x, headY, TEX.glow8).setScale(3).setTint(P.nightBloom).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.5).setDepth(9);
     const cone = new DetectionCone(this, STADIUM.lightConeLength, STADIUM.lightConeHalfAngleDeg, P.nightBloom);
     cone.setApex(x, headY);
-    this.lightTowers.push({ cone, headX: x, headY, phase: x * 0.7 });
+    // where the beam pools on the TRACK — a bright disc the player reads at foot
+    // level (the cone shows the shape; the spot shows exactly where it bites now)
+    const spot = this.add
+      .image(x, TRACK_SURFACE_Y - 2, TEX.glow8)
+      .setScale(1.8)
+      .setTint(P.scoreboardKnown)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setDepth(8)
+      .setAlpha(0.5);
+    // faint leading ghost = where the sweep is HEADED next (telegraph)
+    const ghost = this.add
+      .image(x, TRACK_SURFACE_Y - 2, TEX.glow8)
+      .setScale(1.3)
+      .setTint(P.warning)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setDepth(8)
+      .setAlpha(0.22);
+    this.lightTowers.push({ cone, headX: x, headY, phase: x * 0.7, spot, ghost });
+  }
+
+  /** angle of a tower's sweep at time t (mirrors the update() cone drive) */
+  private sweepAngleAt(l: LightTower, t: number): number {
+    return Math.PI / 2 + Phaser.Math.DegToRad(STADIUM.lightSweepDeg / 2) * Math.sin((t / STADIUM.lightSweepPeriodMs) * Math.PI * 2 + l.phase);
+  }
+
+  /** x where a tower's centerline meets the track surface, at angle `ang` */
+  private sweepGroundX(l: LightTower, ang: number): number {
+    const dirY = Math.sin(ang);
+    if (dirY < 0.05) return l.headX; // near-horizontal: clamp to the pole
+    const tt = (TRACK_SURFACE_Y - l.headY) / dirY;
+    return l.headX + Math.cos(ang) * tt;
   }
 
   private addScoreboard(x: number, y: number): void {
@@ -297,6 +352,18 @@ export class StadiumScene extends Phaser.Scene {
       .setAlpha(0.28)
       .setDepth(5);
     this.add.image(x, y - halfH - 4, TEX.anchorMarker).setDepth(9).setAlpha(0.9);
+    this.add
+      .text(x, y - halfH - 13, 'ANCHOR', { fontFamily: 'monospace', fontSize: '6px', color: css(P.anchorGreen), fontStyle: 'bold' })
+      .setOrigin(0.5)
+      .setDepth(9)
+      .setResolution(2)
+      .setAlpha(0.9);
+    this.add
+      .text(x, y + 2, 'SAFE', { fontFamily: 'monospace', fontSize: '6px', color: css(P.anchorGreen) })
+      .setOrigin(0.5)
+      .setDepth(9)
+      .setResolution(2)
+      .setAlpha(0.65);
     this.tweens.add({ targets: glow, alpha: { from: 0.18, to: 0.4 }, duration: 1300, yoyo: true, repeat: -1 });
     this.safeZones.push({ x, y: y - 6, halfW, halfH, glow });
   }
@@ -445,11 +512,19 @@ export class StadiumScene extends Phaser.Scene {
     // Friday-night-lights detection — safe zones shelter you from the sweep
     let inCone = false;
     for (const l of this.lightTowers) {
-      l.cone.setAngle(Math.PI / 2 + Phaser.Math.DegToRad(STADIUM.lightSweepDeg / 2) * Math.sin(now / STADIUM.lightSweepPeriodMs * Math.PI * 2 + l.phase));
+      const ang = this.sweepAngleAt(l, now);
+      l.cone.setAngle(ang);
       if (l.cone.update(this.player.x, this.player.y)) inCone = true;
+      // telegraph: live spot where the beam bites the track now, ghost where it heads
+      const spotX = this.sweepGroundX(l, ang);
+      const ghostX = this.sweepGroundX(l, this.sweepAngleAt(l, now + SWEEP_LOOKAHEAD_MS));
+      l.spot.setX(spotX).setAlpha(0.42 + Math.sin(now * 0.012 + l.phase) * 0.12);
+      l.ghost.setX(ghostX);
     }
     const sheltered = this.updateSafeZones(dtSec, now);
-    this.classify.update(dtSec, inCone && !sheltered && this.player.alive && !this.player.isDashing);
+    const dashHidden = this.player.isDashing;
+    this.classify.update(dtSec, inCone && !sheltered && this.player.alive && !dashHidden);
+    this.updateAlertIcon(inCone, sheltered, dashHidden, now);
     // caught in the light too long → the scoreboard flips to KNOWN, the phantom
     // crowd roars, and the Engine flags you (dash i-frames slip the beams)
     if (this.classify.isThreat && !sheltered && this.player.alive && !this.player.invulnerable) {
@@ -501,6 +576,24 @@ export class StadiumScene extends Phaser.Scene {
     this.fog.tilePositionX = sx * 0.42 + this.fogDrift;
   }
 
+  /** the player-worn state read: SEEN (in a beam) vs SAFE (anchored) vs hidden */
+  private updateAlertIcon(inCone: boolean, sheltered: boolean, dashHidden: boolean, now: number): void {
+    const icon = this.alertIcon;
+    if (!icon) return;
+    icon.setPosition(this.player.x, this.player.y - 18);
+    if (!this.player.alive) { icon.setAlpha(0); return; }
+    if (sheltered) {
+      // anchored: unmistakably safe
+      icon.setText('SAFE').setColor(css(P.anchorGreen)).setAlpha(0.9);
+    } else if (inCone && !dashHidden) {
+      // the light is reading you — pulse a loud SEEN
+      icon.setText('! SEEN').setColor(css(P.scoreboardKnown)).setAlpha(0.7 + (Math.sin(now * 0.02) > 0 ? 0.3 : 0));
+    } else {
+      // in shadow / dashing through a beam — hidden, so no nag
+      icon.setAlpha(0);
+    }
+  }
+
   /** heal + fast-declassify while sheltered and roughly still; returns sheltered */
   private updateSafeZones(dtSec: number, now: number): boolean {
     const px = this.player.x;
@@ -513,6 +606,11 @@ export class StadiumScene extends Phaser.Scene {
       }
     }
     if (sheltered) {
+      if (!this.anchorHintShown) {
+        this.anchorHintShown = true;
+        this.fx.floatText(px, py - 24, 'ANCHOR — the lights can’t read you here', P.anchorGreen);
+        bus.emit(EVT.toast, { text: 'ANCHOR ZONE — stand in the green to shed the label + heal', color: 'green' });
+      }
       const body = this.player.body as Phaser.Physics.Arcade.Body;
       const still = body.velocity.length() < 24;
       // ANCHOR bleeds classification fast inside a safe zone
@@ -547,8 +645,24 @@ export class StadiumScene extends Phaser.Scene {
     const x = this.player.x;
     const step = quests.stepId;
     if (step === 'arrive' && Math.abs(x - this.spawnPoint.x) > 56) quests.complete('arrive');
-    if (step === 'timeLights' && x > zones.lightsGauntlet.x1 + TILE) quests.complete('timeLights');
+    if (step === 'timeLights' && x > zones.lightsGauntlet.x1 + TILE) {
+      quests.complete('timeLights');
+      if (!this.crossedCleanToasted) {
+        this.crossedCleanToasted = true;
+        bus.emit(EVT.toast, { text: 'CROSSED THE LIGHTS — STILL UNKNOWN', color: 'green' });
+      }
+    }
     if (step === 'reachDugout' && x > zones.dugout.x0 && x < zones.dugout.x1) quests.complete('reachDugout');
+    // first time you approach the rec pool, spell out the DIVE goal
+    if (
+      !this.poolHintShown &&
+      quests.isAtOrPast('poolDive') &&
+      !getSave().flags.poolNodeSolved &&
+      Math.abs(x - this.poolPos.x) < 60
+    ) {
+      this.poolHintShown = true;
+      this.fx.floatText(this.poolPos.x, this.poolPos.y - 26, 'DIVE [E] — flip the world through the pool', P.poolShimmer);
+    }
     // spawn the boss once you've surfaced from the pool and reached the arena
     if (
       step === 'bossFight' &&
@@ -856,7 +970,7 @@ export class StadiumScene extends Phaser.Scene {
         <p class="tut-lead">The lights never cut. The <b>scoreboard</b> stopped counting points — now it reads <b>KNOWN / UNKNOWN</b>, and that’s <b>you</b>.</p>
         <div class="tut-hero">
           <div class="tut-hero-key">HIDE<span>GREEN&nbsp;=&nbsp;SAFE</span></div>
-          <div class="tut-hero-desc">Time the sweeping <b>light towers</b> — linger in a beam and you go KNOWN. Duck into <b>Henry’s green ANCHOR zones</b> (end zone, dugout, concession) to declassify and heal. <b>DIVE [E]</b> into the rec pool to flip the world.</div>
+          <div class="tut-hero-desc">Watch the <b>red ground-spot</b> each tower casts — the amber ghost shows where it sweeps next, so cross in the shadow between beams. Stand in a beam and a <b>! SEEN</b> badge lights over you and the scoreboard flips to KNOWN. Duck into <b>Henry’s green ANCHOR zones</b> (end zone, dugout, concession) — they read <b>SAFE</b>, declassify you and heal. <b>DIVE [E]</b> into the rec pool to flip the world.</div>
         </div>
         <table class="tut-controls">
           <tr><td class="tut-k">A / D · SPACE</td><td>Move · jump (hold to hover)</td></tr>
@@ -914,7 +1028,8 @@ export class StadiumScene extends Phaser.Scene {
     this.unsubs = [];
     this.input.keyboard?.off('keydown-ESC', this.togglePause, this);
     this.events.off(Phaser.Scenes.Events.WAKE, this.onWake, this);
-    this.lightTowers.forEach((l) => l.cone.destroy());
+    this.lightTowers.forEach((l) => { l.cone.destroy(); l.spot.destroy(); l.ghost.destroy(); });
+    this.alertIcon?.destroy();
     this.ventDrones.forEach((d) => d.active && d.destroy());
     this.boss?.destroy();
     unregisterScene('stadium');

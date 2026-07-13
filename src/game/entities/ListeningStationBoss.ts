@@ -12,11 +12,15 @@
  * bossHp/bossDead) matches Zones 1-4.
  */
 import Phaser from 'phaser';
-import { BOSS5, EVT, PALETTE as P, TEX, TILE } from '../config';
+import { BOSS5, EVT, PALETTE as P, TEX, TILE, css } from '../config';
 import { audio } from '../systems/AudioSystem';
 import { bus } from '../systems/EventBus';
 import { activeSkin } from '../systems/SkinState';
 import type { EffectsSystem } from '../systems/EffectsSystem';
+
+// local tuning (kept out of config.ts to avoid a merge conflict with the
+// concurrent config edit) — the beam's amber "about to fire" telegraph window.
+const BEAM_WARN_MS = 520;
 
 export interface ListeningStationDeps {
   fx: EffectsSystem;
@@ -39,6 +43,9 @@ export class ListeningStationBoss {
   private iris: Phaser.GameObjects.Image;
   private irisRim: Phaser.GameObjects.Image;
   private beam: Phaser.GameObjects.Image;
+  private exposeRing: Phaser.GameObjects.Image; // green "HIT IT" halo over the exposed pupil
+  private label: Phaser.GameObjects.Text; // live per-phase instruction floating over the eye
+  private lastLabel = '';
   private readonly cx: number;
   private readonly cy: number;
 
@@ -48,6 +55,7 @@ export class ListeningStationBoss {
   private beamAngle = 0;
   private beamOn = false;
   private beamToggleAt = 0;
+  private beamLiveAt = 0; // beam is only DAMAGING after its amber telegraph elapses
   private exposeUntil = 0;
   private staggerUntil = 0;
 
@@ -65,6 +73,32 @@ export class ListeningStationBoss {
     (this.core.body as Phaser.Physics.Arcade.StaticBody).setSize(26, 26);
     (this.core.body as Phaser.Physics.Arcade.StaticBody).enable = false;
     this.core.setAlpha(0);
+
+    // green "target" halo — only shown while the pupil is exposed & hittable
+    this.exposeRing = scene.add
+      .image(this.cx, this.cy, TEX.ring ?? TEX.glow8)
+      .setScale(3.4)
+      .setTint(P.signal)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setDepth(16)
+      .setAlpha(0);
+
+    // per-phase instruction, pinned above the eye so "what to do RIGHT NOW" is
+    // always legible without hunting the HUD
+    this.label = scene.add
+      .text(this.cx, this.cy - 40, '', { fontFamily: 'monospace', fontSize: '8px', color: css(P.warning), fontStyle: 'bold', align: 'center' })
+      .setOrigin(0.5)
+      .setDepth(20)
+      .setResolution(2)
+      .setAlpha(0);
+  }
+
+  private setPrompt(text: string, color: number): void {
+    if (text !== this.lastLabel) {
+      this.lastLabel = text;
+      this.label.setText(text);
+    }
+    this.label.setColor(css(color)).setAlpha(1);
   }
 
   get alive(): boolean {
@@ -163,15 +197,28 @@ export class ListeningStationBoss {
 
     this.iris.setScale(9 + Math.sin(now * 0.004) * 0.4).setAlpha(this.exposed ? 0.25 : 0.5);
 
-    // sweeping eye-beam with an on/off gap you can dash through
+    // exposed pupil telegraph — bright green pulsing halo says "HIT IT NOW"
+    if (this.exposed) {
+      this.exposeRing.setAlpha(0.55 + Math.sin(now * 0.02) * 0.3).setScale(3.0 + Math.sin(now * 0.02) * 0.5);
+    } else {
+      this.exposeRing.setAlpha(0);
+    }
+
+    // sweeping eye-beam: OFF (gap) → WARN (amber telegraph) → LIVE (damaging).
     const staggered = now < this.staggerUntil;
     if (now >= this.beamToggleAt) {
       this.beamOn = !this.beamOn;
       this.beamToggleAt = now + (this.beamOn ? BOSS5.beamOnMs : BOSS5.beamGapMs);
+      if (this.beamOn) this.beamLiveAt = now + BEAM_WARN_MS; // amber wind-up before it bites
     }
     this.beamAngle += dtSec * Phaser.Math.DegToRad(BOSS5.beamSpinDegPerSec);
-    const live = this.beamOn && !staggered && !this.exposed;
-    this.beam.setRotation(this.beamAngle).setAlpha(live ? 0.8 : this.beamOn ? 0.25 : 0);
+    const warning = this.beamOn && now < this.beamLiveAt;
+    const live = this.beamOn && !warning && !staggered && !this.exposed;
+    // amber + thin while telegraphing, hot red when live, dark in the gap
+    this.beam
+      .setRotation(this.beamAngle)
+      .setTint(warning ? P.warning : P.danger)
+      .setAlpha(live ? 0.85 : warning ? 0.3 + (Math.sin(now * 0.04) > 0 ? 0.15 : 0) : 0);
 
     if (live) {
       const p = this.deps.getPlayer();
@@ -181,6 +228,11 @@ export class ListeningStationBoss {
         this.deps.damagePlayer(BOSS5.touchDamage, this.cx);
       }
     }
+
+    // per-phase instruction over the eye — the win condition, always on screen
+    if (this.exposed) this.setPrompt('PUPIL OPEN — PULSE [X] IT!', P.signal);
+    else if (activeSkin().id !== this.copiedId) this.setPrompt('LABEL REFUSED — SCAN [Q] TO JAM', P.poolShimmer);
+    else this.setPrompt('IT WEARS YOUR FACE\nSWAP FREQUENCY [1-5]', P.warning);
   }
 
   private distToSegment(px: number, py: number, x1: number, y1: number, x2: number, y2: number): number {
@@ -197,6 +249,8 @@ export class ListeningStationBoss {
     this.state = 'dying';
     this.setExposed(false);
     this.beam.setAlpha(0);
+    this.exposeRing.setAlpha(0);
+    this.label.setAlpha(0);
     audio.explode();
     this.deps.fx.staticBurst(800);
     this.deps.fx.shake(0.012, 700);
@@ -210,7 +264,7 @@ export class ListeningStationBoss {
       this.deps.fx.explode(this.cx, this.cy, P.white, 28);
       this.deps.fx.flash(P.white, 220);
       audio.explode();
-      [this.iris, this.irisRim, this.beam, this.core].forEach((o) => o.destroy());
+      [this.iris, this.irisRim, this.beam, this.core, this.exposeRing, this.label].forEach((o) => o.destroy());
       this.state = 'dead';
       bus.emit(EVT.bossDead, {});
       this.deps.onDefeated();
@@ -218,6 +272,6 @@ export class ListeningStationBoss {
   }
 
   destroy(): void {
-    [this.iris, this.irisRim, this.beam, this.core].forEach((o) => o?.destroy());
+    [this.iris, this.irisRim, this.beam, this.core, this.exposeRing, this.label].forEach((o) => o?.destroy());
   }
 }

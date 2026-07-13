@@ -169,7 +169,7 @@ export class SweepScene extends Phaser.Scene {
     this.buildMap(); // carves rooms/halls, builds floor + solid walls + floorTiles
 
     this.playerShots = makeProjectileGroup(this, TEX.sweepShotP, SWEEP.maxShots);
-    this.enemyShots = makeProjectileGroup(this, TEX.sweepShotE, 40);
+    this.enemyShots = makeProjectileGroup(this, TEX.sweepShotE, 72); // headroom for PYLON radial volleys
     this.enemies = this.physics.add.group();
     this.pickups = this.physics.add.group();
 
@@ -603,6 +603,20 @@ export class SweepScene extends Phaser.Scene {
     audio.badgePickup();
   }
 
+  /** REPLICATOR death → two small chasing shards (drifter minis; they never re-split). */
+  private spawnSplitShards(x: number, y: number, n: number): void {
+    this.fx.sparks(x, y, P.violetGlitch, 8);
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + Math.random();
+      const shard = new SweepEnemy(this, x + Math.cos(a) * 8, y + Math.sin(a) * 8, 'drifter');
+      shard.hp = 1;
+      shard.maxHp = 1;
+      shard.setScale(0.7).setTint(P.violetGlitch);
+      (shard.body as Phaser.Physics.Arcade.Body).setVelocity(Math.cos(a) * 90, Math.sin(a) * 90);
+      this.enemies.add(shard);
+    }
+  }
+
   private seedEnemies(): void {
     const T = SWEEP.tile;
     // authored placements — enemies live in the rooms/corridors the designer chose
@@ -685,6 +699,15 @@ export class SweepScene extends Phaser.Scene {
   private onShotHitEnemy(shot: Projectile, en: SweepEnemy): void {
     if (!shot.active || !en.active) return;
     const pierce = shot.getData('pierce') === true;
+    // FIREWALL: a bolt into the warden's front shield is deflected (flank / dash / Scan instead)
+    const b = shot.body as Phaser.Physics.Arcade.Body;
+    if (en.blocksShot(b.velocity.x, b.velocity.y)) {
+      this.impactFx(shot.x, shot.y, P.neonCyan);
+      this.fx.sparks(shot.x, shot.y, P.neonCyan, 3);
+      audio.enemyHit();
+      if (!pierce) shot.kill();
+      return;
+    }
     if (pierce) {
       let hits = shot.getData('hits') as Set<SweepEnemy> | null;
       if (!hits) { hits = new Set(); shot.setData('hits', hits); }
@@ -751,7 +774,9 @@ export class SweepScene extends Phaser.Scene {
     addShards(gained);
     if (this.combo >= 2) this.fx.floatText(ex, ey - 8, `x${this.combo}`, P.warning);
     const isElite = en.getData('elite') === true;
+    const splitN = en.splitInto; // REPLICATOR bursts into chasing shards
     en.destroy();
+    if (splitN > 0) this.spawnSplitShards(ex, ey, splitN);
     // kills charge the Node (double near it); the breach opens at full charge
     this.addNodeCharge(ex, ey);
     // the Elite always drops a Scout Boon + a shard cache; grunts drop by chance

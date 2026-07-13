@@ -83,10 +83,12 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     spawn: { tx: 6, ty: 15 },
     elite: { tx: 19, ty: 9 },
     chargeTarget: 100,
+    // ROSTER — "the open field": the fundamentals (drifter/tagger/diver) plus a first
+    // taste of the JITTER weaver so Zone 1 teaches the verbs before later zones twist them.
     enemies: [
       { tx: 6, ty: 4, type: 'drifter' }, { tx: 9, ty: 6, type: 'tagger' }, { tx: 16, ty: 2, type: 'diver' },
-      { tx: 17, ty: 5, type: 'drifter' }, { tx: 22, ty: 11, type: 'tagger' }, { tx: 27, ty: 13, type: 'diver' },
-      { tx: 29, ty: 9, type: 'drifter' }, { tx: 15, ty: 12, type: 'tagger' }, { tx: 11, ty: 13, type: 'drifter' },
+      { tx: 17, ty: 5, type: 'weaver' }, { tx: 22, ty: 11, type: 'tagger' }, { tx: 27, ty: 13, type: 'diver' },
+      { tx: 29, ty: 9, type: 'drifter' }, { tx: 15, ty: 12, type: 'tagger' }, { tx: 11, ty: 13, type: 'weaver' },
       { tx: 18, ty: 8, type: 'diver' },
     ],
     caches: [{ tx: 3, ty: 3 }, { tx: 30, ty: 16 }, { tx: 30, ty: 3 }],
@@ -125,11 +127,13 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     spawn: { tx: 4, ty: 15 },
     elite: { tx: 18, ty: 9 },
     chargeTarget: 90,
+    // ROSTER — "the firewall circuit": tight corridors reward flanking, so FIREWALL wardens
+    // clog the halls (dash through / hit their backs) and a rooted PYLON turret guards the node.
     enemies: [
-      { tx: 4, ty: 8, type: 'drifter' }, { tx: 10, ty: 8, type: 'tagger' }, { tx: 16, ty: 3, type: 'diver' },
-      { tx: 23, ty: 3, type: 'tagger' }, { tx: 17, ty: 11, type: 'drifter' }, { tx: 26, ty: 15, type: 'diver' },
-      { tx: 29, ty: 9, type: 'tagger' }, { tx: 19, ty: 10, type: 'drifter' }, { tx: 4, ty: 12, type: 'diver' },
-      { tx: 30, ty: 12, type: 'drifter' },
+      { tx: 4, ty: 8, type: 'warden' }, { tx: 10, ty: 8, type: 'tagger' }, { tx: 16, ty: 3, type: 'diver' },
+      { tx: 23, ty: 3, type: 'warden' }, { tx: 17, ty: 11, type: 'turret' }, { tx: 26, ty: 15, type: 'diver' },
+      { tx: 29, ty: 9, type: 'tagger' }, { tx: 19, ty: 10, type: 'drifter' }, { tx: 4, ty: 12, type: 'drifter' },
+      { tx: 30, ty: 12, type: 'warden' },
     ],
     caches: [{ tx: 3, ty: 7 }, { tx: 30, ty: 17 }, { tx: 30, ty: 2 }],
   },
@@ -173,11 +177,14 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     spawn: { tx: 5, ty: 18 },
     elite: { tx: 18, ty: 9 },
     chargeTarget: 110,
+    // ROSTER — "the hunting maze": long corn lanes let PINPOINT snipers line up telegraphed
+    // shots (break line-of-sight around a hedge), JITTER weavers dart the rows, and REPLICATOR
+    // splitters lurk in the clearings — the densest, most varied fight of the campaign.
     enemies: [
-      { tx: 5, ty: 10, type: 'drifter' }, { tx: 10, ty: 10, type: 'tagger' }, { tx: 14, ty: 17, type: 'drifter' },
-      { tx: 18, ty: 12, type: 'diver' }, { tx: 17, ty: 3, type: 'tagger' }, { tx: 24, ty: 2, type: 'drifter' },
-      { tx: 29, ty: 13, type: 'tagger' }, { tx: 24, ty: 18, type: 'diver' }, { tx: 31, ty: 14, type: 'drifter' },
-      { tx: 16, ty: 9, type: 'tagger' }, { tx: 9, ty: 18, type: 'drifter' },
+      { tx: 5, ty: 10, type: 'sniper' }, { tx: 10, ty: 10, type: 'weaver' }, { tx: 14, ty: 17, type: 'splitter' },
+      { tx: 18, ty: 12, type: 'weaver' }, { tx: 17, ty: 3, type: 'sniper' }, { tx: 24, ty: 2, type: 'tagger' },
+      { tx: 29, ty: 13, type: 'sniper' }, { tx: 24, ty: 18, type: 'splitter' }, { tx: 31, ty: 14, type: 'weaver' },
+      { tx: 16, ty: 9, type: 'diver' }, { tx: 9, ty: 18, type: 'splitter' },
     ],
     caches: [{ tx: 3, ty: 9 }, { tx: 32, ty: 16 }, { tx: 32, ty: 3 }],
   },
@@ -193,11 +200,13 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     halls: [],
     node: { tx: 15, ty: 8 },
     spawn: { tx: 15, ty: 12 },
+    // showcase escalation — introduces each new archetype one wave at a time, then a mixed finale
     waves: [
       { spawns: [{ type: 'drifter', count: 8 }], interval: 0.55, clearDelay: 1.6 },
-      { spawns: [{ type: 'drifter', count: 8 }, { type: 'tagger', count: 4 }], interval: 0.5, clearDelay: 1.6 },
-      { spawns: [{ type: 'drifter', count: 6 }, { type: 'tagger', count: 5 }, { type: 'diver', count: 5 }], interval: 0.45, clearDelay: 1.6 },
-      { spawns: [{ type: 'drifter', count: 12 }, { type: 'tagger', count: 6 }, { type: 'diver', count: 8 }], interval: 0.38, clearDelay: 2.2 },
+      { spawns: [{ type: 'drifter', count: 6 }, { type: 'weaver', count: 3 }, { type: 'tagger', count: 3 }], interval: 0.5, clearDelay: 1.6 },
+      { spawns: [{ type: 'warden', count: 3 }, { type: 'tagger', count: 4 }, { type: 'splitter', count: 2 }], interval: 0.48, clearDelay: 1.8 },
+      { spawns: [{ type: 'sniper', count: 3 }, { type: 'weaver', count: 4 }, { type: 'turret', count: 2 }, { type: 'diver', count: 3 }], interval: 0.42, clearDelay: 2.0 },
+      { spawns: [{ type: 'drifter', count: 8 }, { type: 'warden', count: 3 }, { type: 'splitter', count: 3 }, { type: 'turret', count: 2 }], interval: 0.38, clearDelay: 2.2 },
     ],
   },
 };

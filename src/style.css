@@ -139,6 +139,29 @@ button { font-family: var(--mono); }
 .shell-btn.accent:hover { border-color: var(--lime); box-shadow: 0 0 0 1px rgba(168, 255, 62, 0.3), 0 0 14px rgba(168, 255, 62, 0.18); }
 .shell-btn.danger { color: var(--red); border-color: var(--red-dark); }
 .shell-btn.danger:hover { border-color: var(--red); box-shadow: 0 0 0 1px rgba(216, 74, 66, 0.3), 0 0 14px rgba(216, 74, 66, 0.2); }
+/* DEV console launcher — only visible in god mode (see ShellUI.refreshDevChrome) */
+#btn-dev { color: var(--lime); border-color: var(--lime-dim); }
+#btn-dev:hover { border-color: var(--lime); box-shadow: 0 0 0 1px rgba(168, 255, 62, 0.3), 0 0 14px rgba(168, 255, 62, 0.18); }
+
+/* persistent GOD MODE badge, top-left of the game frame while god mode is on */
+#god-indicator {
+  position: absolute;
+  top: max(8px, env(safe-area-inset-top));
+  left: max(8px, env(safe-area-inset-left));
+  z-index: 40;
+  padding: 3px 8px;
+  font-family: var(--display);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--lime);
+  background: rgba(6, 10, 16, 0.7);
+  border: 1px solid var(--lime-dim);
+  box-shadow: 0 0 12px rgba(168, 255, 62, 0.25);
+  pointer-events: none;
+  animation: godPulse 1.6s ease-in-out infinite;
+}
+@keyframes godPulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
 
 /* volume pips */
 .pips { display: inline-flex; gap: 2px; }
@@ -195,9 +218,9 @@ button { font-family: var(--mono); }
   position: absolute;
   top: max(12px, env(safe-area-inset-top));
   left: 50%;
-  width: min(74vw, 420px);
+  width: min(58vw, 320px);
   transform: translateX(-50%);
-  padding: 9px 14px 12px;
+  padding: 5px 11px 7px;
   text-align: center;
   background: linear-gradient(180deg, rgba(6, 10, 16, 0.86), rgba(6, 10, 16, 0.52));
   border: 1px solid rgba(95, 158, 46, 0.38);
@@ -205,14 +228,15 @@ button { font-family: var(--mono); }
   backdrop-filter: blur(2px);
 }
 .sweep-hud-objective {
-  font-size: clamp(17px, 2.4vw, 28px);
+  font-size: clamp(11px, 1.4vw, 16px);
   font-weight: 800;
+  letter-spacing: 0.6px;
   color: var(--soft-white);
 }
 .sweep-hud-objective.ready { color: var(--lime); }
 .sweep-hud-contacts {
-  margin-top: 3px;
-  font-size: clamp(13px, 1.5vw, 18px);
+  margin-top: 2px;
+  font-size: clamp(10px, 1vw, 12px);
   font-weight: 700;
   color: var(--muted);
 }
@@ -250,6 +274,19 @@ button { font-family: var(--mono); }
   bottom: max(12px, env(safe-area-inset-bottom));
   color: var(--muted);
 }
+/* tiny caption over the weapon / control-hint values so the floating words read
+   as a labelled legend rather than stray text */
+.sweep-hud-weapon .cap,
+.sweep-hud-prompts .cap {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--amber-dim);
+}
+.sweep-hud-weapon .val,
+.sweep-hud-prompts .val { display: block; }
 .sweep-hud-overdrive {
   left: 50%;
   bottom: max(12px, env(safe-area-inset-bottom));
@@ -1203,8 +1240,8 @@ body.compact-gameplay.sweep-active .sweep-hud-top {
   backdrop-filter: none;
 }
 body.compact-gameplay.sweep-active .sweep-hud-objective {
-  font-size: clamp(11px, 2.4vw, 16px);
-  letter-spacing: 0.6px;
+  font-size: clamp(9px, 1.8vw, 13px);
+  letter-spacing: 0.5px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

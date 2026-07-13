@@ -72,16 +72,21 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       .setAlpha(0.7);
     scene.tweens.add({ targets: this.antennaTip, alpha: { from: 0.35, to: 0.85 }, duration: 900, yoyo: true, repeat: -1 });
 
-    // DEV keys (dev server / ?test only): F = fly-through, G = god mode.
-    if (DEV_TOOLS) {
+    // DEV keys: F = fly-through (dev/test only), G = god mode. G stays live once
+    // god mode is enabled (via the ERD console) so players can toggle it in-play.
+    if (DEV_TOOLS || devState.god) {
       const kb = scene.input.keyboard;
-      kb?.on('keydown-F', () => {
-        const on = this.toggleFly();
-        bus.emit(EVT.toast, { text: on ? 'FLY MODE — noclip · WASD + ↑↓ · F to land' : 'FLY MODE OFF', color: on ? 'green' : 'orange' });
-      });
+      if (DEV_TOOLS) {
+        kb?.on('keydown-F', () => {
+          const on = this.toggleFly();
+          bus.emit(EVT.toast, { text: on ? 'FLY MODE — noclip · WASD + ↑↓ · F to land' : 'FLY MODE OFF', color: on ? 'green' : 'orange' });
+        });
+      }
       kb?.on('keydown-G', () => {
         this.godMode = !this.godMode;
+        devState.god = this.godMode; // keep the shared dev flag in sync (HUD indicator + DEV chrome)
         bus.emit(EVT.toast, { text: this.godMode ? 'GOD MODE ON — invulnerable' : 'GOD MODE OFF', color: this.godMode ? 'green' : 'orange' });
+        bus.emit(EVT.godMode, { on: this.godMode });
       });
     }
   }

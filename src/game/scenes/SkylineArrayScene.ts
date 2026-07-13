@@ -434,9 +434,26 @@ export class SkylineArrayScene extends Phaser.Scene {
 
   /* --------------------------------- the summit ------------------------------ */
 
+  /** advance the objective HUD as the player climbs so it always reads the CURRENT
+   *  goal (the finale previously left the banner stuck on 'launch' the whole run). */
+  private updateClimbObjectives(): void {
+    if (!this.player?.alive) return;
+    const step = quests.stepId;
+    const arenaY = SKYLINE_ARRAY.meta.arena.surfaceY;
+    const y = this.player.y;
+    // cresting onto the mid catwalk (row ~38) → you're now among the frequency dishes
+    if (step === 'launch' && y < 44 * TILE) quests.complete('launch');
+    // nearing the summit floor → the tuning/summit beat
+    else if (step === 'frequencies' && y < arenaY + 4 * TILE) quests.complete('frequencies');
+  }
+
   private beginSummit(): void {
     this.summitStarted = true;
     const arena = SKYLINE_ARRAY.meta.arena;
+    // fast-forward any skipped climb steps so the boss objective can show
+    if (quests.stepId === 'launch') quests.complete('launch');
+    if (quests.stepId === 'frequencies') quests.complete('frequencies');
+    if (quests.stepId === 'summit') quests.complete('summit');
     bus.emit(EVT.toast, { text: 'THE FIVE ECHOES GATHER — THE SKY IS LISTENING', color: 'green' });
     this.fx.flash(P.signal, 160);
     FREQSWAP.order.forEach((id, i) => {
@@ -483,6 +500,7 @@ export class SkylineArrayScene extends Phaser.Scene {
       s.flags.listeningStationDefeated = true;
       s.playerStats.enemiesDefeated += 1;
     });
+    if (quests.stepId === 'bossFight') quests.complete('bossFight');
     bus.emit(EVT.toast, { text: 'THE LISTENING STATION GOES QUIET', color: 'green' });
     this.time.delayedCall(900, () => this.collectFragment(ability !== null));
   }
@@ -498,6 +516,7 @@ export class SkylineArrayScene extends Phaser.Scene {
         if (!s.completedZones.includes('skyline-array')) s.completedZones.push('skyline-array');
       });
       bus.emit(EVT.fragmentCount, { count: getSave().signalFragments });
+      if (quests.stepId === 'collectFragment') quests.complete('collectFragment');
       bus.emit(EVT.scoutLog, {
         title: 'FINAL SIGNAL FRAGMENT SECURED — 5 / 5',
         body:
@@ -540,6 +559,7 @@ export class SkylineArrayScene extends Phaser.Scene {
 
     this.player.updatePlayer(this.input2);
     this.checkPickups();
+    this.updateClimbObjectives();
 
     const body = this.player.body as Phaser.Physics.Arcade.Body;
     if (body.blocked.down && this.player.alive) this.lastSafe = { x: this.player.x, y: this.player.y - 4 };

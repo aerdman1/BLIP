@@ -691,21 +691,37 @@ export function generateAllTextures(scene: Phaser.Scene): void {
   const drawContact47 = (g: G, hurt: boolean, accent: number = P.signal, emblem = false) => {
     // curved antenna with a signal tip (glow added at runtime)
     rect(g, 9, 1, 1, 3, P.slate);
+    px(g, 9, 1, P.slateDark, 0.6); // antenna base shade
+    px(g, 8, 2, P.shellRim, 0.4); // antenna catch-light
     px(g, 10, 1, P.slate);
     px(g, 10, 0, hurt ? P.uiDim : accent);
-    // rounded cream shell, moonlit from the left
-    rect(g, 4, 4, 8, 1, P.shellWhite); // crown
-    rect(g, 3, 5, 10, 12, P.shellWhite); // body
-    rect(g, 4, 17, 8, 1, P.shellWhite); // hip round
-    rect(g, 3, 5, 1, 12, 0xffffff, 0.55); // lit edge
-    rect(g, 12, 5, 1, 12, P.shellShade); // shaded edge
-    rect(g, 4, 17, 8, 1, P.shellShade, 0.7);
-    px(g, 4, 4, P.shellShade, 0.5); // corner rounding
-    px(g, 11, 4, P.shellShade, 0.5);
-    // dark rounded faceplate with big eyes
+    /* rounded cream shell — full 3-tone FORM ramp: light crown, midtone body,
+       deep belly shadow, plus a cool moonlit rim down the shaded edge. Same
+       silhouette as before (crown y4, body y5-16, hip y17) so nothing breaks. */
+    rect(g, 4, 4, 8, 1, P.shellMid); // crown base
+    rect(g, 3, 5, 10, 12, P.shellMid); // body midtone base
+    rect(g, 4, 17, 8, 1, P.shellMid); // hip round
+    rect(g, 3, 5, 10, 4, P.shellWhite); // lit upper band (light from top)
+    rect(g, 4, 4, 6, 1, P.shellHi); // crown catch-light
+    rect(g, 3, 5, 1, 9, P.shellWhite); // lit left edge
+    px(g, 3, 5, P.shellHi); // top-left brightest pixel
+    px(g, 4, 5, P.shellHi, 0.8);
+    rect(g, 12, 6, 1, 10, P.shellShade); // shaded right edge
+    rect(g, 11, 10, 1, 7, P.shellShade, 0.55); // inner shade falloff
+    rect(g, 4, 16, 8, 1, P.shellDeep, 0.55); // belly shadow
+    rect(g, 4, 17, 8, 1, P.shellDeep, 0.85); // hip underside shadow
+    px(g, 12, 7, P.shellRim, 0.8); // cool rim light, upper
+    px(g, 12, 8, P.shellRim, 0.45);
+    px(g, 12, 14, P.shellRim, 0.7); // cool rim light, lower
+    px(g, 12, 15, P.shellRim, 0.4);
+    px(g, 4, 4, P.shellDeep, 0.5); // corner rounding
+    px(g, 11, 4, P.shellDeep, 0.5);
+    // dark rounded visor faceplate with an upper sheen
     rect(g, 4, 7, 8, 4, P.faceplate);
     rect(g, 5, 6, 6, 1, P.faceplate);
     rect(g, 5, 11, 6, 1, P.faceplate);
+    rect(g, 5, 6, 6, 1, P.faceplateLit, 0.9); // glass sheen along the top
+    px(g, 4, 7, P.faceplateLit, 0.6);
     if (hurt) {
       // ✕ ✕ — the "archived as swamp gas" face
       for (const ex of [5, 9]) {
@@ -713,29 +729,39 @@ export function generateAllTextures(scene: Phaser.Scene): void {
         px(g, ex + 1, 7, accent, 0.5); px(g, ex, 8, accent, 0.4); px(g, ex + 1, 9, accent, 0.5);
       }
     } else {
+      // big expressive eyes: soft inner bloom → bright accent → white catch-light
+      rect(g, 4, 8, 3, 2, P.visorGlow, 0.16);
+      rect(g, 9, 8, 3, 2, P.visorGlow, 0.16);
       rect(g, 5, 7, 2, 3, accent);
       rect(g, 9, 7, 2, 3, accent);
-      px(g, 5, 7, 0xffffff, 0.9); // glints
-      px(g, 9, 7, 0xffffff, 0.9);
+      px(g, 6, 9, P.signalDim, 0.7); // lower-eye shadow (roundness)
+      px(g, 10, 9, P.signalDim, 0.7);
+      px(g, 5, 7, 0xffffff, 0.95); // glints
+      px(g, 9, 7, 0xffffff, 0.95);
+      px(g, 8, 8, P.visorGlow, 0.35); // faint scanner line between the eyes
     }
-    // little side arms
+    // little side arms — with a lit top and shaded underside
     rect(g, 2, 9, 1, 4, P.slate);
     rect(g, 13, 9, 1, 4, P.slate);
+    px(g, 2, 9, P.shellRim, 0.4);
+    px(g, 13, 9, P.slateDark);
     px(g, 2, 8, P.slateDark);
     px(g, 13, 8, P.slateDark);
-    // casing seam + scuffs; scout skins wear a colored chest emblem
+    // casing seam + panel line; scout skins wear a colored chest emblem
     rect(g, 4, 13, 8, 1, P.shellShade, 0.5);
+    rect(g, 4, 12, 8, 1, P.shellWhite, 0.25); // seam highlight above the line
     if (emblem) {
       rect(g, 6, 13, 4, 2, accent, 0.9); // scout badge on the chest
       px(g, 7, 13, 0xffffff, 0.8);
     } else {
-      px(g, 4, 14, P.warning, 0.85);
-      px(g, 5, 14, P.warning, 0.5);
-      px(g, 11, 5, P.warning, 0.6);
+      px(g, 5, 14, P.warning, 0.9); // small hazard fleck (panel light)
+      px(g, 6, 14, P.warning, 0.45);
+      px(g, 10, 14, P.shellRim, 0.5); // tiny cool indicator
     }
     // thruster skirt (glow rendered live underneath)
     rect(g, 4, 18, 8, 1, P.slate);
     rect(g, 5, 19, 6, 1, P.slateDark);
+    px(g, 4, 18, P.shellRim, 0.35); // rim catch on the skirt edge
   };
   tex(scene, TEX.player, 16, 20, (g) => drawContact47(g, false));
   tex(scene, TEX.playerHurt, 16, 20, (g) => drawContact47(g, true));

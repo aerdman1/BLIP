@@ -25,6 +25,9 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
   private glow: Phaser.GameObjects.Image;
   private shadow: Phaser.GameObjects.Image;
   private barrel: Phaser.GameObjects.Rectangle;
+  /** the gun sits this far BELOW body-center so it rides the lower torso and
+   *  no longer covers CONTACT-47's face/visor when aiming upward (top-down). */
+  private static readonly GUN_OFFSET_Y = 5;
   private invulnUntil = 0;
   private dashUntil = 0;
   private dashCdUntil = 0;
@@ -55,11 +58,13 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
     this.barrel = scene.add.rectangle(x, y, 11, 4, activeSkin().color, 1).setOrigin(0, 0.5).setDepth(21);
     this.hp = this.maxHp; // ANCHOR +1 hull / ROCKET −1 hull etc. apply here
 
-    // DEV: G toggles god mode in the top-down too (shared devState with the side-view)
-    if (DEV_TOOLS) {
+    // G toggles god mode in the top-down too (shared devState with the side-view).
+    // Live whenever dev tools are on OR god mode is already enabled via the console.
+    if (DEV_TOOLS || devState.god) {
       scene.input.keyboard?.on('keydown-G', () => {
         devState.god = !devState.god;
         bus.emit(EVT.toast, { text: devState.god ? 'GOD MODE ON — invulnerable' : 'GOD MODE OFF', color: devState.god ? 'green' : 'orange' });
+        bus.emit(EVT.godMode, { on: devState.god });
       });
     }
   }
@@ -135,7 +140,7 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
     this.setFlipX(Math.cos(this.aimAngle) < 0);
     this.shadow.setPosition(this.x, this.y + 10);
     this.glow.setPosition(this.x, this.y + 7);
-    this.barrel.setPosition(this.x, this.y + 1).setRotation(this.aimAngle);
+    this.barrel.setPosition(this.x, this.y + BlipCraft.GUN_OFFSET_Y).setRotation(this.aimAngle);
     this.setAlpha(!this.invulnerable ? 1 : Math.sin(now * 0.04) > 0 ? 0.4 : 0.9);
   }
 
@@ -144,7 +149,8 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
     return this.x + Math.cos(this.aimAngle) * 10;
   }
   get muzzleY(): number {
-    return this.y + Math.sin(this.aimAngle) * 10;
+    // spawn bolts from the lowered barrel line so visual + aim stay consistent
+    return this.y + BlipCraft.GUN_OFFSET_Y + Math.sin(this.aimAngle) * 10;
   }
 
   /** returns true if a hit landed */

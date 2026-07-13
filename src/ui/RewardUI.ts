@@ -10,7 +10,7 @@
  */
 import './rewardUI.css';
 import type Phaser from 'phaser';
-import { EVT, PAD, SCENES } from '../game/config';
+import { EVT, PAD, SCENES, REWARD_BANNER } from '../game/config';
 import { bus } from '../game/systems/EventBus';
 import { audio } from '../game/systems/AudioSystem';
 import { readPad } from '../game/systems/PadSim';
@@ -40,6 +40,7 @@ interface BannerPayload {
   kind: string;
   title: string;
   sub: string;
+  desc?: string;
   color: string;
   icon: string;
   rarity: RarityId;
@@ -73,7 +74,11 @@ export class RewardUI {
   private rafId: number | null = null;
   private canvas: HTMLCanvasElement | null = null;
   private ctx: CanvasRenderingContext2D | null = null;
-  private deferredBanners: BannerPayload[] = [];
+
+  // banner queue — rewards reveal ONE AT A TIME, each with its own spotlight
+  private bannerQueue: BannerPayload[] = [];
+  private bannerActive = false;
+  private bannerTimers: number[] = [];
 
   // archive state
   private activeTab = 'caches';
@@ -143,32 +148,64 @@ export class RewardUI {
 
   /* ============================ 1. CACHE-EARNED POPUPS ===================== */
 
+  /** Enqueue a reward banner. Reveals are strictly ONE AT A TIME (see pumpBanner). */
   private showBanner(p: BannerPayload): void {
-    if (this.cacheOpen) {
-      this.deferredBanners.push(p);
-      if (this.deferredBanners.length > 3) this.deferredBanners.shift();
-      return;
-    }
+    this.bannerQueue.push(p);
+    this.pumpBanner();
+  }
+
+  /**
+   * Reveal the next queued banner if the stage is clear. Only ever ONE banner is
+   * on screen: enter → hold → exit → gap → next. A backlog shortens the dwell so
+   * the player isn't stuck watching a parade, but they never stack.
+   */
+  private pumpBanner(): void {
+    // hold everything back while the cache-opening screen owns the spotlight
+    if (this.bannerActive || this.cacheOpen || this.bannerQueue.length === 0) return;
+    const p = this.bannerQueue.shift() as BannerPayload;
+    this.bannerActive = true;
+
+    const color = p.color || '#a8ff3e';
+    const remaining = this.bannerQueue.length;
     const el = document.createElement('div');
     el.className = `rw-banner${p.big ? ' big' : ''}`;
-    el.style.setProperty('--c', p.color || '#a8ff3e');
+    el.style.setProperty('--c', color);
+    el.style.setProperty('--rw-enter', `${REWARD_BANNER.enterMs}ms`);
+    el.style.setProperty('--rw-exit', `${REWARD_BANNER.exitMs}ms`);
+    const descHtml = p.desc ? `<div class="rw-b-desc">${esc(p.desc)}</div>` : '';
+    // a small "+N more" chip tells the player extra rewards are still queued
+    const moreHtml = remaining > 0 ? `<div class="rw-b-more">+${remaining}</div>` : '';
     el.innerHTML =
-      `<div class="rw-b-icon">${iconSvg(p.icon, p.color || '#a8ff3e')}</div>` +
+      `<div class="rw-b-shine"></div>` +
+      `<div class="rw-b-icon">${iconSvg(p.icon, color)}</div>` +
       `<div class="rw-b-text">` +
       `<div class="rw-b-title">${esc(p.title)}</div>` +
       `<div class="rw-b-sub">${esc(p.sub)}</div>` +
-      `</div>`;
+      descHtml +
+      `</div>` +
+      moreHtml;
+    // hard guarantee: nothing else is on the rail
+    this.banners.innerHTML = '';
     this.banners.appendChild(el);
-    while (this.banners.children.length > 3) this.banners.removeChild(this.banners.firstChild as Node);
     try { audio.uiToggle(); } catch { /* audio best-effort */ }
-    const life = p.big ? 4200 : 3000;
-    window.setTimeout(() => el.classList.add('out'), life);
-    window.setTimeout(() => el.remove(), life + 450);
+
+    const hold = remaining >= REWARD_BANNER.backlogThreshold
+      ? REWARD_BANNER.backlogHoldMs
+      : p.big ? REWARD_BANNER.bigHoldMs : REWARD_BANNER.holdMs;
+    const life = REWARD_BANNER.enterMs + hold;
+
+    this.bannerTimers.push(window.setTimeout(() => el.classList.add('out'), life));
+    this.bannerTimers.push(window.setTimeout(() => {
+      el.remove();
+      this.bannerActive = false;
+      // brief beat, then the next reward gets its own moment
+      this.bannerTimers.push(window.setTimeout(() => this.pumpBanner(), REWARD_BANNER.gapMs));
+    }, life + REWARD_BANNER.exitMs));
   }
 
+  /** Cache screen closed — resume revealing any rewards that queued behind it. */
   private flushDeferredBanners(): void {
-    const queued = this.deferredBanners.splice(0, 3);
-    queued.forEach((p, i) => window.setTimeout(() => this.showBanner(p), i * 260));
+    this.pumpBanner();
   }
 
   /* ============================ 2. CACHE-OPENING SCREEN =================== */
