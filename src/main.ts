@@ -22,8 +22,10 @@ import { CommandCenter } from './command-center/CommandCenter';
 import { ShellUI } from './ui/ShellUI';
 import { RewardUI } from './ui/RewardUI';
 import { installRewardTriggers } from './game/systems/RewardTriggers';
+import { registerServiceWorker } from './registerServiceWorker';
 
 const game = createGame('game-root');
+registerServiceWorker();
 installTestAPI(game);
 if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__BLIP_GAME__ = game;
 

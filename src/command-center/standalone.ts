@@ -7,7 +7,9 @@
  */
 import '../style.css'; // palette vars + typography shared with the game shell
 import { CommandCenter } from './CommandCenter';
+import { registerServiceWorker } from '../registerServiceWorker';
 
+registerServiceWorker();
 const root = document.getElementById('command-center') as HTMLElement;
 const cc = new CommandCenter(root, { standalone: true });
 cc.open();

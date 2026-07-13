@@ -75,14 +75,14 @@ export const CONTROLS_GAMEPAD: ControlRow[] = [
 // On-screen touch controls (tablets). Appear automatically on touch devices;
 // force on/off in Settings ▸ ON-SCREEN CONTROLS.
 export const CONTROLS_TOUCH: ControlRow[] = [
-  { action: 'Move', keys: 'on-screen D-pad (bottom-left)' },
+  { action: 'Move', keys: 'virtual stick (bottom-left)' },
   { action: 'Jump / Hover', keys: 'JUMP button (hold to hover)' },
   { action: 'Pulse Shot', keys: '◎ button (hold to auto-fire)' },
   { action: 'Sonar (Scan)', keys: '((·)) button' },
   { action: 'Dash', keys: '» button' },
   { action: 'Interact / Enter Node', keys: 'E button' },
   { action: 'Pause', keys: '❚❚ pip (top-right)' },
-  { action: 'Top-down aiming', keys: 'auto-aims the nearest threat' },
+  { action: 'Top-down fire', keys: 'large FIRE button; auto-aims nearest threat' },
 ];
 
 // Top-down "Scan" mode (the Fold flips you here) — twin-stick.
@@ -155,6 +155,8 @@ export const BUILD_TODO: TodoItem[] = [
   { label: 'Dev dashboard: Level Atlas + Bestiary + Arsenal + standalone /command-center.html', done: true },
   { label: 'Gamepad support (Xbox / PlayStation) + menu navigation', done: true },
   { label: 'Settings page (volume, CRT, shake, controls, pad status)', done: true },
+  { label: 'Mobile/tablet hardening: compact gameplay chrome, no forced portrait blocker, smaller touch controls, iPhone/iPad Sweep layout pass', done: true },
+  { label: 'PWA install/offline support: manifest + iOS home-screen metadata + service worker static cache', done: true },
   { label: 'Signal Skins: skin system + Wardrobe (all 5 scouts)', done: true },
   { label: 'Signal Sets: badge/log/relic collectibles (Will + Chip in Miller Field)', done: true },
   { label: 'Scout Echo encounters (unlock payoff + characters)', done: true },
@@ -192,6 +194,8 @@ export const HUMAN_PLAYTEST_CHECKLIST: string[] = [
   'Is the story tone working — mysterious but warm?',
   'Is the Command Center useful?',
   'Does the game feel unique?',
+  'Does it remain playable on iPhone and iPad in landscape and portrait?',
+  'Can the installed PWA launch after airplane-mode/offline reload once it has been opened online?',
 ];
 
 export const WEB_TECH_NOTES: string[] = [
@@ -200,7 +204,8 @@ export const WEB_TECH_NOTES: string[] = [
   'WebAudio-synthesized SFX (oscillators + noise buffers) — zero audio assets.',
   'CRT/scanline/vignette via CSS overlays — zero-cost, fails nowhere.',
   'localStorage saves (blip_save_v1) with automatic legacy-key migration from the pre-rename build.',
-  'PWA-lite: manifest.webmanifest + SVG icon. No service worker yet.',
+  'PWA install/offline: manifest.webmanifest + PNG/SVG icons + /sw.js static cache. iPad/iPhone users can Add to Home Screen; first online load warms the cache for offline play.',
+  'Mobile/tablet gameplay chrome: compact mode hides desktop shell during play, keeps touch controls large enough, and no longer blocks portrait with a rotate gate.',
   'WebGPU: detection badge only — NOT in the render path (see scope-control skill).',
   'Static Vite build → Vercel-ready, no server runtime.',
 ];
