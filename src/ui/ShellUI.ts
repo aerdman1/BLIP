@@ -181,8 +181,14 @@ export class ShellUI {
     this.startPadLoop();
     this.wireOrientation();
     this.wireBeforeUnload();
-    window.addEventListener('resize', () => this.positionMenuScoutTargets());
-    window.addEventListener('orientationchange', () => window.setTimeout(() => this.positionMenuScoutTargets(), 120));
+    window.addEventListener('resize', () => {
+      this.positionMenuScoutTargets();
+      this.refreshGameplayChrome();
+    });
+    window.addEventListener('orientationchange', () => window.setTimeout(() => {
+      this.positionMenuScoutTargets();
+      this.refreshGameplayChrome();
+    }, 120));
     window.addEventListener('keydown', (ev) => this.onKeyDown(ev), { capture: true });
   }
 
@@ -220,14 +226,24 @@ export class ShellUI {
     const isGameplay = this.touchGameplayScenes.includes(this.lastScene);
     const unobstructed = !this.menuVisible && !this.pauseVisible && this.modalDepth === 0;
     this.touch.setVisible(enabled && isGameplay && unobstructed);
+    this.refreshGameplayChrome();
+  }
+
+  private refreshGameplayChrome(): void {
+    const coarse = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+    const compact = typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 1100px) and (max-height: 840px)').matches;
+    const isGameplay = this.touchGameplayScenes.includes(this.lastScene);
+    const unobstructed = !this.menuVisible && !this.pauseVisible && this.modalDepth === 0;
+    document.body.classList.toggle('gameplay-active', isGameplay && unobstructed);
+    document.body.classList.toggle('compact-gameplay', isGameplay && unobstructed && (coarse || compact));
+    document.body.classList.toggle('sweep-active', isGameplay && unobstructed && this.lastScene === SCENES.sweep);
   }
 
   private refreshOrientationNudge(): void {
-    const coarse = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
-    const portrait = typeof window.matchMedia === 'function' && window.matchMedia('(orientation: portrait)').matches;
-    const isGameplay = this.touchGameplayScenes.includes(this.lastScene);
-    const unobstructed = !this.menuVisible && !this.pauseVisible && this.modalDepth === 0;
-    $('rotate-overlay').classList.toggle('hidden', !(coarse && portrait && isGameplay && unobstructed));
+    // Phones and iPads must remain playable in either orientation. The old
+    // blocking rotate gate made portrait sessions look broken, especially in
+    // Safari/PWA view where users may not rotate immediately.
+    $('rotate-overlay').classList.add('hidden');
   }
 
   /** Portrait rotate nudge — only meaningful on touch devices. */
@@ -353,6 +369,7 @@ export class ShellUI {
       if (s.zone) $('strip-location').textContent = s.zone.toUpperCase();
       this.renderStatus();
       if (s.scene !== SCENES.menu) this.setMenuVisible(false);
+      this.refreshGameplayChrome();
       this.refreshTouch();
       this.refreshOrientationNudge();
     });
@@ -497,6 +514,7 @@ export class ShellUI {
     this.onMenu = v;
     document.body.classList.toggle('menu-active', v);
     $('game-frame').classList.toggle('menu-open', v);
+    this.refreshGameplayChrome();
     $('menu-overlay').classList.toggle('hidden', !v);
     this.refreshResetButton();
     if (v) {

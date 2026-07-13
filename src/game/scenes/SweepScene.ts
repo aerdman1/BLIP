@@ -873,7 +873,7 @@ export class SweepScene extends Phaser.Scene {
       const ang = this.nearestEnemyAngle();
       if (ang !== null) this.player.setAim(ang);
       this.reticle.setPosition(this.player.x + Math.cos(this.player.aimAngle) * 64, this.player.y + Math.sin(this.player.aimAngle) * 64);
-      firing = touchInput.shootHeld;
+      firing = touchInput.shootHeld || touchInput.jumpHeld;
     } else {
       const p = this.input.activePointer;
       // the camera FOLLOWS the player across the arena, so activePointer.worldX/Y

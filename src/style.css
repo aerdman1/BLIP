@@ -62,7 +62,7 @@ html, body {
 /* text fields stay selectable (e.g. the save-name input) */
 input, textarea { -webkit-user-select: text; user-select: text; }
 
-#app-shell { display: flex; flex-direction: column; height: 100vh; }
+#app-shell { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 
 button { font-family: var(--mono); }
 
@@ -1152,6 +1152,138 @@ input[type='range'].vol::-webkit-slider-thumb {
     flex: 1 1 100dvh;
   }
 }
+
+/* Compact gameplay is the phone/tablet play layout: the desktop instrument
+   shell gets out of the way so the game is actually playable. Menus, pause,
+   Command Center and modals still use the normal chrome. */
+body.compact-gameplay #top-bar,
+body.compact-gameplay #objective-bar,
+body.compact-gameplay #status-strip {
+  display: none;
+}
+body.compact-gameplay #app-shell,
+body.compact-gameplay #game-frame {
+  height: 100dvh;
+}
+body.compact-gameplay #game-frame {
+  flex: 1 1 100dvh;
+}
+body.compact-gameplay #game-root {
+  inset: 0;
+}
+body.compact-gameplay #toast-stack {
+  top: auto;
+  bottom: max(82px, calc(env(safe-area-inset-bottom) + 82px));
+  left: 50%;
+  width: min(62vw, 420px);
+  transform: translateX(-50%);
+  align-items: center;
+  z-index: 42;
+}
+body.compact-gameplay .toast {
+  max-width: 100%;
+  padding: 6px 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: clamp(9px, 1.7vw, 11px);
+  letter-spacing: 0.8px;
+  background: rgba(6, 10, 16, 0.48);
+  border-color: rgba(242, 169, 59, 0.22);
+}
+
+body.compact-gameplay.sweep-active .sweep-hud-top {
+  top: max(6px, env(safe-area-inset-top));
+  width: min(46vw, 260px);
+  padding: 5px 9px 7px;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(6, 10, 16, 0.68), rgba(6, 10, 16, 0.34));
+  border-color: rgba(95, 158, 46, 0.28);
+  box-shadow: inset 0 -1px 0 rgba(168, 255, 62, 0.12), 0 4px 14px rgba(0, 0, 0, 0.18);
+  backdrop-filter: none;
+}
+body.compact-gameplay.sweep-active .sweep-hud-objective {
+  font-size: clamp(11px, 2.4vw, 16px);
+  letter-spacing: 0.6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body.compact-gameplay.sweep-active .sweep-hud-contacts {
+  margin-top: 1px;
+  font-size: clamp(10px, 2.4vw, 12px);
+}
+body.compact-gameplay.sweep-active .sweep-hud-node {
+  height: 4px;
+  margin-top: 5px;
+}
+body.compact-gameplay.sweep-active .sweep-hud-weapon,
+body.compact-gameplay.sweep-active .sweep-hud-prompts {
+  display: none;
+}
+body.sweep-active #touch-controls .tc-jump {
+  font-size: 0;
+}
+body.sweep-active #touch-controls .tc-jump::after {
+  content: 'FIRE';
+  font-size: 16px;
+  letter-spacing: 1px;
+}
+body.sweep-active #touch-controls .tc-shoot {
+  opacity: 0.58;
+}
+body.compact-gameplay.sweep-active .sweep-hud-overdrive {
+  width: min(32vw, 170px);
+  bottom: max(7px, env(safe-area-inset-bottom));
+  padding: 4px 6px;
+  background: rgba(6, 10, 16, 0.38);
+  border-color: rgba(124, 92, 255, 0.26);
+}
+body.compact-gameplay.sweep-active .sweep-hud-overdrive span {
+  display: none;
+}
+body.compact-gameplay.sweep-active .sweep-hud-overdrive div {
+  height: 5px;
+  margin-top: 0;
+}
+body.compact-gameplay.sweep-active .sweep-hud-banner {
+  top: 30%;
+  padding: 8px 12px;
+  font-size: clamp(17px, 5vw, 30px);
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  body.compact-gameplay.sweep-active .sweep-hud-top {
+    left: max(74px, calc(env(safe-area-inset-left) + 74px));
+    transform: none;
+    width: min(25vw, 168px);
+    padding: 4px 7px 5px;
+    text-align: left;
+  }
+  body.compact-gameplay.sweep-active .sweep-hud-objective {
+    font-size: 0;
+    line-height: 1;
+  }
+  body.compact-gameplay.sweep-active .sweep-hud-objective::after {
+    content: 'NODE';
+    font-size: 12px;
+    color: var(--soft-white);
+  }
+  body.compact-gameplay.sweep-active .sweep-hud-contacts {
+    font-size: 9px;
+  }
+  body.compact-gameplay.sweep-active .sweep-hud-node {
+    height: 3px;
+    margin-top: 3px;
+  }
+  body.compact-gameplay #toast-stack {
+    bottom: max(18px, env(safe-area-inset-bottom));
+    width: min(38vw, 300px);
+  }
+  body.compact-gameplay.sweep-active #toast-stack {
+    display: none;
+  }
+}
 @media (max-width: 640px) {
   .cell-icon { display: none; }
   #unit-badge { font-size: 9px; padding: 4px 6px; letter-spacing: 1px; }
@@ -1398,22 +1530,51 @@ input[type='range'].vol::-webkit-slider-thumb {
    screen corners so they don't crowd the small play area. Transform scales the
    buttons AND their hit areas together, anchored to each corner. */
 @media (max-height: 500px) {
-  #touch-controls .tc-stick { transform: scale(0.74); transform-origin: bottom left; }
-  #touch-controls .tc-actions { transform: scale(0.68); transform-origin: bottom right; }
-  #touch-controls .tc-pause { transform: scale(0.82); transform-origin: top right; }
+  #touch-controls .tc-stick {
+    left: max(8px, env(safe-area-inset-left));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    transform: scale(0.62);
+    transform-origin: bottom left;
+    opacity: 0.82;
+  }
+  #touch-controls .tc-actions {
+    right: max(8px, env(safe-area-inset-right));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    transform: scale(0.56);
+    transform-origin: bottom right;
+    opacity: 0.86;
+  }
+  #touch-controls .tc-pause {
+    top: max(6px, env(safe-area-inset-top));
+    right: max(6px, env(safe-area-inset-right));
+    transform: scale(0.74);
+    transform-origin: top right;
+  }
 }
 
 @media (max-width: 640px) and (min-height: 501px) {
   #touch-controls .tc-stick {
     left: max(12px, env(safe-area-inset-left));
     bottom: max(14px, env(safe-area-inset-bottom));
-    transform: scale(0.82);
+    transform: scale(0.72);
     transform-origin: bottom left;
+    opacity: 0.84;
   }
   #touch-controls .tc-actions {
     right: max(12px, env(safe-area-inset-right));
     bottom: max(14px, env(safe-area-inset-bottom));
-    transform: scale(0.78);
+    transform: scale(0.68);
     transform-origin: bottom right;
+    opacity: 0.86;
   }
+}
+
+body.compact-gameplay #touch-controls .tc-btn {
+  background: rgba(8, 14, 26, 0.28);
+  border-color: rgba(246, 231, 180, 0.28);
+}
+body.compact-gameplay #touch-controls .tc-stick {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(168, 255, 62, 0.08), rgba(8, 14, 26, 0.14) 43%, rgba(8, 14, 26, 0.28) 44%, rgba(8, 14, 26, 0.1) 72%),
+    repeating-radial-gradient(circle, rgba(246, 231, 180, 0.14) 0 1px, transparent 1px 15px);
 }
