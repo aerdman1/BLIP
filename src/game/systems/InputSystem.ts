@@ -101,6 +101,16 @@ export class PlayerInput {
     return Math.abs(y) > PAD.deadZone ? y : 0;
   }
 
+  private get padAimX(): number {
+    const x = this.pad?.axes[2] ?? 0;
+    return Math.abs(x) > PAD.deadZone ? x : 0;
+  }
+
+  private get padAimY(): number {
+    const y = this.pad?.axes[3] ?? 0;
+    return Math.abs(y) > PAD.deadZone ? y : 0;
+  }
+
   get moveDir(): -1 | 0 | 1 {
     const l = this.k.left.isDown || this.k.aleft.isDown || this.padDown(PAD.dpadLeft) || this.padAxisX < 0 || touchInput.moveX < 0;
     const r = this.k.right.isDown || this.k.aright.isDown || this.padDown(PAD.dpadRight) || this.padAxisX > 0 || touchInput.moveX > 0;
@@ -153,6 +163,28 @@ export class PlayerInput {
       this.padDown(PAD.shootAlt) ||
       touchInput.shootHeld
     );
+  }
+
+  shotVector(originX: number, originY: number, fallbackFacing: 1 | -1): { x: number; y: number } {
+    if (touchInput.active && touchInput.shootHeld) {
+      const len = Math.hypot(touchInput.aimX, touchInput.aimY);
+      if (len > 0.2) return { x: touchInput.aimX / len, y: touchInput.aimY / len };
+    }
+
+    const padLen = Math.hypot(this.padAimX, this.padAimY);
+    if (padLen > 0.2) return { x: this.padAimX / padLen, y: this.padAimY / padLen };
+
+    const p = this.scene.input.activePointer;
+    if (!touchInput.active && p.isDown && p.leftButtonDown()) {
+      const wx = p.worldX || p.x;
+      const wy = p.worldY || p.y;
+      const dx = wx - originX;
+      const dy = wy - originY;
+      const len = Math.hypot(dx, dy);
+      if (len > 8) return { x: dx / len, y: dy / len };
+    }
+
+    return { x: fallbackFacing, y: 0 };
   }
 
   get scanJustDown(): boolean {

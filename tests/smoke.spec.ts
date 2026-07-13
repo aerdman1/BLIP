@@ -27,6 +27,7 @@ test('play button path: menu → FieldScene', async ({ page }) => {
 
 test('command center opens from the shell button and closes', async ({ page }) => {
   await bootToMenu(page);
+  await startGame(page);
   await page.click('#btn-command-center');
   await expect(page.locator('#command-center')).toBeVisible();
   await expect(page.locator('#command-center')).toContainText('COMMAND CENTER');

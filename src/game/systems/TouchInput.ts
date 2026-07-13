@@ -13,6 +13,8 @@ export interface TouchInputState {
   active: boolean; // true only while the on-screen controls are engaged
   moveX: -1 | 0 | 1; // D-pad left/right
   moveY: -1 | 0 | 1; // D-pad up/down (top-down Sweep only; side-view ignores)
+  aimX: number; // analog stick vector, -1..1 (used for mobile side-view aiming)
+  aimY: number;
   jumpHeld: boolean; // hold to hover
   shootHeld: boolean; // hold to auto-fire
   // one-shot edges (set by overlay, cleared by PlayerInput.update)
@@ -28,6 +30,8 @@ export const touchInput: TouchInputState = {
   active: false,
   moveX: 0,
   moveY: 0,
+  aimX: 0,
+  aimY: 0,
   jumpHeld: false,
   shootHeld: false,
   jumpQueued: false,
@@ -42,6 +46,8 @@ export const touchInput: TouchInputState = {
 export function resetTouchInput(): void {
   touchInput.moveX = 0;
   touchInput.moveY = 0;
+  touchInput.aimX = 0;
+  touchInput.aimY = 0;
   touchInput.jumpHeld = false;
   touchInput.shootHeld = false;
   touchInput.jumpQueued = false;

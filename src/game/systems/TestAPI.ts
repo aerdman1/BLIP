@@ -11,6 +11,8 @@ import { getSave, recordSetPiece, resetSave, selectSkin, unlockSkin, updateSave 
 import { quests } from './QuestSystem';
 import { setSimulatedPad, type PadSnapshot } from './PadSim';
 import { skinById } from '../data/skins';
+import { rewards } from './RewardSystem';
+import type { CacheType } from '../data/caches';
 
 // registered live scenes (import types only — avoids runtime cycles)
 import type { FieldScene } from '../scenes/FieldScene';
@@ -220,6 +222,22 @@ export function installTestAPI(game: Phaser.Game): void {
 
     getSaveData: () => getSave(),
     getDebugFlags: () => getSave().flags,
+    getRewardState: () => getSave().rewards,
+    grantCache: (type: CacheType): boolean => {
+      rewards.grantCache(type, { silent: true });
+      return true;
+    },
+    openCache: (type: CacheType) => rewards.openCache(type),
+    forceOwnReward: (id: string): boolean => {
+      updateSave((s) => {
+        if (!s.rewards.owned.includes(id)) s.rewards.owned.push(id);
+      });
+      return true;
+    },
+    equipReward: (id: string): boolean => {
+      rewards.equip(id);
+      return getSave().rewards.equipped[Object.keys(getSave().rewards.equipped).find((k) => getSave().rewards.equipped[k] === id) ?? ''] === id;
+    },
 
     startGame: (continueRun = false): boolean => {
       if (driveable(scenes.menu)) {

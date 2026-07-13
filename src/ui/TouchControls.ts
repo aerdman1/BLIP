@@ -71,6 +71,8 @@ export class TouchControls {
       this.stickPointer = null;
       touchInput.moveX = 0;
       touchInput.moveY = 0;
+      touchInput.aimX = 0;
+      touchInput.aimY = 0;
       knob.style.removeProperty('transform');
     };
     stick.addEventListener('pointerup', releaseStick);
@@ -118,6 +120,8 @@ export class TouchControls {
 
     const nx = x / max;
     const ny = y / max;
+    touchInput.aimX = Math.abs(nx) < 0.12 ? 0 : nx;
+    touchInput.aimY = Math.abs(ny) < 0.12 ? 0 : ny;
     touchInput.moveX = nx < -0.25 ? -1 : nx > 0.25 ? 1 : 0;
     touchInput.moveY = ny < -0.25 ? -1 : ny > 0.25 ? 1 : 0;
   }

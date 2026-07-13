@@ -80,4 +80,6 @@ test('refreshing after new game continues the unfinished cold-open Sweep', async
   await page.click('#menu-slot-0');
   await waitScene(page, 'SweepScene');
   expect(await api<string>(page, 'api.getSceneName()')).toBe('SweepScene');
+  await expect(page.locator('#sweep-hud-dom')).toBeVisible();
+  await expect(page.locator('.sweep-hud-objective')).toContainText(/CHARGE|WAVE|BREACH/);
 });

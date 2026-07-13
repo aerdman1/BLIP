@@ -1,8 +1,8 @@
 /**
  * COMMAND CENTER — the mission-control overlay.
  * Story bible, the Five Signal Scouts, mechanics, controls, progression,
- * zones, debug/save viewer, build TODO, the AI QA / Playtest Lab and
- * experimental web tech status. Live data via the EventBus + SaveSystem.
+ * zones, player-facing collection/status pages, plus dev-only playbook/QA
+ * sections when running a dev build, standalone dashboard, ?test, or god mode.
  */
 import './commandCenter.css';
 import { BOSS, BUILD_VERSION, CLASSIFY, DRONE, EVT, PLAYER, PULSE, SCAN, SCANRIG, TILE } from '../game/config';
@@ -21,6 +21,7 @@ import { RARITIES, type RarityId } from '../game/data/rewards';
 import { CACHES, CACHE_ORDER } from '../game/data/caches';
 import { rewardById } from '../game/data/rewards';
 import { trophyById } from '../game/data/trophies';
+import { devState } from '../game/systems/DevState';
 import {
   ART_DIRECTION,
   BUILD_TODO,
@@ -92,6 +93,7 @@ export class CommandCenter {
   }
 
   open(section?: string): void {
+    this.applyDevMode();
     this.root.classList.remove('hidden');
     if (!this.atlasesDrawn) {
       this.atlasesDrawn = true;
@@ -120,7 +122,7 @@ export class CommandCenter {
   /* --------------------------------- static DOM ------------------------------ */
 
   private buildStatic(): void {
-    const navItems: Array<[string, string]> = [
+    const navItems: Array<[string, string, boolean?]> = [
       ['overview', 'OVERVIEW'],
       ['story', 'STORY BIBLE'],
       ['scouts', 'SIGNAL SCOUTS'],
@@ -132,16 +134,16 @@ export class CommandCenter {
       ['controls', 'CONTROLS'],
       ['progression', 'PROGRESSION'],
       ['zones', 'ZONES'],
-      ['levelplans', 'LEVEL PLANS'],
-      ['atlas', 'LEVEL ATLAS'],
-      ['sweeparenas', 'SWEEP ARENAS'],
+      ['levelplans', 'LEVEL PLANS', true],
+      ['atlas', 'LEVEL ATLAS', true],
+      ['sweeparenas', 'SWEEP ARENAS', true],
       ['bestiary', 'BESTIARY'],
       ['arsenal', 'ARSENAL'],
-      ['debug', 'DEBUG / SAVE'],
-      ['todo', 'BUILD TODO'],
-      ['qa', 'AI QA LAB'],
-      ['webtech', 'WEB TECH'],
-      ['art', 'ART DIRECTION'],
+      ['debug', 'DEBUG / SAVE', true],
+      ['todo', 'BUILD TODO', true],
+      ['qa', 'AI QA LAB', true],
+      ['webtech', 'WEB TECH', true],
+      ['art', 'ART DIRECTION', true],
     ];
 
     this.root.innerHTML = `
@@ -152,6 +154,7 @@ export class CommandCenter {
             <span class="cc-classified">${this.standalone ? 'STANDALONE DEV DASHBOARD' : 'CLASSIFIED — FIELD UNIT EYES ONLY'}</span>
           </div>
           <div class="cc-header-actions">
+            <span class="cc-dev-chip cc-dev-only">DEV VIEW</span>
             ${
               this.standalone
                 ? `<a class="cc-btn" href="/" title="Open the game">▶ OPEN GAME</a>`
@@ -162,7 +165,7 @@ export class CommandCenter {
         </header>
         <div class="cc-body">
           <nav class="cc-nav">
-            ${navItems.map(([id, label]) => `<a href="#cc-${id}" data-target="cc-${id}">${label}</a>`).join('')}
+            ${navItems.map(([id, label, dev]) => `<a href="#cc-${id}" data-target="cc-${id}" class="${dev ? 'cc-dev-only' : ''}">${label}</a>`).join('')}
           </nav>
           <main class="cc-content" id="cc-content">
             ${this.sectionOverview()}
@@ -190,6 +193,7 @@ export class CommandCenter {
           </main>
         </div>
       </div>`;
+    this.applyDevMode();
 
     (this.root.querySelector('#cc-close') as HTMLButtonElement | null)?.addEventListener('click', () => {
       bus.emit(EVT.ccClose, {});
@@ -230,6 +234,15 @@ export class CommandCenter {
 
   private zoneOf(scoutId: string): string {
     return SCOUTS.find((s) => s.id === scoutId)?.zone ?? 'their home zone';
+  }
+
+  private devMode(): boolean {
+    const testMode = new URLSearchParams(window.location.search).has('test');
+    return this.standalone || import.meta.env.DEV || testMode || devState.god;
+  }
+
+  private applyDevMode(): void {
+    this.root.classList.toggle('cc-dev-mode', this.devMode());
   }
 
   private panel(id: string, title: string, inner: string, cls = ''): string {
@@ -489,7 +502,8 @@ export class CommandCenter {
             </div>
           </div>
         </article>`
-      ).join('')}</div>`
+      ).join('')}</div>`,
+      'cc-dev-only'
     );
   }
 
@@ -570,7 +584,8 @@ export class CommandCenter {
       <p class="cc-note">Dive through the pool and the world flips to a low-gravity, god-rayed underwater mirror where your delayed reflection echoes your moves. Route the three sync nodes (float over the slow static), then rise through the surface gate — the field above wakes for the boss.</p>
       <h3>BLIPSTREAM NODE A — ${NODE_A.cols}×${NODE_A.rowCount} tiles (${NODE_A.meta.widthPx}×${NODE_A.meta.heightPx}px)</h3>
       <div class="cc-atlas-wrap"><canvas id="cc-atlas-node" class="cc-atlas"></canvas></div>
-      <p class="cc-note">Flow: entry shelf → node 1 → scan-line corridor → static-hazard run → node 2 → oscillating platforms → node 3 over hazard → descent → exit gate. (Reused as Chip's Circuit when jacked in from Motel Nowhere.)</p>`
+      <p class="cc-note">Flow: entry shelf → node 1 → scan-line corridor → static-hazard run → node 2 → oscillating platforms → node 3 over hazard → descent → exit gate. (Reused as Chip's Circuit when jacked in from Motel Nowhere.)</p>`,
+      'cc-dev-only'
     );
   }
 
@@ -845,7 +860,8 @@ export class CommandCenter {
       <p class="cc-note">The top-down twin-stick combat maps you enter through <b>the Fold</b> (side-view ⇄ the Interpretation Engine's top-down scan). Floor is carved from a solid wall field by hand-authored rooms + corridors, so every zone's Sweep is a real, unique level.
       <span style="color:#a8ff3e">◉</span> signal node · <span style="color:#7cfc9b">◉</span> breach (exit) · <span style="color:#f2a93b">◉</span> elite Classifier · <span style="color:#d84a42">◉</span> drones · <span style="color:#7c5cff">◉</span> caches · <span style="color:#fff3c9">◉</span> spawn.</p>
       ${cards}
-      <p class="cc-note"><b>maze-z4</b> is Patterson's Orchard's living corn maze — fight through, charge the crop-circle node, and it <b>blooms</b> the circle and Folds you back to open the maze-heart gate.</p>`
+      <p class="cc-note"><b>maze-z4</b> is Patterson's Orchard's living corn maze — fight through, charge the crop-circle node, and it <b>blooms</b> the circle and Folds you back to open the maze-heart gate.</p>`,
+      'cc-dev-only'
     );
   }
 
@@ -1062,7 +1078,8 @@ export class CommandCenter {
       <div class="cc-chips" id="cc-flags"></div>
       <h3>RAW SAVE (localStorage: blip_save_v1)</h3>
       <pre class="cc-json" id="cc-save-json"></pre>
-      <button id="cc-reset-save" class="cc-btn danger">↺ RESET SAVE DATA</button>`
+      <button id="cc-reset-save" class="cc-btn danger">↺ RESET SAVE DATA</button>`,
+      'cc-dev-only'
     );
   }
 
@@ -1072,7 +1089,8 @@ export class CommandCenter {
       'BUILD TODO',
       `<ul class="cc-check">${BUILD_TODO.map(
         (t) => `<li class="${t.done ? 'done' : ''}">${t.done ? '☑' : '☐'} ${esc(t.label)}</li>`
-      ).join('')}</ul>`
+      ).join('')}</ul>`,
+      'cc-dev-only'
     );
   }
 
@@ -1086,7 +1104,8 @@ export class CommandCenter {
       <div id="cc-qa-panel"><p class="cc-note">Loading QA status…</p></div>
       <h3>HUMAN PLAYTEST CHECKLIST (what automation can't answer)</h3>
       <ul class="cc-check">${HUMAN_PLAYTEST_CHECKLIST.map((c) => `<li>☐ ${esc(c)}</li>`).join('')}</ul>
-      <p class="cc-note">Run locally: <span class="key">npm run qa:full</span> · <span class="key">npm run qa:loop</span></p>`
+      <p class="cc-note">Run locally: <span class="key">npm run qa:full</span> · <span class="key">npm run qa:loop</span></p>`,
+      'cc-dev-only'
     );
   }
 
@@ -1100,7 +1119,8 @@ export class CommandCenter {
         <div class="cc-stat"><label>RENDERER</label><b>Phaser 3 — WebGL w/ Canvas fallback</b></div>
       </div>
       <ul class="cc-list">${WEB_TECH_NOTES.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>
-      <p class="cc-note">WebGPU is detection-only — never part of the render path (scope-control skill).</p>`
+      <p class="cc-note">WebGPU is detection-only — never part of the render path (scope-control skill).</p>`,
+      'cc-dev-only'
     );
   }
 
@@ -1111,13 +1131,15 @@ export class CommandCenter {
       `<ul class="cc-list">${ART_DIRECTION.map((a) => `<li>${esc(a)}</li>`).join('')}</ul>
       <div class="cc-swatches">
         ${SCOUTS.map((s) => `<span class="cc-swatch" style="--sw:${colorHex(s.color)}" title="${esc(s.name)}">${esc(s.callsign)}</span>`).join('')}
-      </div>`
+      </div>`,
+      'cc-dev-only'
     );
   }
 
   /* ------------------------------- live refresh ------------------------------ */
 
   refresh(): void {
+    this.applyDevMode();
     const save = getSave();
     const set = (id: string, text: string) => {
       const el = this.root.querySelector('#' + id);

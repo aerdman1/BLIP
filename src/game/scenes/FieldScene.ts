@@ -593,10 +593,18 @@ export class FieldScene extends Phaser.Scene {
 
     // shooting
     if (this.input2.shootDown && this.player.canShoot() && this.player.alive) {
+      const aim = this.input2.shotVector(this.player.x, this.player.y - 1, this.player.facing);
+      if (Math.abs(aim.x) > 0.25) this.player.facing = aim.x >= 0 ? 1 : -1;
       this.player.markShoot();
-      const dir = this.player.facing;
       const surge = this.player.isSurgeShot; // SPARK: every 3rd pulse
-      const bolt = fireFrom(this.playerBolts, this.player.x + dir * 8, this.player.y - 1, dir * PULSE.speed, 0, PULSE.lifeMs);
+      const bolt = fireFrom(
+        this.playerBolts,
+        this.player.x + aim.x * 8,
+        this.player.y - 1 + aim.y * 4,
+        aim.x * PULSE.speed,
+        aim.y * PULSE.speed,
+        PULSE.lifeMs
+      );
       if (bolt) {
         (bolt as unknown as { surge?: boolean; bounced?: boolean }).surge = surge;
         (bolt as unknown as { bounced?: boolean }).bounced = false;
@@ -604,7 +612,7 @@ export class FieldScene extends Phaser.Scene {
         else bolt.setTint(activeSkin().color).setScale(1); // pulse reads in the skin's color
       }
       audio.pulseShot();
-      this.fx.sparks(this.player.x + dir * 9, this.player.y - 1, surge ? P.warning : P.signal, surge ? 5 : 2);
+      this.fx.sparks(this.player.x + aim.x * 9, this.player.y - 1 + aim.y * 4, surge ? P.warning : P.signal, surge ? 5 : 2);
       this.bumpStat('pulseShotsFired');
     }
 

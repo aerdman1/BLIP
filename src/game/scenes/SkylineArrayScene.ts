@@ -551,9 +551,10 @@ export class SkylineArrayScene extends Phaser.Scene {
 
     // shooting
     if (this.input2.shootDown && this.player.canShoot() && this.player.alive) {
+      const aim = this.input2.shotVector(this.player.x, this.player.y - 1, this.player.facing);
+      if (Math.abs(aim.x) > 0.25) this.player.facing = aim.x >= 0 ? 1 : -1;
       this.player.markShoot();
-      const dir = this.player.facing;
-      fireFrom(this.playerBolts, this.player.x + dir * 8, this.player.y - 1, dir * PULSE.speed, 0, PULSE.lifeMs)?.setTint(
+      fireFrom(this.playerBolts, this.player.x + aim.x * 8, this.player.y - 1 + aim.y * 4, aim.x * PULSE.speed, aim.y * PULSE.speed, PULSE.lifeMs)?.setTint(
         activeSkin().color,
       );
       audio.pulseShot();

@@ -180,9 +180,31 @@ export class ShellUI {
     this.applyCrt();
     this.startPadLoop();
     this.wireOrientation();
+    this.wireBeforeUnload();
     window.addEventListener('resize', () => this.positionMenuScoutTargets());
     window.addEventListener('orientationchange', () => window.setTimeout(() => this.positionMenuScoutTargets(), 120));
     window.addEventListener('keydown', (ev) => this.onKeyDown(ev), { capture: true });
+  }
+
+  private wireBeforeUnload(): void {
+    const isTest = new URLSearchParams(window.location.search).has('test');
+    window.addEventListener('beforeunload', (ev) => {
+      if (!this.shouldWarnBeforeUnload()) return;
+      try {
+        updateSave(() => {
+          /* force a final slot write before the browser leaves */
+        });
+      } catch {
+        /* localStorage may be unavailable; still show the browser guard */
+      }
+      if (isTest) return;
+      ev.preventDefault();
+      ev.returnValue = '';
+    });
+  }
+
+  private shouldWarnBeforeUnload(): boolean {
+    return !this.menuVisible && this.gameplayScenes.includes(this.lastScene as (typeof this.gameplayScenes)[number]);
   }
 
   /* --------------------------- on-screen touch controls --------------------- */

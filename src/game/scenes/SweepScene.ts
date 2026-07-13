@@ -9,7 +9,7 @@
  * fire yourself. Tuning in config.SWEEP.
  */
 import Phaser from 'phaser';
-import { EVT, PALETTE as P, RENDER_ZOOM, SCENES, SWEEP, SWEEP_ELITE, TEX, VIEW_H, VIEW_W, css, type SweepEnemyKind } from '../config';
+import { EVT, PALETTE as P, RENDER_ZOOM, SCENES, SWEEP, SWEEP_ELITE, TEX, css, type SweepEnemyKind } from '../config';
 import { buildSweepTextures } from '../art/sweepTextures';
 import { BlipCraft } from '../entities/sweep/BlipCraft';
 import { SweepEnemy } from '../entities/sweep/SweepEnemy';
@@ -296,7 +296,18 @@ export class SweepScene extends Phaser.Scene {
       this.add.tileSprite(h.x * T, h.y * T, h.w * T, h.h * T, TEX.sweepPath).setOrigin(0).setDepth(1).setAlpha(motel ? 0.5 : 0.8)
     );
     this.add.image(node.x, node.y, TEX.sweepCrop).setDepth(1).setAlpha(0.4).setBlendMode(Phaser.BlendModes.ADD).setTint(glowTint);
-    this.add.tileSprite(node.x, node.y, 6 * T, 4 * T, TEX.sweepPath).setDepth(1).setAlpha(motel ? 0.4 : 0.65);
+    // No large rectangular path decal here: on phone zoom levels it read as a
+    // dark "screen tint" square around the player/node. Use broken-up scuffs.
+    for (let i = 0; i < 18; i++) {
+      const ox = Phaser.Math.Between(-82, 82);
+      const oy = Phaser.Math.Between(-52, 52);
+      const scuff = this.add
+        .image(node.x + ox, node.y + oy, TEX.sweepPath)
+        .setDepth(1)
+        .setAlpha(motel ? 0.12 : 0.2)
+        .setScale(Phaser.Math.FloatBetween(0.45, 0.85));
+      scuff.setAngle(Phaser.Math.Between(0, 3) * 90);
+    }
 
     // 4 — walls (visual tiles + merged collision bodies)
     for (let y = 0; y < H; y++) {
@@ -371,8 +382,8 @@ export class SweepScene extends Phaser.Scene {
       this.add.image(fx, fy, frameTex).setDepth(31).setTint(P.black).setAlpha(0.5).setScale(1.3);
     }
 
-    // 10 — vignette (fixed to the camera)
-    this.add.image(VIEW_W / 2, VIEW_H / 2, TEX.vignette).setDepth(35).setScrollFactor(0).setDisplaySize(VIEW_W, VIEW_H).setAlpha(0.22);
+    // 10 — no fixed vignette in Sweep. With pulled-back/mobile camera zooms a
+    // fixed-size overlay can cover only part of the viewport and look broken.
   }
 
   /* ------------------------------ traverse ------------------------------- */

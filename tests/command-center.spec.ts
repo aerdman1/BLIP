@@ -41,7 +41,7 @@ test('opens with C key and shell button, shows all sections', async ({ page }) =
 
 test('no stale BEAMLINE branding or cow-abduction concept anywhere', async ({ page }) => {
   await bootToMenu(page);
-  await page.click('#btn-command-center');
+  await page.click('#menu-command-center');
   const text = (await page.locator('#command-center').innerText()).toUpperCase();
   expect(text).not.toContain('BEAMLINE');
   expect(text).not.toContain('COW');

@@ -208,14 +208,7 @@ export class UIScene extends Phaser.Scene {
     this.txtWeapon.setText(`▸ ${s.weapon}`);
     if (this.sweepWeaponEl) this.sweepWeaponEl.textContent = s.weapon;
 
-    // ---- top-center: objective panel ----
-    g.fillStyle(P.black, 0.45).fillRect(VIEW_W / 2 - 66, 4, 132, 24);
     if (s.traverse) {
-      // node charge meter
-      const w = 120;
-      const ox = VIEW_W / 2 - w / 2;
-      g.fillStyle(P.signalDim, 0.35).fillRect(ox, 28, w, 3);
-      g.fillStyle(s.breachOpen ? P.signal : P.signalGreen, 1).fillRect(ox, 28, Math.round(w * s.node), 3);
       this.txtObjective.setText(s.breachOpen ? 'BREACH OPEN ▸' : 'CHARGE THE SIGNAL NODE');
       this.txtObjective.setColor(css(s.breachOpen ? P.signal : P.white));
       if (this.sweepObjectiveEl) {
@@ -242,16 +235,6 @@ export class UIScene extends Phaser.Scene {
     this.txtCombo.setText(s.combo >= 2 ? `x${s.combo}` : '');
 
     // ---- bottom-center: Signal Overdrive meter ----
-    const ow = 130;
-    const ox = VIEW_W / 2 - ow / 2;
-    const oy = VIEW_H - 11;
-    g.fillStyle(P.black, 0.55).fillRect(ox - 2, oy - 2, ow + 4, 7);
-    g.fillStyle(P.violetGlitch, 0.28).fillRect(ox, oy, ow, 3);
-    const col = s.odActive ? P.signal : s.odReady ? P.neonCyan : P.violetGlitch;
-    g.fillStyle(col, 1).fillRect(ox, oy, Math.round(ow * (s.odActive ? 1 : s.overdrive)), 3);
-    // segment ticks
-    g.fillStyle(P.black, 0.4);
-    for (let i = 1; i < 4; i++) g.fillRect(ox + Math.round((ow * i) / 4), oy, 1, 3);
     this.txtOd
       .setText(s.odActive ? 'OVERDRIVE ACTIVE' : s.odReady ? 'SIGNAL OVERDRIVE READY — [E]' : 'SIGNAL OVERDRIVE  [E]')
       .setColor(css(s.odActive ? P.signal : s.odReady ? P.neonCyan : P.uiDim));

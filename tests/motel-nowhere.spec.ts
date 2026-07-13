@@ -28,11 +28,11 @@ test.describe('Motel Nowhere — Zone 2', () => {
     expect(await api<string>(page, 'api.getSceneName()')).toBe('MotelScene');
     expect(await api<string>(page, 'api.getSaveData().currentZone')).toBe('motel-nowhere');
 
-    // jack into Chip's fuse box → the Blipstream circuit room
+    // jack into Chip's fuse box → the top-down circuit Sweep room
     await api(page, "api.setQuestStep('findFuse')");
     await teleport(page, 'motelFuse');
     await tap(page, 'e');
-    await waitForScene(page, 'BlipstreamScene');
+    await waitForScene(page, 'SweepScene');
 
     // routing the circuit returns to MOTEL (not Miller Field) and lights the wing
     await api(page, 'api.completeBlipstreamPuzzle()');

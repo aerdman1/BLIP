@@ -47,7 +47,7 @@ test('HTML menu renders with logo + 3 save slots and starts a slot via click', a
   await expect(page.locator('#menu-slot-0')).toContainText('NEW GAME');
   await page.click('#menu-slot-0');
   await page.waitForFunction(
-    () => (window as never as { __BLIP_TEST_API__: { getSceneName: () => string } }).__BLIP_TEST_API__.getSceneName() === 'FieldScene',
+    () => (window as never as { __BLIP_TEST_API__: { getSceneName: () => string } }).__BLIP_TEST_API__.getSceneName() === 'SweepScene',
     undefined,
     { timeout: 15_000 }
   );

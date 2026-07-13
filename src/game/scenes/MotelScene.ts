@@ -420,10 +420,18 @@ export class MotelScene extends Phaser.Scene {
 
     // shooting
     if (this.input2.shootDown && this.player.canShoot() && this.player.alive) {
+      const aim = this.input2.shotVector(this.player.x, this.player.y - 1, this.player.facing);
+      if (Math.abs(aim.x) > 0.25) this.player.facing = aim.x >= 0 ? 1 : -1;
       this.player.markShoot();
-      const dir = this.player.facing;
       const surge = this.player.isSurgeShot;
-      const bolt = fireFrom(this.playerBolts, this.player.x + dir * 8, this.player.y - 1, dir * PULSE.speed, 0, PULSE.lifeMs);
+      const bolt = fireFrom(
+        this.playerBolts,
+        this.player.x + aim.x * 8,
+        this.player.y - 1 + aim.y * 4,
+        aim.x * PULSE.speed,
+        aim.y * PULSE.speed,
+        PULSE.lifeMs
+      );
       if (bolt) {
         (bolt as unknown as { surge?: boolean }).surge = surge;
         if (surge) bolt.setTint(0xffffff).setScale(1.5);
