@@ -189,6 +189,18 @@ export class UIScene extends Phaser.Scene {
   }
 
   /** redraw the sweep HUD — event-driven (on stat/hp change), not per frame */
+  /** Health reads green (healthy) → amber → red (critical) so a full bar isn't an alarming wall of red. */
+  private healthColor(ratio: number): number {
+    if (ratio > 0.6) return P.signalGreen;
+    if (ratio > 0.3) return P.warning;
+    return P.danger;
+  }
+
+  /** Gentle brightness pulse when integrity is critical, so danger is felt. */
+  private healthPulse(ratio: number): number {
+    return ratio <= 0.25 ? 0.55 + 0.45 * Math.abs(Math.sin(this.time.now / 180)) : 1;
+  }
+
   private drawSweepHud(): void {
     const s = this.stats;
     const g = this.sweepG;
@@ -200,14 +212,18 @@ export class UIScene extends Phaser.Scene {
     const barW = this.hpMax * segW + (this.hpMax - 1) * gap;
     g.fillStyle(P.black, 0.5).fillRect(bx - 2, by - 6, barW + iconW + 8, 34);
 
-    // leading heart icon (a tiny palette-locked pixel heart reads as "integrity")
+    const ratio = this.hpMax > 0 ? this.hp / this.hpMax : 0;
+    const hc = this.healthColor(ratio);
+    const hp = this.healthPulse(ratio);
+
+    // leading heart icon (a tiny palette-locked pixel heart reads as "integrity"), tinted to state
     const hy = by;
-    g.fillStyle(P.danger, 1);
+    g.fillStyle(hc, hp);
     g.fillRect(bx, hy + 1, 3, 3);
     g.fillRect(bx + 4, hy + 1, 3, 3);
     g.fillRect(bx, hy + 2, iconW, 3);
     g.fillRect(bx + 1, hy + 5, iconW - 2, 1);
-    g.fillStyle(0xffffff, 0.35).fillRect(bx + 1, hy + 1, 1, 1); // spec highlight
+    g.fillStyle(0xffffff, 0.4).fillRect(bx + 1, hy + 1, 1, 1); // spec highlight
 
     // recessed track behind the segments, then filled/empty segments
     g.fillStyle(P.black, 0.6).fillRect(barX - 1, by - 1, barW + 2, segH + 2);
@@ -215,12 +231,13 @@ export class UIScene extends Phaser.Scene {
       const on = i < this.hp;
       const sx = barX + i * (segW + gap);
       if (on) {
-        g.fillStyle(P.danger, 1).fillRect(sx, by, segW, segH);
+        g.fillStyle(hc, hp).fillRect(sx, by, segW, segH);
         g.fillStyle(0xffffff, 0.22).fillRect(sx, by, segW, 1); // top sheen
-        g.fillStyle(P.dangerDark, 0.6).fillRect(sx, by + segH - 1, segW, 1); // base shade
+        g.fillStyle(P.black, 0.35).fillRect(sx, by + segH - 1, segW, 1); // base shade
       } else {
-        g.fillStyle(P.dangerDark, 0.45).fillRect(sx, by, segW, segH);
-        g.fillStyle(P.uiDim, 0.25).fillRect(sx, by, segW, 1);
+        g.fillStyle(P.black, 0.5).fillRect(sx, by, segW, segH); // empty = recessed, not a red block
+        g.fillStyle(P.uiDim, 0.22).fillRect(sx, by, segW, 1);
+        g.fillStyle(P.uiDim, 0.18).fillRect(sx, by, 1, segH);
       }
     }
     // weapon underline swatch
@@ -299,12 +316,22 @@ export class UIScene extends Phaser.Scene {
     const g = this.bars;
     g.clear();
 
-    // HP pips
+    // HP pips — same green→amber→red integrity language as the Sweep bar
+    const hpRatio = PLAYER.maxHp > 0 ? this.hp / PLAYER.maxHp : 0;
+    const hc = this.healthColor(hpRatio);
+    const hpp = this.healthPulse(hpRatio);
     for (let i = 0; i < PLAYER.maxHp; i++) {
-      g.fillStyle(i < this.hp ? P.danger : P.dangerDark, i < this.hp ? 1 : 0.45);
-      g.fillRect(8 + i * 9, 8, 7, 5);
+      const px = 8 + i * 9;
+      if (i < this.hp) {
+        g.fillStyle(hc, hpp).fillRect(px, 8, 7, 5);
+        g.fillStyle(0xffffff, 0.22).fillRect(px, 8, 7, 1); // top sheen
+        g.fillStyle(P.black, 0.35).fillRect(px, 12, 7, 1); // base shade
+      } else {
+        g.fillStyle(P.black, 0.5).fillRect(px, 8, 7, 5); // empty = recessed
+        g.fillStyle(P.uiDim, 0.2).fillRect(px, 8, 7, 1);
+      }
     }
-    // energy bar (lime)
+    // energy bar (lime) — labelled distinct from health by its lime hue + slimmer track
     g.fillStyle(P.signalDim, 0.4);
     g.fillRect(8, 16, 46, 3);
     g.fillStyle(P.signal, 1);
