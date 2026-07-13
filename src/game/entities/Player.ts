@@ -78,6 +78,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const onFly = (p: unknown) => this.setFly((p as { on: boolean }).on);
     bus.on(EVT.flyMode, onFly);
     this.once('destroy', () => bus.off(EVT.flyMode, onFly));
+    // apply god live when toggled from the ◇ GOD button / dev panel (not just on spawn)
+    const onGod = (p: unknown) => { this.godMode = (p as { on: boolean }).on; };
+    bus.on(EVT.godMode, onGod);
+    this.once('destroy', () => bus.off(EVT.godMode, onGod));
 
     // DEV keys: F = fly-through (dev/test only), G = god mode. G stays live once
     // god mode is enabled (via the ERD console) so players can toggle it in-play.

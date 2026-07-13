@@ -145,6 +145,7 @@ button { font-family: var(--mono); }
 }
 .shell-btn.accent { color: var(--lime); border-color: var(--lime-dim); }
 .shell-btn.accent:hover { border-color: var(--lime); box-shadow: 0 0 0 1px rgba(168, 255, 62, 0.3), 0 0 14px rgba(168, 255, 62, 0.18); }
+.shell-btn.on { color: var(--lime); border-color: var(--lime); box-shadow: 0 0 0 1px rgba(168, 255, 62, 0.35), 0 0 12px rgba(168, 255, 62, 0.25); }
 .shell-btn.danger { color: var(--red); border-color: var(--red-dark); }
 .shell-btn.danger:hover { border-color: var(--red); box-shadow: 0 0 0 1px rgba(216, 74, 66, 0.3), 0 0 14px rgba(216, 74, 66, 0.2); }
 /* DEV console launcher — only visible in god mode (see ShellUI.refreshDevChrome) */

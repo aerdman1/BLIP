@@ -340,12 +340,36 @@ export class ShellUI {
     });
     $('btn-debug').addEventListener('click', () => bus.emit(EVT.debugToggle, {}));
     $('btn-dev').addEventListener('click', () => this.showDevPanel());
+    // Always-visible one-tap GOD toggle — the reliable path on touch/iPad where the
+    // "erd" keyboard code and DEV button aren't reachable. Never hidden by dev chrome.
+    $('btn-god').addEventListener('click', () => this.toggleGod());
     $('btn-mute').addEventListener('click', () => {
       audio.unlock();
       audio.toggleMute();
       this.renderVolumePips();
     });
     this.refreshDevChrome();
+    this.refreshGodButton();
+  }
+
+  /** One-tap god toggle from the always-visible ◇ GOD button. */
+  private toggleGod(): void {
+    audio.unlock();
+    devState.god = !devState.god;
+    bus.emit(EVT.godMode, { on: devState.god });
+    bus.emit(EVT.toast, {
+      text: devState.god ? 'GOD MODE ON — invulnerable' : 'GOD MODE OFF',
+      color: devState.god ? 'green' : 'orange',
+    });
+    this.refreshGodButton();
+    if (this.devVisible) this.refreshDevPanel();
+    this.refreshDevChrome();
+  }
+
+  private refreshGodButton(): void {
+    const b = $('btn-god');
+    b.textContent = devState.god ? '◇ GOD ✓' : '◇ GOD';
+    b.classList.toggle('on', devState.god);
   }
 
   private onMenu = true;
@@ -418,7 +442,10 @@ export class ShellUI {
       this.refreshOrientationNudge();
       this.refreshDevChrome();
     });
-    bus.on(EVT.godMode, () => this.refreshDevChrome());
+    bus.on(EVT.godMode, () => {
+      this.refreshDevChrome();
+      this.refreshGodButton();
+    });
     bus.on(EVT.bossSpawn, (d) => {
       const b = d as { name: string };
       $('boss-name').textContent = b.name;
@@ -842,6 +869,13 @@ export class ShellUI {
         <h3>GAMEPAD</h3>
         <div class="settings-row"><div id="pad-status-line">no controller detected — press any button on it</div></div>
         <div class="settings-row"><div class="row-sub">LIVE INPUT: <span id="pad-last-button">—</span></div></div>
+      </div>
+      <div class="settings-section">
+        <h3>UPDATES</h3>
+        <div class="settings-row">
+          <div class="row-label">GET LATEST<span class="row-sub">clear the cache and reload the newest build</span></div>
+          <button class="filter-select" id="setting-update">CHECK FOR UPDATES</button>
+        </div>
       </div>`;
 
     const vol = $('setting-volume') as unknown as HTMLInputElement;
@@ -926,6 +960,30 @@ export class ShellUI {
     });
     syncVol();
     syncMusicVol();
+
+    // "Get Latest" — nuke any service worker + Cache Storage, then hard-reload so
+    // the newest deploy is fetched fresh. A manual escape hatch from stale PWAs.
+    const updateBtn = $('setting-update') as unknown as HTMLButtonElement;
+    updateBtn.addEventListener('click', async () => {
+      audio.unlock();
+      audio.uiToggle();
+      updateBtn.disabled = true;
+      updateBtn.textContent = 'UPDATING…';
+      bus.emit(EVT.toast, { text: 'FETCHING LATEST BUILD…', color: 'green' });
+      try {
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map((r) => r.unregister()));
+        }
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+      } catch {
+        /* Best-effort: reload regardless so the newest HTML is requested. */
+      }
+      location.reload();
+    });
 
     $('settings-close').addEventListener('click', () => this.closeSettings());
   }

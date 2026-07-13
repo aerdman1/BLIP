@@ -1,6 +1,9 @@
 /* BLIP PWA service worker.
    Keeps the static Vite build available offline after the first online load. */
-const CACHE_NAME = 'blip-pwa-2026-07-13-1';
+/* CACHE_NAME is stamped per build: the Vite plugin (see vite.config.ts) replaces
+   the __SW_VERSION__ token at build time so every deploy invalidates old caches
+   and the byte content of sw.js changes (the browser then sees a real update). */
+const CACHE_NAME = 'blip-pwa-__SW_VERSION__';
 const CORE_URLS = [
   '/',
   '/index.html',
@@ -105,10 +108,19 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  if (request.mode === 'navigate') {
+  // App shell (navigations) and hashed JS/CSS bundles are network-first: always
+  // try the network so a fresh deploy is picked up, falling back to cache offline.
+  const isDocument = request.mode === 'navigate' || request.destination === 'document';
+  const isCodeAsset =
+    request.destination === 'script' ||
+    request.destination === 'style' ||
+    /\.(?:js|mjs|css)$/.test(url.pathname);
+
+  if (isDocument || isCodeAsset) {
     event.respondWith(networkFirst(request));
     return;
   }
 
+  // Static images / icons / fonts stay cache-first for speed and offline use.
   event.respondWith(cacheFirst(request));
 });
