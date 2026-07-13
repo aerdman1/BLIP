@@ -15,7 +15,8 @@
     "test:playtest": "playwright test tests/playtest.spec.ts",
     "qa:playtest": "playwright test tests/qa-playtest.spec.ts",
     "qa:full": "npm run typecheck && npm run build && npm run test:e2e",
-    "qa:loop": "node scripts/qa-loop.mjs"
+    "qa:loop": "node scripts/qa-loop.mjs",
+    "deploy": "bash scripts/deploy.sh"
   },
   "dependencies": {
     "phaser": "^3.90.0"

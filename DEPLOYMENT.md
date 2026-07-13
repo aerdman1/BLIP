@@ -43,6 +43,25 @@ Notes:
 - The Test API (`window.__BLIP_TEST_API__`) is enabled only in dev or with
   `?test=1` — the deployed game stays clean by default.
 
+## Deploying to production
+
+**Canonical checkout:** `/Users/aerdman/BLIP` (this clone holds the Vercel project link in
+`.vercel/`, which is gitignored — so only this checkout can deploy). The production alias is
+**https://blip-chagrin.vercel.app/**. A second clone at `/Users/aerdman/ReadMe_Local/Github/BLIP`
+is a spare mirror; `git pull` it when you want it current.
+
+The standard loop for shipping a change:
+
+1. `npm run typecheck && npm run build` — sanity check.
+2. `git commit -am "…"` — commit the change (deliberate message).
+3. `npm run deploy` — runs `scripts/deploy.sh`: build → `vercel --prod` →
+   alias `blip-chagrin.vercel.app` → verify the live site returns **HTTP 200**
+   (the script exits non-zero if it doesn't).
+4. `git push origin main` — publish to GitHub.
+
+Requires the `vercel` CLI to be authenticated once (`npx vercel login`). The deploy script
+intentionally does not commit or push — keep those as explicit git steps around it.
+
 ## Verifying a Deploy
 
 1. Game boots to the BLIP menu, starts, and plays through Miller Field (the first of five zones).
