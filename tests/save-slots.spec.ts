@@ -1,6 +1,6 @@
 /**
- * SAVE SLOTS — 3 independent slots, slot-picker menu, per-slot erase, and the
- * contextual top-bar RESET (hidden on the menu, shown during a run).
+ * SAVE SLOTS — 3 independent slots, slot-picker menu, per-slot erase.
+ * (RESET SAVE now lives in the pause menu, not a contextual top-bar button.)
  */
 import { expect, test } from '@playwright/test';
 import { api, bootToMenu } from './helpers';
@@ -13,12 +13,11 @@ async function waitScene(page: import('@playwright/test').Page, name: string) {
   );
 }
 
-test('fresh boot shows three empty slots and hides the top-bar reset', async ({ page }) => {
+test('fresh boot shows three empty slots', async ({ page }) => {
   await bootToMenu(page);
   await expect(page.locator('.menu-item.slot')).toHaveCount(3);
   await expect(page.locator('.menu-item.slot.empty')).toHaveCount(3);
   await expect(page.locator('#menu-slot-0')).toContainText('NEW GAME');
-  await expect(page.locator('#btn-reset')).toBeHidden(); // nothing to reset from the menu
 });
 
 test('slots are independent; playing one leaves the others empty', async ({ page }) => {
@@ -26,7 +25,6 @@ test('slots are independent; playing one leaves the others empty', async ({ page
   // play slot 2 (index 1)
   await page.click('#menu-slot-1');
   await waitScene(page, 'SweepScene');
-  await expect(page.locator('#btn-reset')).toBeVisible(); // reset the active run in-game
   expect(await page.evaluate(() => Number(localStorage.getItem('blip_active_slot')))).toBe(1);
   await api(page, `api.enterZone('miller-field')`);
   await waitScene(page, 'FieldScene');

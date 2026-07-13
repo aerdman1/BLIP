@@ -25,10 +25,14 @@ test('play button path: menu → FieldScene', async ({ page }) => {
   expect(watcher.errors, watcher.errors.join(' | ')).toHaveLength(0);
 });
 
-test('command center opens from the shell button and closes', async ({ page }) => {
+test('command center opens from the pause menu and closes', async ({ page }) => {
   await bootToMenu(page);
   await startGame(page);
-  await page.click('#btn-command-center');
+  // player-ready HUD: the dev shortcut button is hidden unless god mode is on
+  await expect(page.locator('#btn-command-center')).toBeHidden();
+  // players reach the Command Center from the pause menu
+  await page.keyboard.press('Escape');
+  await page.click('#pause-command-center');
   await expect(page.locator('#command-center')).toBeVisible();
   await expect(page.locator('#command-center')).toContainText('COMMAND CENTER');
   await expect(page.locator('#command-center')).toContainText('THE FIVE SIGNAL SCOUTS');
@@ -36,13 +40,15 @@ test('command center opens from the shell button and closes', async ({ page }) =
   await expect(page.locator('#command-center')).toBeHidden();
 });
 
-test('reset save button clears progress', async ({ page }) => {
+test('reset save from the pause menu clears progress', async ({ page }) => {
   await bootToMenu(page);
   await startGame(page);
   await api(page, `api.setQuestStep('reachDoor')`);
   expect(await api(page, 'api.getSaveData().questStep')).toBe('reachDoor');
   page.on('dialog', (d) => void d.accept());
-  await page.click('#btn-reset');
+  // RESET SAVE now lives in the pause menu (removed from the player-facing top bar)
+  await page.keyboard.press('Escape');
+  await page.click('#pause-reset');
   await page.waitForLoadState('load');
   await page.waitForFunction(() => !!(window as never as Record<string, unknown>).__BLIP_TEST_API__);
   const step = await api(page, 'api.getSaveData().questStep');
