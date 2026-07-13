@@ -9,7 +9,7 @@
  * fire yourself. Tuning in config.SWEEP.
  */
 import Phaser from 'phaser';
-import { EVT, PALETTE as P, RENDER_ZOOM, SCENES, SWEEP, SWEEP_ELITE, TEX, css, type SweepEnemyKind } from '../config';
+import { EVT, PALETTE as P, RENDER_ZOOM, SCENES, SWEEP, SWEEP_BOSS, SWEEP_ELITE, TEX, css, type SweepEnemyKind } from '../config';
 import { buildSweepTextures } from '../art/sweepTextures';
 import { BlipCraft } from '../entities/sweep/BlipCraft';
 import { SweepEnemy } from '../entities/sweep/SweepEnemy';
@@ -100,6 +100,11 @@ export class SweepScene extends Phaser.Scene {
   private eliteState: 'idle' | 'charge' | 'fire' = 'idle';
   private eliteStateAt = 0;
   private eliteAngle = 0;
+  // the Classifier beam is shared by the mini-elite AND the finale boss (different tuning)
+  private eliteCfg: typeof SWEEP_ELITE | typeof SWEEP_BOSS = SWEEP_ELITE;
+  private nodeFull = false; // Node fully charged (gates the boss-finale trigger once)
+  private bossActive = false; // the Maze Heart is alive and gating the breach
+  private bossAddsSpawned = false; // one-time reinforcement wave fired
 
   private exiting = false;
   private gameOverShown = false;
@@ -138,6 +143,10 @@ export class SweepScene extends Phaser.Scene {
     this.eliteAura = undefined;
     this.eliteBeam = undefined;
     this.eliteState = 'idle';
+    this.eliteCfg = SWEEP_ELITE;
+    this.nodeFull = false;
+    this.bossActive = false;
+    this.bossAddsSpawned = false;
 
     const id = (this.registry.get('sweepArenaId') as string) ?? DEFAULT_ARENA;
     this.arena = SWEEP_ARENAS[id] ?? SWEEP_ARENAS[DEFAULT_ARENA];
@@ -219,6 +228,7 @@ export class SweepScene extends Phaser.Scene {
       this.buildBreach();
       this.buildCaches();
       this.seedEnemies();
+      this.seedWeaponPickups();
       if (this.arena.elite) this.spawnElite();
       // "surfaced" intro — a scan bloom + objective
       this.cameras.main.fadeIn(350, 2, 3, 8);
@@ -419,7 +429,9 @@ export class SweepScene extends Phaser.Scene {
     this.showBanner('BREACH OPEN — GET OUT');
     // reward system: a Signal Storm was cleared → medal + cache (RewardTriggers)
     bus.emit(EVT.sweepCleared, { combo: this.combo, noHit: this.player.hp >= this.player.maxHp });
-    if (this.arena.biome === 'orchard') this.cropBloom();
+    // boss-finale arenas bloom the crop circle when the Node charges (see beginBossFinale),
+    // not here — avoid a double bloom.
+    if (this.arena.biome === 'orchard' && !this.arena.bossFinale) this.cropBloom();
   }
 
   /** Zone 4 standout: charging the node blooms the route you traced into a giant
@@ -444,11 +456,77 @@ export class SweepScene extends Phaser.Scene {
 
   /** charge the Node from a kill (double near the node); opens the breach at target */
   private addNodeCharge(x: number, y: number): void {
-    if (!this.traverse || this.breachOpen) return;
+    if (!this.traverse || this.breachOpen || this.nodeFull) return;
     const near = Phaser.Math.Distance.Between(x, y, this.nodePos.x, this.nodePos.y) < SWEEP.nodeChargeRadius;
     this.nodeCharge = Math.min(this.chargeTarget, this.nodeCharge + SWEEP.nodeChargePerKill * (near ? 2 : 1));
     if (near) this.fx.floatText(x, y - 6, '+CHARGE', P.signalGreen);
-    if (this.nodeCharge >= this.chargeTarget) this.openBreach();
+    if (this.nodeCharge >= this.chargeTarget) {
+      this.nodeFull = true;
+      // FINALE: charging the Node wakes the Maze Heart; the breach stays sealed until it dies.
+      if (this.arena.bossFinale) this.beginBossFinale();
+      else this.openBreach();
+    }
+  }
+
+  /** Zone-4 finale — the charged Node wakes the Maze Heart boss; breach gates on its death. */
+  private beginBossFinale(): void {
+    audio.bossWarning();
+    this.fx.flash(P.danger, 200);
+    this.fx.shake(0.014, 420);
+    if (this.arena.biome === 'orchard') this.cropBloom();
+    bus.emit(EVT.toast, { text: 'THE MAZE HEART AWAKENS — DESTROY IT ◎', color: 'orange' });
+    this.showBanner('THE MAZE HEART AWAKENS');
+    this.breachLabel?.setText('BREACH · SEALED').setColor(css(P.danger));
+    this.spawnBoss();
+  }
+
+  /** the Maze Heart — an enhanced Classifier construct (reuses the elite beam machinery). */
+  private spawnBoss(): void {
+    const e = new SweepEnemy(this, this.nodePos.x, this.nodePos.y, 'drifter');
+    e.setTexture(TEX.sweepMazeHeart);
+    e.hp = SWEEP_BOSS.hp;
+    e.maxHp = SWEEP_BOSS.hp;
+    e.setDepth(16);
+    (e.body as Phaser.Physics.Arcade.Body).setSize(24, 24);
+    e.setData('elite', true).setData('boss', true);
+    this.eliteAura = this.add.image(e.x, e.y, TEX.glow8).setDepth(15).setTint(P.danger).setBlendMode(Phaser.BlendModes.ADD).setScale(3).setAlpha(0.45);
+    this.tweens.add({ targets: this.eliteAura, alpha: { from: 0.3, to: 0.62 }, scale: { from: 2.6, to: 3.4 }, duration: 640, yoyo: true, repeat: -1 });
+    this.enemies.add(e);
+    this.elite = e;
+    this.eliteBeam = this.add.graphics().setDepth(17);
+    this.eliteCfg = SWEEP_BOSS;
+    this.eliteState = 'idle';
+    this.eliteStateAt = this.time.now + SWEEP_BOSS.beamPeriodMs;
+    this.bossActive = true;
+    this.bossAddsSpawned = false;
+  }
+
+  /** the Maze Heart is destroyed — the triumphant climax before the Fold onward. */
+  private onBossDefeated(x: number, y: number): void {
+    this.bossActive = false;
+    this.eliteBeam?.clear();
+    // triumphant climax — big shake, a crop-glow flash, layered explosions + a signal ring
+    this.fx.flash(P.cropGlow, 260);
+    this.fx.shake(0.02, 520);
+    for (let i = 0; i < 3; i++)
+      this.time.delayedCall(i * 120, () =>
+        this.fx.explode(x + Phaser.Math.Between(-24, 24), y + Phaser.Math.Between(-24, 24), i % 2 ? P.warning : P.danger, 22)
+      );
+    this.fx.scanRing(x, y, 260, 900, P.cropGlow);
+    audio.doorUnlock();
+    // burst of loot — a fan of weapon pickups + a Scout Boon + a fat one-time shard payout
+    for (let i = 0; i < SWEEP_BOSS.lootDrops; i++) {
+      const a = (i / SWEEP_BOSS.lootDrops) * Math.PI * 2;
+      this.dropWeaponPickup(x + Math.cos(a) * 26, y + Math.sin(a) * 26, Phaser.Utils.Array.GetRandom(WEAPON_PICKUPS), false);
+    }
+    this.dropBoon(x, y);
+    addShards(SWEEP_BOSS.clearShards);
+    this.shardsEarned += SWEEP_BOSS.clearShards;
+    this.fx.floatText(x, y - 14, `+${SWEEP_BOSS.clearShards} HEART CORE`, P.cropGlow);
+    this.revealCaches(this.nodePos.x, this.nodePos.y, 99999); // grant every remaining cache
+    bus.emit(EVT.toast, { text: 'THE MAZE HEART FALLS — THE PATTERN IS YOURS', color: 'green' });
+    this.showBanner('THE MAZE HEART FALLS');
+    this.openBreach(); // now the breach lights → reach it to Fold onward to the Orchard
   }
 
   /* --------------------------- caches (secrets) -------------------------- */
@@ -504,6 +582,7 @@ export class SweepScene extends Phaser.Scene {
     this.enemies.add(e);
     this.elite = e;
     this.eliteBeam = this.add.graphics().setDepth(17);
+    this.eliteCfg = SWEEP_ELITE;
     this.eliteState = 'idle';
     this.eliteStateAt = this.time.now + SWEEP_ELITE.beamPeriodMs;
   }
@@ -517,21 +596,28 @@ export class SweepScene extends Phaser.Scene {
       this.eliteAura?.destroy();
       this.eliteAura = undefined;
       this.elite = undefined;
+      this.bossActive = false;
       return;
     }
     this.eliteAura?.setPosition(e.x, e.y);
+    // FINALE: below half HP the Maze Heart calls in a one-time reinforcement wave.
+    if (this.bossActive && !this.bossAddsSpawned && e.hp <= e.maxHp * SWEEP_BOSS.addsAtHpFrac) {
+      this.bossAddsSpawned = true;
+      this.spawnBossAdds(e.x, e.y);
+    }
     if (!g) return;
+    const cfg = this.eliteCfg;
     g.clear();
     const ex = e.x;
     const ey = e.y;
     const a = this.eliteAngle;
-    const tx = ex + Math.cos(a) * SWEEP_ELITE.beamLength;
-    const ty = ey + Math.sin(a) * SWEEP_ELITE.beamLength;
+    const tx = ex + Math.cos(a) * cfg.beamLength;
+    const ty = ey + Math.sin(a) * cfg.beamLength;
 
     if (this.eliteState === 'idle') {
       if (now >= this.eliteStateAt) {
         this.eliteState = 'charge';
-        this.eliteStateAt = now + SWEEP_ELITE.beamChargeMs;
+        this.eliteStateAt = now + cfg.beamChargeMs;
         this.eliteAngle = Math.atan2(this.player.y - ey, this.player.x - ex); // lock aim → dodgeable
         audio.bossWarning();
       }
@@ -540,24 +626,38 @@ export class SweepScene extends Phaser.Scene {
       g.lineStyle(2, P.warning, blink).lineBetween(ex, ey, tx, ty);
       if (now >= this.eliteStateAt) {
         this.eliteState = 'fire';
-        this.eliteStateAt = now + SWEEP_ELITE.beamActiveMs;
+        this.eliteStateAt = now + cfg.beamActiveMs;
         audio.hazardZap();
       }
     } else {
-      g.lineStyle(SWEEP_ELITE.beamHalfWidth * 2, P.danger, 0.85).lineBetween(ex, ey, tx, ty);
+      g.lineStyle(cfg.beamHalfWidth * 2, P.danger, 0.85).lineBetween(ex, ey, tx, ty);
       g.lineStyle(2, P.white, 0.9).lineBetween(ex, ey, tx, ty);
       if (this.player.alive && !this.player.invulnerable) {
         const d = pointToSegment(this.player.x, this.player.y, ex, ey, tx, ty);
-        if (d < SWEEP_ELITE.beamHalfWidth + 4) {
-          this.heat = Math.min(100, this.heat + SWEEP_ELITE.beamHeatOnHit);
+        if (d < cfg.beamHalfWidth + 4) {
+          this.heat = Math.min(100, this.heat + cfg.beamHeatOnHit);
           if (this.player.damage(ex, ey)) this.onPlayerHurt();
         }
       }
       if (now >= this.eliteStateAt) {
         this.eliteState = 'idle';
-        this.eliteStateAt = now + SWEEP_ELITE.beamPeriodMs;
+        this.eliteStateAt = now + cfg.beamPeriodMs;
       }
     }
+  }
+
+  /** the Maze Heart's mid-fight reinforcement wave — a telegraphed burst of fast drones. */
+  private spawnBossAdds(x: number, y: number): void {
+    audio.bossWarning();
+    this.fx.scanRing(x, y, 120, 480, P.danger);
+    bus.emit(EVT.toast, { text: 'THE HEART CALLS ITS SWARM', color: 'orange' });
+    SWEEP_BOSS.addsKinds.forEach((kind, i) => {
+      const a = (i / SWEEP_BOSS.addsKinds.length) * Math.PI * 2 + Math.random();
+      const sx = x + Math.cos(a) * 34;
+      const sy = y + Math.sin(a) * 34;
+      this.fx.sparks(sx, sy, P.danger, 6);
+      this.enemies.add(new SweepEnemy(this, sx, sy, kind as SweepEnemyKind));
+    });
   }
 
   private dropBoon(x: number, y: number): void {
@@ -679,12 +779,17 @@ export class SweepScene extends Phaser.Scene {
       const a = base + off;
       const b = fireFrom(this.playerShots, mx, my, Math.cos(a) * wp.speed, Math.sin(a) * wp.speed, wp.lifeMs);
       if (b) {
+        const uni = wp.scale ?? 1; // heavy shells (RUPTURE) read bigger
         b.setTint(surge ? P.warning : wp.tint);
-        b.setScale(wp.scaleX ?? 1, 1);
+        b.setScale((wp.scaleX ?? 1) * uni, uni);
         b.setData('dmg', wp.damage * (surge ? 2 : 1));
         b.setData('pierce', wp.pierce === true);
         b.setData('bounce', wp.bounce ?? 0);
         b.setData('hits', null);
+        // reset per-shot specials every fire — the pool reuses sprites, so stale
+        // homing/explode data from a previous weapon must be cleared.
+        b.setData('homing', wp.homing ? (wp.homingRate ?? 5) : 0);
+        b.setData('explode', wp.explode ?? null);
         (b.body as Phaser.Physics.Arcade.Body).setBounce(wp.bounce ? 1 : 0);
       }
     }
@@ -717,10 +822,53 @@ export class SweepScene extends Phaser.Scene {
     const sx = shot.x;
     const sy = shot.y;
     const dmg = (shot.getData('dmg') as number) ?? SWEEP.shotDmg;
+    const explode = shot.getData('explode') as { radius: number; damage: number } | null;
+    const ix = en.x;
+    const iy = en.y;
     if (!pierce) shot.kill();
     this.impactFx(en.x, en.y, shot.getData('bounce') ? P.signalGreen : P.warning);
     audio.enemyHit();
     if (en.applyHit(dmg, sx, sy)) this.killEnemy(en);
+    if (explode) this.explodeShot(ix, iy, explode);
+  }
+
+  /** RUPTURE detonation — AoE damage + palette-locked burst on impact (enemy or wall). */
+  private explodeShot(x: number, y: number, ex: { radius: number; damage: number }): void {
+    this.fx.explode(x, y, P.warning, 16);
+    this.fx.shake(0.006, 120);
+    audio.explode();
+    const ring = this.add.image(x, y, TEX.glow8).setDepth(24).setTint(P.warning).setBlendMode(Phaser.BlendModes.ADD).setScale(0.6).setAlpha(0.9);
+    this.tweens.add({ targets: ring, scale: Math.max(1, ex.radius / 20), alpha: 0, duration: 220, onComplete: () => ring.destroy() });
+    (this.enemies.getChildren() as SweepEnemy[]).forEach((en) => {
+      if (!en.active) return;
+      if (Phaser.Math.Distance.Between(x, y, en.x, en.y) <= ex.radius) {
+        if (en.applyHit(ex.damage, x, y, 240)) this.killEnemy(en);
+      }
+    });
+  }
+
+  /** SEEKER: curve every homing bolt toward its nearest live drone (rate-capped → fair). */
+  private steerHomingShots(dt: number): void {
+    (this.playerShots.getChildren() as Projectile[]).forEach((b) => {
+      if (!b.active) return;
+      const rate = (b.getData('homing') as number) ?? 0;
+      if (!rate) return;
+      let best: SweepEnemy | null = null;
+      let bestD = Infinity;
+      (this.enemies.getChildren() as SweepEnemy[]).forEach((en) => {
+        if (!en.active) return;
+        const d = Phaser.Math.Distance.Squared(b.x, b.y, en.x, en.y);
+        if (d < bestD) { bestD = d; best = en; }
+      });
+      if (!best) return;
+      const body = b.body as Phaser.Physics.Arcade.Body;
+      const speed = Math.hypot(body.velocity.x, body.velocity.y) || 1;
+      const cur = Math.atan2(body.velocity.y, body.velocity.x);
+      const want = Math.atan2((best as SweepEnemy).y - b.y, (best as SweepEnemy).x - b.x);
+      const na = Phaser.Math.Angle.RotateTo(cur, want, rate * dt);
+      body.setVelocity(Math.cos(na) * speed, Math.sin(na) * speed);
+      b.setRotation(na);
+    });
   }
 
   /** angle from the player to the nearest live enemy, or null if none (touch auto-aim) */
@@ -740,6 +888,12 @@ export class SweepScene extends Phaser.Scene {
 
   /** a bolt hit a wall: ricochet if it has bounces left, else die */
   private onShotHitWall(b: Projectile): void {
+    const explode = b.getData('explode') as { radius: number; damage: number } | null;
+    if (explode) {
+      this.explodeShot(b.x, b.y, explode);
+      b.kill();
+      return;
+    }
     const bounce = (b.getData('bounce') as number) ?? 0;
     if (bounce > 0) {
       b.setData('bounce', bounce - 1);
@@ -774,20 +928,24 @@ export class SweepScene extends Phaser.Scene {
     addShards(gained);
     if (this.combo >= 2) this.fx.floatText(ex, ey - 8, `x${this.combo}`, P.warning);
     const isElite = en.getData('elite') === true;
+    const isBoss = en.getData('boss') === true;
     const splitN = en.splitInto; // REPLICATOR bursts into chasing shards
     en.destroy();
     if (splitN > 0) this.spawnSplitShards(ex, ey, splitN);
     // kills charge the Node (double near it); the breach opens at full charge
     this.addNodeCharge(ex, ey);
-    // the Elite always drops a Scout Boon + a shard cache; grunts drop by chance
-    if (isElite) {
+    // the finale boss triggers the climax; the Elite drops a Boon + cache; grunts drop by chance
+    if (isBoss) {
+      this.onBossDefeated(ex, ey);
+    } else if (isElite) {
       this.fx.explode(ex, ey, P.danger, 20);
       this.fx.shake(0.008, 220);
       this.dropBoon(ex, ey);
       addShards(SWEEP.eliteCacheShards);
       this.shardsEarned += SWEEP.eliteCacheShards;
       this.fx.floatText(ex, ey - 10, '+CACHE', P.warning);
-    } else if (Math.random() < SWEEP.dropChance) {
+    } else if (Math.random() < (this.arena.dropChance ?? SWEEP.dropChance)) {
+      // per-arena override lets ONLY the finale Fold be extra loot-generous
       this.dropPickup(ex, ey);
     }
   }
@@ -836,6 +994,28 @@ export class SweepScene extends Phaser.Scene {
     this.tweens.add({ targets: [pk], scale: { from: pk.scale * 0.85, to: pk.scale * 1.15 }, duration: 520, yoyo: true, repeat: -1 });
     this.tweens.add({ targets: glow, alpha: { from: 0.25, to: 0.55 }, duration: 640, yoyo: true, repeat: -1 });
     this.time.delayedCall(11000, () => { if (pk.active) { glow.destroy(); pk.destroy(); } });
+  }
+
+  /** place a specific WEAPON pickup (guaranteed finale loot / boss payout). */
+  private dropWeaponPickup(x: number, y: number, wid: string, persist: boolean): void {
+    const wp = WEAPONS[wid] ?? WEAPONS.pulse;
+    const pk = this.pickups.create(x, y, TEX.sweepPickup) as Phaser.Physics.Arcade.Image;
+    pk.setTint(wp.tint).setScale(1.5).setDepth(12).setData('ptype', 'weapon').setData('wid', wid);
+    (pk.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
+    const glow = this.add.image(x, y, TEX.glow8).setDepth(11).setTint(wp.tint).setBlendMode(Phaser.BlendModes.ADD).setScale(1.4).setAlpha(0.4);
+    pk.setData('glow', glow);
+    this.tweens.add({ targets: [pk], scale: { from: 1.3, to: 1.7 }, duration: 520, yoyo: true, repeat: -1 });
+    this.tweens.add({ targets: glow, alpha: { from: 0.25, to: 0.55 }, duration: 640, yoyo: true, repeat: -1 });
+    if (!persist) this.time.delayedCall(14000, () => { if (pk.active) { glow.destroy(); pk.destroy(); } });
+  }
+
+  /** seed the finale's guaranteed weapon pickups (arena.weaponSpawns) so gun variety is assured. */
+  private seedWeaponPickups(): void {
+    const T = SWEEP.tile;
+    (this.arena.weaponSpawns ?? []).forEach((m) => {
+      if (!WEAPONS[m.wid]) return;
+      this.dropWeaponPickup((m.tx + 0.5) * T, (m.ty + 0.5) * T, m.wid, true);
+    });
   }
 
   private onPickup(pk: Phaser.Physics.Arcade.Image): void {
@@ -923,6 +1103,7 @@ export class SweepScene extends Phaser.Scene {
     };
     (this.enemies.getChildren() as SweepEnemy[]).forEach((en) => en.drive(this.player.x, this.player.y, now, fireBolt, aggro));
     this.updateElite(now);
+    this.steerHomingShots(dt);
 
     if (this.traverse) {
       // reach the (open) breach → Fold onward. Locked until the Node is charged.
@@ -1031,7 +1212,7 @@ export class SweepScene extends Phaser.Scene {
   private foldOnward(): void {
     if (this.exiting) return;
     this.exiting = true;
-    addShards(SWEEP.shardsClearBonus);
+    addShards(this.arena.clearBonus ?? SWEEP.shardsClearBonus); // finale Fold pays out more
     // circuit beats (Z2 → Motel) report "node solved" so the overworld powers its wing.
     if (this.arena.next === SCENES.motel || this.arena.next === SCENES.orchard) this.registry.set('nodeJustSolved', true);
     bus.emit(EVT.toast, { text: 'BREACH — DROPPING BACK IN', color: 'green' });

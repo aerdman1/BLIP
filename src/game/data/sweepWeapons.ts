@@ -16,8 +16,12 @@ export interface SweepWeapon {
   tint: number;
   glow: number;
   scaleX?: number; // stretch the bolt (Lance)
+  scale?: number; // uniform bolt scale (heavy shells read bigger)
   pierce?: boolean; // passes through enemies
   bounce?: number; // ricochets off walls N times
+  homing?: boolean; // SEEKER: steers toward the nearest drone each update
+  homingRate?: number; // steering rate (rad/sec) — how hard it curves
+  explode?: { radius: number; damage: number }; // RUPTURE: AoE burst on impact (enemy or wall)
 }
 
 export const WEAPONS: Record<string, SweepWeapon> = {
@@ -26,6 +30,12 @@ export const WEAPONS: Record<string, SweepWeapon> = {
   repeater: { id: 'repeater', name: 'REPEATER', cooldownMs: 92, count: 1, spreadRad: 0.16, speed: 380, damage: 1, lifeMs: 900, tint: P.neonCyan, glow: P.neonCyan },
   lance: { id: 'lance', name: 'LANCE', cooldownMs: 340, count: 1, spreadRad: 0, speed: 540, damage: 2, lifeMs: 900, tint: P.violetGlitch, glow: P.violetGlitch, scaleX: 2.4, pierce: true },
   arc: { id: 'arc', name: 'ECHO ARC', cooldownMs: 300, count: 1, spreadRad: 0, speed: 320, damage: 1, lifeMs: 1500, tint: P.signalGreen, glow: P.signalGreen, bounce: 2 },
+  // SEEKER — fires a curving anomaly-bolt that hunts the nearest drone. Slower rounds,
+  // but they chase weavers/divers around the corn. Steering is capped so it stays dodgeable-fair.
+  seeker: { id: 'seeker', name: 'SEEKER', cooldownMs: 260, count: 1, spreadRad: 0.05, speed: 250, damage: 1, lifeMs: 1600, tint: P.violetGlitch, glow: P.violetGlitch, scale: 1.25, homing: true, homingRate: 6.5 },
+  // RUPTURE — a heavy signal shell that detonates on contact, splashing AoE damage.
+  // The finale's crowd-clearer: perfect for REPLICATOR shards and packed clearings.
+  rupture: { id: 'rupture', name: 'RUPTURE', cooldownMs: 560, count: 1, spreadRad: 0, speed: 270, damage: 2, lifeMs: 900, tint: P.warning, glow: P.warning, scale: 1.9, explode: { radius: 62, damage: 2 } },
 };
 
-export const WEAPON_PICKUPS = ['scatter', 'repeater', 'lance', 'arc'];
+export const WEAPON_PICKUPS = ['scatter', 'repeater', 'lance', 'arc', 'seeker', 'rupture'];

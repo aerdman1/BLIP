@@ -702,6 +702,26 @@ export const SWEEP_ELITE = {
   points: 6,
 } as const;
 
+// "The Maze Heart" — Zone-4 FINALE boss (an enhanced Classifier construct). Reuses the
+// Elite's telegraphed scan-beam machinery (amber wind-up → red sweep) with beefier tuning,
+// plus a one-time reinforcement wave at half health. Charging the Node wakes it; the breach
+// stays SEALED until it is destroyed. Always killable (normal hits + Scan/Overdrive land),
+// so it can never soft-lock; god mode still gates every hit.
+export const SWEEP_BOSS = {
+  hp: 46,
+  speed: 26,
+  beamChargeMs: 780, // amber wind-up (a touch snappier than the mini-elite)
+  beamActiveMs: 620, // red beam sweep
+  beamPeriodMs: 3200, // faster cadence than the elite → sustained pressure
+  beamLength: 190,
+  beamHalfWidth: 11,
+  beamHeatOnHit: 44,
+  addsAtHpFrac: 0.5, // once below this HP, calls in reinforcements (one time)
+  addsKinds: ['weaver', 'weaver', 'diver'],
+  clearShards: 60, // triumphant one-time payout on defeat
+  lootDrops: 3, // weapon pickups that burst out on death
+} as const;
+
 // Enemy archetypes — the Interpretation Engine's labelling constructs. UNIFORM shape
 // (every kind carries every field) so one drive() path can read any of them; a `behavior`
 // tag picks the movement/attack style. Counters are in the comments (keep the roster fair).
@@ -957,6 +977,7 @@ export const TEX = {
   sweepBunker: 'sweep-bunker', // small structure landmark
   sweepBlipBody: 'sweep-blip-body', // dedicated top-down CONTACT-47 sprite
   sweepElite: 'sweep-elite', // menacing Classifier elite sprite
+  sweepMazeHeart: 'sweep-maze-heart', // Zone-4 finale boss: the Maze Heart construct
   sweepShadowLg: 'sweep-shadow-lg', // larger prop ground shadow
   sweepBoltGlow: 'sweep-bolt-glow', // additive halo behind bolts
   // Zone 4 — Patterson's Orchard (side-view)

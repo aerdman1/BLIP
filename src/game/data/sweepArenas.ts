@@ -48,6 +48,11 @@ export interface SweepArena {
   caches?: SweepMarker[]; // hidden scan caches
   chargeTarget?: number;
   waves?: SweepWave[]; // waves mode
+  // ── finale generosity / climax (scoped per-arena so earlier Folds stay tuned) ──
+  dropChance?: number; // override SWEEP.dropChance for THIS arena only (loot-rich finale)
+  clearBonus?: number; // override SWEEP.shardsClearBonus granted on Fold-onward
+  weaponSpawns?: { tx: number; ty: number; wid: string }[]; // guaranteed weapon pickups
+  bossFinale?: boolean; // charging the Node wakes the Maze Heart; breach gates on its death
 }
 
 export const SWEEP_ARENAS: Record<string, SweepArena> = {
@@ -175,18 +180,35 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     node: { tx: 18, ty: 10 },
     breach: { tx: 30, ty: 4 },
     spawn: { tx: 5, ty: 18 },
-    elite: { tx: 18, ty: 9 },
     chargeTarget: 110,
-    // ROSTER — "the hunting maze": long corn lanes let PINPOINT snipers line up telegraphed
-    // shots (break line-of-sight around a hedge), JITTER weavers dart the rows, and REPLICATOR
-    // splitters lurk in the clearings — the densest, most varied fight of the campaign.
-    enemies: [
-      { tx: 5, ty: 10, type: 'sniper' }, { tx: 10, ty: 10, type: 'weaver' }, { tx: 14, ty: 17, type: 'splitter' },
-      { tx: 18, ty: 12, type: 'weaver' }, { tx: 17, ty: 3, type: 'sniper' }, { tx: 24, ty: 2, type: 'tagger' },
-      { tx: 29, ty: 13, type: 'sniper' }, { tx: 24, ty: 18, type: 'splitter' }, { tx: 31, ty: 14, type: 'weaver' },
-      { tx: 16, ty: 9, type: 'diver' }, { tx: 9, ty: 18, type: 'splitter' },
+    // FINALE FLAGS (scoped to THIS arena only): loot-rich drops, a bumped clear payout,
+    // guaranteed weapon pickups seeded along both routes, and the Maze Heart boss gate.
+    dropChance: 0.55, // the campaign's most generous Fold — the finale should shower loot
+    clearBonus: 45, // a fatter Fold-onward payout for clearing the last Fold
+    bossFinale: true, // charging the Node wakes the Maze Heart; breach seals until it dies
+    weaponSpawns: [
+      { tx: 7, ty: 17, wid: 'scatter' }, // A — right by spawn, so you're armed for the maze
+      { tx: 4, ty: 10, wid: 'seeker' }, // D — SEEKER for the weaver-choked west rows
+      { tx: 17, ty: 3, wid: 'arc' }, // E — ECHO ARC for the north corridor
+      { tx: 30, ty: 15, wid: 'lance' }, // G — LANCE for the east lane
+      { tx: 23, ty: 18, wid: 'rupture' }, // H — RUPTURE waiting for the boss finale
     ],
-    caches: [{ tx: 3, ty: 9 }, { tx: 32, ty: 16 }, { tx: 32, ty: 3 }],
+    // ROSTER — "the hunting maze": long corn lanes let PINPOINT snipers line up telegraphed
+    // shots (break line-of-sight around a hedge), JITTER weavers dart the rows, REPLICATOR
+    // splitters swarm the clearings, and FIREWALL wardens + a PYLON turret anchor the chokes —
+    // the densest, most varied fight of the campaign, escalating toward the Maze Heart.
+    enemies: [
+      { tx: 4, ty: 9, type: 'sniper' }, { tx: 6, ty: 11, type: 'weaver' }, { tx: 9, ty: 18, type: 'splitter' },
+      { tx: 14, ty: 17, type: 'splitter' }, { tx: 16, ty: 16, type: 'tagger' }, { tx: 17, ty: 12, type: 'weaver' },
+      { tx: 20, ty: 12, type: 'turret' }, { tx: 16, ty: 3, type: 'sniper' }, { tx: 18, ty: 2, type: 'warden' },
+      { tx: 24, ty: 2, type: 'tagger' }, { tx: 29, ty: 13, type: 'sniper' }, { tx: 31, ty: 15, type: 'splitter' },
+      { tx: 28, ty: 12, type: 'warden' }, { tx: 25, ty: 17, type: 'diver' }, { tx: 22, ty: 19, type: 'weaver' },
+      { tx: 15, ty: 9, type: 'diver' },
+    ],
+    caches: [
+      { tx: 3, ty: 9 }, { tx: 32, ty: 16 }, { tx: 32, ty: 3 }, { tx: 5, ty: 19 },
+      { tx: 16, ty: 18 }, { tx: 26, ty: 19 }, { tx: 19, ty: 3 },
+    ],
   },
 
   // ── waves dev arena (F7) — simple open bordered field ────────────────────

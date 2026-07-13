@@ -449,6 +449,42 @@ export function buildSweepTextures(scene: Phaser.Scene): void {
     g.generateTexture(TEX.sweepElite, w, w);
     g.destroy();
   }
+  // "MAZE HEART" — Zone-4 FINALE boss. A big octagonal Engine construct: dark armoured
+  // hull, warning-striped shoulders, a glyph ring, and a pulsing crop-glow core eye.
+  {
+    const g = gfx(scene);
+    const w = 40;
+    const c = w / 2;
+    g.fillStyle(P.black, 0.4).fillEllipse(c, w - 4, w - 6, 8); // grounded shadow
+    // octagonal hull (two tones + outline)
+    const oct = (r: number) =>
+      V(Array.from({ length: 8 }, (_, i) => {
+        const a = (i / 8) * Math.PI * 2 + Math.PI / 8;
+        return [c + Math.cos(a) * r, c + Math.sin(a) * r];
+      }));
+    g.fillStyle(P.fuseSteelDark, 1).fillPoints(oct(18), true);
+    g.fillStyle(P.slateDark, 1).fillPoints(oct(15), true);
+    g.fillStyle(P.slate, 0.9).fillPoints(V([[c - 9, c - 11], [c + 9, c - 11], [c, c - 2]]), true); // lit top facet
+    // warning-striped shoulders
+    g.fillStyle(P.warning, 0.85);
+    for (let i = 0; i < 3; i++) { g.fillRect(6 + i * 3, 7, 2, 3); g.fillRect(w - 12 + i * 3, 7, 2, 3); }
+    // glyph ring (crop-circle motif)
+    g.lineStyle(1, P.signalDim, 0.7).strokeCircle(c, c, 12);
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) {
+      g.fillStyle(P.cropGlow, 0.6).fillCircle(c + Math.cos(a) * 12, c + Math.sin(a) * 12, 1.4);
+    }
+    // core eye — layered danger→crop-glow→white bloom
+    g.fillStyle(P.dangerDark, 1).fillCircle(c, c, 9);
+    g.fillStyle(P.danger, 1).fillCircle(c, c, 6.5);
+    g.fillStyle(P.cropGlow, 0.9).fillCircle(c, c, 4);
+    g.fillStyle(P.white, 1).fillCircle(c - 1, c - 1, 1.6);
+    // antennae spikes
+    g.fillStyle(P.slate, 1).fillRect(c - 1, 1, 2, 5).fillRect(2, c - 1, 5, 2).fillRect(w - 7, c - 1, 5, 2);
+    g.fillStyle(P.danger, 1).fillCircle(c, 1, 1.6);
+    g.lineStyle(1, P.black, 0.6).strokePoints(oct(18), true);
+    g.generateTexture(TEX.sweepMazeHeart, w, w);
+    g.destroy();
+  }
   // FIREWALL "warden" — armoured hull with a bright shield plate on its +x (front) edge.
   // The sprite ROTATES in-game so the plate always faces the player (shoot the back).
   {
