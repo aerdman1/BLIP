@@ -231,11 +231,14 @@ export class ShellUI {
 
   private refreshGameplayChrome(): void {
     const coarse = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
-    const compact = typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 1100px) and (max-height: 840px)').matches;
+    const phoneSized =
+      typeof window.matchMedia === 'function' &&
+      (window.matchMedia('(max-width: 700px)').matches ||
+        window.matchMedia('(orientation: landscape) and (max-width: 900px) and (max-height: 520px)').matches);
     const isGameplay = this.touchGameplayScenes.includes(this.lastScene);
     const unobstructed = !this.menuVisible && !this.pauseVisible && this.modalDepth === 0;
     document.body.classList.toggle('gameplay-active', isGameplay && unobstructed);
-    document.body.classList.toggle('compact-gameplay', isGameplay && unobstructed && (coarse || compact));
+    document.body.classList.toggle('compact-gameplay', isGameplay && unobstructed && (coarse || phoneSized));
     document.body.classList.toggle('sweep-active', isGameplay && unobstructed && this.lastScene === SCENES.sweep);
   }
 
