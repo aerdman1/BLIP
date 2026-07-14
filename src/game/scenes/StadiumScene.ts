@@ -20,6 +20,7 @@ import {
   RENDER_ZOOM,
   SCAN,
   SCENES,
+  SIGNATURE,
   TEX,
   TILE,
   css,
@@ -30,7 +31,7 @@ import { skinByScout } from '../data/skins';
 import { Collectible } from '../entities/Collectible';
 import { DetectionCone } from '../entities/DetectionCone';
 import { Player } from '../entities/Player';
-import { Projectile, fireFrom, makeProjectileGroup } from '../entities/Projectile';
+import { Projectile, chainToNextEnemy, clearBoltsInRadius, fireFrom, makeProjectileGroup, ricochetBolt } from '../entities/Projectile';
 import { ScannerDrone, type DroneDeps } from '../entities/ScannerDrone';
 import { ScoutEcho } from '../entities/ScoutEcho';
 import { WeatherBalloonBoss } from '../entities/WeatherBalloonBoss';
@@ -41,7 +42,7 @@ import { attachScreenFilter } from '../systems/ScreenFilter';
 import { bus } from '../systems/EventBus';
 import { PlayerInput } from '../systems/InputSystem';
 import { quests } from '../systems/QuestSystem';
-import { addShards, getSave, recordSetPiece, setProgress, unlockSkin, updateSave } from '../systems/SaveSystem';
+import { addShards, getSave, hasAbility, recordSetPiece, setProgress, unlockSkin, updateSave } from '../systems/SaveSystem';
 import { progression } from '../systems/ProgressionSystem';
 import { activeSkin } from '../systems/SkinState';
 import { registerScene, unregisterScene } from '../systems/TestAPI';
@@ -399,6 +400,11 @@ export class StadiumScene extends Phaser.Scene {
 
     this.physics.add.collider(this.playerBolts, this.solids, (bolt) => {
       const b = bolt as Projectile;
+      // Pulse Ricochet: bounce off geometry before dying
+      if (hasAbility('pulse-ricochet') && ricochetBolt(b, SIGNATURE.ricochet.wallBounces)) {
+        this.fx.sparks(b.x, b.y, P.scoutCameron, 3);
+        return;
+      }
       this.fx.sparks(b.x, b.y, activeSkin().color, 3);
       b.kill();
     });
@@ -409,9 +415,17 @@ export class StadiumScene extends Phaser.Scene {
       const b = boltObj as Projectile;
       const d = droneObj as ScannerDrone;
       if (!b.active || !d.active) return;
-      b.kill();
       const surge = (b as unknown as { surge?: boolean }).surge ? 2 : 1;
       d.takeDamage(this.player.pulseDamage * surge);
+      // Pulse Ricochet: chain-deflect toward the next drone instead of dying
+      if (
+        hasAbility('pulse-ricochet') &&
+        chainToNextEnemy(b, d, this.enemies.getChildren(), SIGNATURE.ricochet.chainHops, SIGNATURE.ricochet.chainRange)
+      ) {
+        this.fx.sparks(b.x, b.y, P.scoutCameron, 3);
+        return;
+      }
+      b.kill();
     });
 
     // drone touch + enemy bolts hurt the player
@@ -522,8 +536,8 @@ export class StadiumScene extends Phaser.Scene {
       l.ghost.setX(ghostX);
     }
     const sheltered = this.updateSafeZones(dtSec, now);
-    const dashHidden = this.player.isDashing;
-    this.classify.update(dtSec, inCone && !sheltered && this.player.alive && !dashHidden);
+    const dashHidden = this.player.isDashing || this.player.ghostCloaked;
+    this.classify.update(dtSec, inCone && !sheltered && this.player.alive && !dashHidden, this.player.detectionMul);
     this.updateAlertIcon(inCone, sheltered, dashHidden, now);
     // caught in the light too long → the scoreboard flips to KNOWN, the phantom
     // crowd roars, and the Engine flags you (dash i-frames slip the beams)
@@ -687,6 +701,17 @@ export class StadiumScene extends Phaser.Scene {
     this.bumpStat('scansUsed');
     const px = this.player.x;
     const py = this.player.y;
+    // EMP Burst signature: shockwave stuns drones + clears enemy bolts in a radius
+    if (hasAbility('emp-burst')) {
+      const r = SIGNATURE.emp.radius;
+      this.fx.scanRing(px, py, r, SIGNATURE.emp.ringMs, P.neonCyan);
+      this.fx.flash(P.neonCyan, 80, 0.22);
+      clearBoltsInRadius(this.enemyBolts, px, py, r);
+      for (const d of this.ventDrones) {
+        if (d.active && Phaser.Math.Distance.Between(px, py, d.x, d.y) <= r) d.stun(SIGNATURE.emp.stunMs / 1000);
+      }
+      audio.hazardZap();
+    }
     for (const d of this.ventDrones) {
       if (d.active && Phaser.Math.Distance.Between(px, py, d.x, d.y) < this.player.scanRadius) d.stun(DRONE.scanStunSec);
     }

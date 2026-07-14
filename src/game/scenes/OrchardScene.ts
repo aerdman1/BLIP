@@ -22,6 +22,7 @@ import {
   RENDER_ZOOM,
   SCAN,
   SCENES,
+  SIGNATURE,
   TEX,
   TILE,
   css,
@@ -33,7 +34,7 @@ import { Collectible } from '../entities/Collectible';
 import { HiddenPlatform } from '../entities/HiddenPlatform';
 import { HarvestPatternBoss } from '../entities/HarvestPatternBoss';
 import { Player } from '../entities/Player';
-import { Projectile, fireFrom, makeProjectileGroup } from '../entities/Projectile';
+import { Projectile, clearBoltsInRadius, fireFrom, makeProjectileGroup, ricochetBolt } from '../entities/Projectile';
 import { ScoutEcho } from '../entities/ScoutEcho';
 import { audio } from '../systems/AudioSystem';
 import { EffectsSystem } from '../systems/EffectsSystem';
@@ -42,7 +43,7 @@ import { bus } from '../systems/EventBus';
 import { foldCollapse } from '../systems/FoldTransition';
 import { PlayerInput } from '../systems/InputSystem';
 import { quests } from '../systems/QuestSystem';
-import { addShards, getSave, recordSetPiece, setProgress, unlockSkin, updateSave } from '../systems/SaveSystem';
+import { addShards, getSave, hasAbility, recordSetPiece, setProgress, unlockSkin, updateSave } from '../systems/SaveSystem';
 import { progression } from '../systems/ProgressionSystem';
 import { activeSkin } from '../systems/SkinState';
 import { registerScene, unregisterScene } from '../systems/TestAPI';
@@ -311,11 +312,23 @@ export class OrchardScene extends Phaser.Scene {
 
     this.physics.add.collider(this.playerBolts, this.solids, (bolt) => {
       const b = bolt as Projectile;
+      // Pulse Ricochet (earned here): bounce off geometry before dying
+      if (hasAbility('pulse-ricochet') && ricochetBolt(b, SIGNATURE.ricochet.wallBounces)) {
+        this.fx.sparks(b.x, b.y, P.scoutCameron, 3);
+        return;
+      }
       this.fx.sparks(b.x, b.y, activeSkin().color, 3);
       b.kill();
     });
     for (const grp of [this.mazeGroup, this.fruitGroup, this.gateGroup]) {
-      this.physics.add.collider(this.playerBolts, grp, (bolt) => (bolt as Projectile).kill());
+      this.physics.add.collider(this.playerBolts, grp, (bolt) => {
+        const b = bolt as Projectile;
+        if (hasAbility('pulse-ricochet') && ricochetBolt(b, SIGNATURE.ricochet.wallBounces)) {
+          this.fx.sparks(b.x, b.y, P.scoutCameron, 3);
+          return;
+        }
+        b.kill();
+      });
     }
 
     this.physics.add.overlap(this.enemyBolts, this.player, (_pl, bolt) => {
@@ -536,6 +549,14 @@ export class OrchardScene extends Phaser.Scene {
     this.bumpStat('scansUsed');
     const px = this.player.x;
     const py = this.player.y;
+    // EMP Burst signature: shockwave clears enemy bolts (harvest symbols) in a radius
+    if (hasAbility('emp-burst')) {
+      const r = SIGNATURE.emp.radius;
+      this.fx.scanRing(px, py, r, SIGNATURE.emp.ringMs, P.neonCyan);
+      this.fx.flash(P.neonCyan, 80, 0.22);
+      clearBoltsInRadius(this.enemyBolts, px, py, r);
+      audio.hazardZap();
+    }
     this.hiddenPlatforms.forEach((hp, i) => {
       if (!hp.revealed && Phaser.Math.Distance.Between(px, py, hp.x, hp.y) < this.player.scanRadius * 1.2) hp.reveal(i * 40);
     });

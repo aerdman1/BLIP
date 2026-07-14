@@ -17,6 +17,7 @@ import {
   RENDER_ZOOM,
   SCAN,
   SCENES,
+  SIGNATURE,
   TEX,
   TILE,
   css,
@@ -29,7 +30,7 @@ import { CropCircleDoor } from '../entities/CropCircleDoor';
 import { ScoutEcho } from '../entities/ScoutEcho';
 import { HiddenPlatform } from '../entities/HiddenPlatform';
 import { Player } from '../entities/Player';
-import { Projectile, fireFrom, makeProjectileGroup } from '../entities/Projectile';
+import { Projectile, chainToNextEnemy, clearBoltsInRadius, fireFrom, makeProjectileGroup, ricochetBolt } from '../entities/Projectile';
 import { ScannerDrone } from '../entities/ScannerDrone';
 import { ScannerRig } from '../entities/ScannerRig';
 import { ScarecrowAntennaBoss } from '../entities/ScarecrowAntennaBoss';
@@ -42,7 +43,7 @@ import { attachScreenFilter } from '../systems/ScreenFilter';
 import { bus } from '../systems/EventBus';
 import { PlayerInput } from '../systems/InputSystem';
 import { quests } from '../systems/QuestSystem';
-import { getSave, recordSetPiece, setProgress, unlockSkin, updateSave } from '../systems/SaveSystem';
+import { getSave, hasAbility, recordSetPiece, setProgress, unlockSkin, updateSave } from '../systems/SaveSystem';
 import { placeSecretCues, resolveScanSecrets, retireSecretCue } from '../systems/Secrets';
 import { ZONE_SECRETS } from '../data/fieldNotes';
 import { progression } from '../systems/ProgressionSystem';
@@ -481,15 +482,9 @@ export class FieldScene extends Phaser.Scene {
 
     this.physics.add.collider(this.playerBolts, this.solids, (bolt) => {
       const b = bolt as Projectile;
-      // ECHO signature: pulses bounce once off geometry
-      const eb = b as unknown as { bounced?: boolean };
-      if (skinAbilities().echoShot && !eb.bounced) {
-        eb.bounced = true;
-        const body = b.body as Phaser.Physics.Arcade.Body;
-        if (body.blocked.left || body.blocked.right) body.velocity.x *= -1;
-        if (body.blocked.up || body.blocked.down) body.velocity.y *= -1;
-        else body.velocity.y = -Math.abs(body.velocity.x) * 0.4;
-        b.setRotation(Math.atan2(body.velocity.y, body.velocity.x));
+      // Pulse Ricochet signature multiplies the bounce; ECHO skin still bounces once.
+      const maxB = hasAbility('pulse-ricochet') ? SIGNATURE.ricochet.wallBounces : skinAbilities().echoShot ? 1 : 0;
+      if (maxB > 0 && ricochetBolt(b, maxB)) {
         this.fx.sparks(b.x, b.y, P.scoutCameron, 3);
         return;
       }
@@ -502,9 +497,17 @@ export class FieldScene extends Phaser.Scene {
       const b = bolt as Projectile;
       const drone = droneObj as ScannerDrone;
       if (!b.active || !drone.active) return;
-      b.kill();
       this.fx.sparks(drone.x, drone.y, P.warning, 5);
       drone.takeDamage(this.player.pulseDamage * ((b as unknown as { surge?: boolean }).surge ? 2 : 1));
+      // Pulse Ricochet: deflect toward the next drone instead of dying
+      if (
+        hasAbility('pulse-ricochet') &&
+        chainToNextEnemy(b, drone, this.droneGroup.getChildren(), SIGNATURE.ricochet.chainHops, SIGNATURE.ricochet.chainRange)
+      ) {
+        this.fx.sparks(b.x, b.y, P.scoutCameron, 3);
+        return;
+      }
+      b.kill();
     });
 
     this.physics.add.overlap(this.enemyBolts, this.player, (_pl, bolt) => {
@@ -632,7 +635,7 @@ export class FieldScene extends Phaser.Scene {
       if (d.active && d.cone.update(this.player.x, this.player.y)) inCone = true;
     });
     if (this.rig && this.rig.update(dtSec, this.player.x, this.player.y)) inCone = true;
-    this.classify.update(dtSec, inCone && this.player.alive && !this.player.isDashing, this.player.isEchoActive ? 0.5 : 1);
+    this.classify.update(dtSec, inCone && this.player.alive && !this.player.isDashing && !this.player.ghostCloaked, this.player.detectionMul);
 
     this.updateSkinPassives(dtSec, inCone, body);
     this.updateScanHints();
@@ -869,6 +872,19 @@ export class FieldScene extends Phaser.Scene {
     bus.emit(EVT.toast, { text: 'RECON PING — EYES MAPPED', color: 'cyan' });
   }
 
+  /** EMP Burst signature (Motel/Chip): the SCAN also emits a shockwave — a cyan
+   *  ring that STUNS drones and clears enemy bolts in a radius. */
+  private empBurst(px: number, py: number): void {
+    const r = SIGNATURE.emp.radius;
+    this.fx.scanRing(px, py, r, SIGNATURE.emp.ringMs, P.neonCyan);
+    this.fx.flash(P.neonCyan, 80, 0.22);
+    clearBoltsInRadius(this.enemyBolts, px, py, r);
+    for (const d of this.droneGroup.getChildren() as ScannerDrone[]) {
+      if (d.active && Phaser.Math.Distance.Between(px, py, d.x, d.y) <= r) d.stun(SIGNATURE.emp.stunMs / 1000);
+    }
+    audio.hazardZap();
+  }
+
   private doScan(): void {
     this.player.markScan();
     audio.scanPulse();
@@ -879,6 +895,7 @@ export class FieldScene extends Phaser.Scene {
 
     const px = this.player.x;
     const py = this.player.y;
+    if (hasAbility('emp-burst')) this.empBurst(px, py);
     const within = (x: number, y: number) => Phaser.Math.Distance.Between(px, py, x, y) <= radius;
 
     let revealedAny = false;

@@ -4,7 +4,7 @@
  * All tuning in config.PLAYER.
  */
 import Phaser from 'phaser';
-import { EVT, FLY_SPEED, PALETTE as P, PLAYER, PROGRESSION, PULSE, SCAN, SKIN_TEX, TEX } from '../config';
+import { EVT, FLY_SPEED, PALETTE as P, PLAYER, PROGRESSION, PULSE, SCAN, SIGNATURE, SKIN_TEX, TEX } from '../config';
 import { bus } from '../systems/EventBus';
 import { audio } from '../systems/AudioSystem';
 import { rumble } from '../systems/PadSim';
@@ -35,6 +35,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private jumpHeld = false;
   private dashUntil = 0;
   private dashCdUntil = 0;
+  private dashCloakUntil = 0; // Ghost Protocol: unreadable window after a dash
+  private cloakTinted = false;
   private shootCdUntil = 0;
   private scanCdUntil = 0;
   private invulnUntil = 0;
@@ -116,6 +118,20 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   get invulnerable(): boolean {
     return this.godMode || this.flying || this.isDashing || this.scene.time.now < this.invulnUntil;
+  }
+
+  /** Ghost Protocol: for a beat after a dash the Engine can't get a read on you
+   *  — detection cones lose their lock (scenes gate `inCone` on this). */
+  get ghostCloaked(): boolean {
+    return hasAbility('ghost-protocol') && this.scene.time.now < this.dashCloakUntil;
+  }
+
+  /** Multiplier the scenes feed ClassificationSystem.update: Echo Blink decoy
+   *  (0.5) and Ghost Protocol's passive detection-slow stack here. */
+  get detectionMul(): number {
+    let m = this.isEchoActive ? 0.5 : 1;
+    if (hasAbility('ghost-protocol')) m *= SIGNATURE.ghost.detectSlowMul;
+    return m;
   }
 
   /** DEV: noclip free-fly — WASD/arrows + ↑↓ to zoom through the level */
@@ -295,6 +311,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       if (!canGroundDash && canAirDash) this.airDashUsed = true;
       this.dashUntil = now + PLAYER.dashMs;
       this.dashCdUntil = now + PLAYER.dashMs + PLAYER.dashCooldownMs * (this.sm.dashCooldownMul ?? 1);
+      // Ghost Protocol: the dash slips the read — stay unreadable past the dash itself
+      if (hasAbility('ghost-protocol')) this.dashCloakUntil = now + PLAYER.dashMs + SIGNATURE.ghost.dashCloakMs;
       body.setAllowGravity(false);
       audio.dash();
       this.fx.sparks(this.x, this.y, this.trailTint(), 6);
@@ -376,10 +394,21 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     } else if (this.texture.key !== this.baseTex) {
       this.setTexture(this.baseTex);
     }
+    const cloaked = this.ghostCloaked;
     if (!this.godMode && now < this.invulnUntil) {
       this.setAlpha(Math.sin(now * 0.04) > 0 ? 0.35 : 0.9);
+    } else if (cloaked) {
+      // Ghost Protocol: a cool desat shimmer sells "the Engine can't read you"
+      this.setAlpha(0.5 + 0.22 * Math.sin(now * 0.03));
     } else {
       this.setAlpha(1);
+    }
+    if (cloaked && !this.flying) {
+      this.setTint(P.shellRim);
+      this.cloakTinted = true;
+    } else if (this.cloakTinted && !this.flying) {
+      this.clearTint();
+      this.cloakTinted = false;
     }
 
     /* --- throttled HUD state --- */

@@ -522,6 +522,33 @@ export const BOSS5 = {
   staggerMs: 620,
 } as const;
 
+/* --------------------- zone signature abilities (Channel A) ----------------- */
+// Passive, always-on modifiers each zone's boss grants (see data/upgrades.ts +
+// ZONE_SIGNATURE). Gated in-kit by hasAbility(<id>). No new input — they layer
+// onto the base verbs (PULSE / SCAN / dash) so they work on touch automatically.
+export const SIGNATURE = {
+  // Pulse Ricochet (Patterson's Orchard / Cameron): shots bounce off geometry
+  // AND chain-deflect toward a nearby enemy after a hit.
+  ricochet: {
+    wallBounces: 3, // max geometry bounces before the bolt dies (base ECHO skin = 1)
+    chainHops: 2, // times a bolt deflects toward the next enemy after an enemy hit
+    chainRange: 96, // px radius to seek the next enemy to chain to
+  },
+  // EMP Burst (Motel Nowhere / Chip): SCAN also emits a shockwave that stuns
+  // enemies + clears enemy bolts in a radius.
+  emp: {
+    radius: 104, // shockwave radius around the scan origin
+    stunMs: 1000, // enemies frozen (no move / no fire) this long
+    ringMs: 360, // EMP ring FX duration
+  },
+  // Ghost Protocol (Chagrin Falls High / Henry): passive stealth — detection
+  // builds slower, and a dash leaves you briefly unreadable.
+  ghost: {
+    detectSlowMul: 0.45, // classification fills at 45% of normal while owned
+    dashCloakMs: 1200, // undetectable window AFTER a dash ends (cones lose lock)
+  },
+} as const;
+
 /* ------------------------------ progression -------------------------------- */
 // The earn-loop economy + per-ability tuning (PROGRESSION_PLAN.md). All numbers
 // live here; the Command Center Workbench renders costs from this + upgrades.ts.

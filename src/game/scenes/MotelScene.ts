@@ -18,6 +18,7 @@ import {
   RENDER_ZOOM,
   SCAN,
   SCENES,
+  SIGNATURE,
   TEX,
   TILE,
 } from '../config';
@@ -27,7 +28,7 @@ import { skinByScout } from '../data/skins';
 import { Collectible } from '../entities/Collectible';
 import { DetectionCone } from '../entities/DetectionCone';
 import { Player } from '../entities/Player';
-import { Projectile, fireFrom, makeProjectileGroup } from '../entities/Projectile';
+import { Projectile, clearBoltsInRadius, fireFrom, makeProjectileGroup, ricochetBolt } from '../entities/Projectile';
 import { ScoutEcho } from '../entities/ScoutEcho';
 import { VacancySignBoss } from '../entities/VacancySignBoss';
 import { audio } from '../systems/AudioSystem';
@@ -39,7 +40,7 @@ import { attachScreenFilter } from '../systems/ScreenFilter';
 import { bus } from '../systems/EventBus';
 import { PlayerInput } from '../systems/InputSystem';
 import { quests } from '../systems/QuestSystem';
-import { getSave, recordSetPiece, setProgress, unlockSkin, updateSave } from '../systems/SaveSystem';
+import { getSave, hasAbility, recordSetPiece, setProgress, unlockSkin, updateSave } from '../systems/SaveSystem';
 import { placeSecretCues, resolveScanSecrets, retireSecretCue } from '../systems/Secrets';
 import { progression } from '../systems/ProgressionSystem';
 import { activeSkin, skinAbilities } from '../systems/SkinState';
@@ -323,6 +324,11 @@ export class MotelScene extends Phaser.Scene {
 
     this.physics.add.collider(this.playerBolts, this.solids, (bolt) => {
       const b = bolt as Projectile;
+      // Pulse Ricochet: bounce off geometry before dying
+      if (hasAbility('pulse-ricochet') && ricochetBolt(b, SIGNATURE.ricochet.wallBounces)) {
+        this.fx.sparks(b.x, b.y, P.scoutCameron, 3);
+        return;
+      }
       this.fx.sparks(b.x, b.y, activeSkin().color, 3);
       b.kill();
     });
@@ -462,7 +468,7 @@ export class MotelScene extends Phaser.Scene {
       l.cone.setAngle(Math.PI / 2 + Phaser.Math.DegToRad(MOTEL.securitySweepDeg / 2) * Math.sin(now / MOTEL.securitySweepPeriodMs * Math.PI * 2));
       if (l.cone.update(this.player.x, this.player.y)) inCone = true;
     }
-    this.classify.update(dtSec, inCone && this.player.alive && !this.player.isDashing, this.player.isEchoActive ? 0.5 : 1);
+    this.classify.update(dtSec, inCone && this.player.alive && !this.player.isDashing && !this.player.ghostCloaked, this.player.detectionMul);
     // security lights have teeth: linger in the cones → the Engine FLAGS you →
     // take a hit + knockback, then it resets (dash i-frames slip the beams)
     if (this.classify.isThreat && this.player.alive && !this.player.invulnerable) {
@@ -560,6 +566,15 @@ export class MotelScene extends Phaser.Scene {
     this.bumpStat('scansUsed');
     const px = this.player.x;
     const py = this.player.y;
+    // EMP Burst signature (earned here): the scan also emits a cyan shockwave that
+    // clears enemy bolts (and would stun drones) in a radius.
+    if (hasAbility('emp-burst')) {
+      const r = SIGNATURE.emp.radius;
+      this.fx.scanRing(px, py, r, SIGNATURE.emp.ringMs, P.neonCyan);
+      this.fx.flash(P.neonCyan, 80, 0.22);
+      clearBoltsInRadius(this.enemyBolts, px, py, r);
+      audio.hazardZap();
+    }
     // scan pings dark neon platforms so you can read the route before powering it
     for (const n of this.neon) {
       if (!this.powered[n.group] && Phaser.Math.Distance.Between(px, py, n.img.x, n.img.y) <= this.player.scanRadius) {
