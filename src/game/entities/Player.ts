@@ -4,13 +4,13 @@
  * All tuning in config.PLAYER.
  */
 import Phaser from 'phaser';
-import { EVT, FLY_SPEED, PALETTE as P, PLAYER, PROGRESSION, PULSE, SCAN, SIGNATURE, SKIN_TEX, TEX } from '../config';
+import { EVT, FLY_SPEED, PALETTE as P, PLAYER, PROGRESSION, PULSE, SCAN, SIGNATURE, SKIN_TEX, TEX, WORKBENCH_EFFECTS } from '../config';
 import { bus } from '../systems/EventBus';
 import { audio } from '../systems/AudioSystem';
 import { rumble } from '../systems/PadSim';
 import { activeSkin, setActiveSkin } from '../systems/SkinState';
 import { devState } from '../systems/DevState';
-import { hasAbility } from '../systems/SaveSystem';
+import { hasAbility, ownsUpgrade } from '../systems/SaveSystem';
 import { rewards } from '../systems/RewardSystem';
 import type { EffectsSystem } from '../systems/EffectsSystem';
 import type { PlayerInput } from '../systems/InputSystem';
@@ -179,7 +179,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   markShoot(): void {
-    this.shootCdUntil = this.scene.time.now + PULSE.cooldownMs * (activeSkin().mods.pulseCooldownMul ?? 1);
+    this.shootCdUntil = this.scene.time.now + PULSE.cooldownMs * (activeSkin().mods.pulseCooldownMul ?? 1) * this.wbPulseCooldownMul;
     this.pulseCount++;
   }
 
@@ -200,14 +200,29 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private get sm() {
     return activeSkin().mods;
   }
+
+  /* --- Workbench (Channel B) purchased-upgrade mods — stack ON TOP of skin mods,
+   *     gated by ownsUpgrade(id). Effect values live in config.WORKBENCH_EFFECTS. --- */
+  private get wbHoverDrainMul(): number {
+    return ownsUpgrade('hover-cell-plus') ? WORKBENCH_EFFECTS['hover-cell-plus'].hoverDrainMul : 1;
+  }
+  private get wbPulseCooldownMul(): number {
+    return ownsUpgrade('pulse-rapid') ? WORKBENCH_EFFECTS['pulse-rapid'].pulseCooldownMul : 1;
+  }
+  private get wbDashCooldownMul(): number {
+    return ownsUpgrade('dash-recharge') ? WORKBENCH_EFFECTS['dash-recharge'].dashCooldownMul : 1;
+  }
+
   get maxHp(): number {
-    return Math.max(1, PLAYER.maxHp + (this.sm.maxHpDelta ?? 0));
+    const wbHp = ownsUpgrade('max-hull-plus') ? WORKBENCH_EFFECTS['max-hull-plus'].maxHpDelta : 0;
+    return Math.max(1, PLAYER.maxHp + (this.sm.maxHpDelta ?? 0) + wbHp);
   }
   get effEnergyMax(): number {
     return PLAYER.energyMax * (this.sm.energyMaxMul ?? 1);
   }
   get scanRadius(): number {
-    return SCAN.radius * (this.sm.scanRadiusMul ?? 1);
+    const wbScan = ownsUpgrade('wide-scan') ? WORKBENCH_EFFECTS['wide-scan'].scanRadiusMul : 1;
+    return SCAN.radius * (this.sm.scanRadiusMul ?? 1) * wbScan;
   }
   get pulseDamage(): number {
     return Math.max(1, Math.round(PULSE.damage * (this.sm.pulseDamageMul ?? 1)));
@@ -310,7 +325,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (input.dashJustDown && !this.isDashing && (canGroundDash || canAirDash)) {
       if (!canGroundDash && canAirDash) this.airDashUsed = true;
       this.dashUntil = now + PLAYER.dashMs;
-      this.dashCdUntil = now + PLAYER.dashMs + PLAYER.dashCooldownMs * (this.sm.dashCooldownMul ?? 1);
+      this.dashCdUntil = now + PLAYER.dashMs + PLAYER.dashCooldownMs * (this.sm.dashCooldownMul ?? 1) * this.wbDashCooldownMul;
       // Ghost Protocol: the dash slips the read — stay unreadable past the dash itself
       if (hasAbility('ghost-protocol')) this.dashCloakUntil = now + PLAYER.dashMs + SIGNATURE.ghost.dashCloakMs;
       body.setAllowGravity(false);
@@ -362,7 +377,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.hovering = !grounded && input.jumpDown && body.velocity.y > 0 && this.energy > 0;
       if (this.hovering) {
         body.setVelocityY(Math.min(body.velocity.y, PLAYER.hoverFallSpeed));
-        this.energy = Math.max(0, this.energy - PLAYER.hoverDrainPerSec * (this.sm.hoverDrainMul ?? 1) * dtSec);
+        this.energy = Math.max(0, this.energy - PLAYER.hoverDrainPerSec * (this.sm.hoverDrainMul ?? 1) * this.wbHoverDrainMul * dtSec);
         if (now >= this.hoverEmitAt) {
           this.hoverEmitAt = now + 70;
           this.fx.sparks(this.x + Phaser.Math.Between(-3, 3), this.y + 8, this.skinColor, 1);
@@ -416,7 +431,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.hudAt = now + 110;
       bus.emit(EVT.hudEnergy, { energy: Math.round(this.energy), max: Math.round(this.effEnergyMax) });
       bus.emit(EVT.hudCooldowns, {
-        dash: Phaser.Math.Clamp((this.dashCdUntil - now) / (PLAYER.dashCooldownMs * (this.sm.dashCooldownMul ?? 1) + PLAYER.dashMs), 0, 1),
+        dash: Phaser.Math.Clamp((this.dashCdUntil - now) / (PLAYER.dashCooldownMs * (this.sm.dashCooldownMul ?? 1) * this.wbDashCooldownMul + PLAYER.dashMs), 0, 1),
         scan: Phaser.Math.Clamp((this.scanCdUntil - now) / SCAN.cooldownMs, 0, 1),
       });
     }

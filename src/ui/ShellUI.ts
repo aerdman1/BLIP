@@ -11,7 +11,7 @@ import { EVT, FILTERS, FRAGMENT_TOTAL, PAD, SCENES, TEX, type FilterId } from '.
 import { audio } from '../game/systems/AudioSystem';
 import { bus } from '../game/systems/EventBus';
 import { readPad } from '../game/systems/PadSim';
-import { addShards, allSlotSummaries, getSave, getSlotName, grantAbility, resetSave, resetSlot, setActiveSlot, setSlotName, unlockSkin, updateSave } from '../game/systems/SaveSystem';
+import { addShards, allSlotSummaries, buyUpgrade, getSave, getSlotName, grantAbility, ownsUpgrade, resetSave, resetSlot, setActiveSlot, setSlotName, unlockSkin, updateSave } from '../game/systems/SaveSystem';
 import { rewards } from '../game/systems/RewardSystem';
 import { skinById } from '../game/data/skins';
 import { UPGRADES } from '../game/data/upgrades';
@@ -132,6 +132,7 @@ export class ShellUI {
   private transmissionVisible = false;
   private portraitVisible = false;
   private ccVisible = false;
+  private workbenchVisible = false;
   private debugVisible = false;
   private devVisible = false;
   private devBuffer = '';
@@ -173,6 +174,7 @@ export class ShellUI {
     this.wireBus();
     this.buildPauseEntries();
     this.buildSettings();
+    this.wireWorkbench();
     this.startClock();
     this.renderVolumePips();
     this.renderClassify(0, 'UNKNOWN');
@@ -716,6 +718,7 @@ export class ShellUI {
     this.menuEntries.push(
       { label: 'COMMAND CENTER', icon: '▦', id: 'menu-command-center', action: () => this.openCommandCenter() },
       { label: 'SIGNAL ARCHIVE', icon: '▤', id: 'menu-archive', action: () => bus.emit(EVT.rewardOpenArchive, {}) },
+      { label: 'WORKBENCH', icon: '⚒', id: 'menu-workbench', action: () => this.openWorkbench() },
       { label: 'FIELD MANUAL', icon: '❏', id: 'menu-field-manual', action: () => this.openCommandCenter('controls') },
       { label: 'SETTINGS', icon: '⚙', id: 'menu-settings', action: () => this.openSettings() }
     );
@@ -781,6 +784,7 @@ export class ShellUI {
       { label: 'RESUME', icon: '▶', cls: 'primary', id: 'pause-resume', action: () => bus.emit(EVT.uiResume, {}) },
       { label: 'SETTINGS', icon: '⚙', id: 'pause-settings', action: () => this.openSettings() },
       { label: 'SIGNAL ARCHIVE', icon: '▦', id: 'pause-archive', action: () => bus.emit(EVT.rewardOpenArchive, {}) },
+      { label: 'WORKBENCH', icon: '⚒', id: 'pause-workbench', action: () => this.openWorkbench() },
       { label: 'COMMAND CENTER', icon: '▤', id: 'pause-command-center', action: () => this.openCommandCenter() },
       { label: 'MAIN MENU', icon: '⌂', id: 'pause-main-menu', action: () => bus.emit(EVT.uiMainMenu, {}) },
       { label: 'RESET SAVE', icon: '⚠', cls: 'danger', id: 'pause-reset', action: () => this.confirmReset() },
@@ -1023,6 +1027,73 @@ export class ShellUI {
       this.padPollTimer = null;
     }
     this.popModal();
+  }
+
+  /* ----------------------------- Chip's Workbench ---------------------------- */
+  // Signal Shard shop (Channel B). A modal like Settings: pushModal pauses the
+  // run while it's open. Purchases go through buyUpgrade (persists per slot).
+
+  private wireWorkbench(): void {
+    $('workbench-close').addEventListener('click', () => this.closeWorkbench());
+    // keep the balance readout live if shards change while the shop is open
+    bus.on(EVT.shardsChanged, () => {
+      if (this.workbenchVisible) this.renderWorkbench();
+    });
+  }
+
+  openWorkbench(): void {
+    if (this.workbenchVisible) return;
+    this.workbenchVisible = true;
+    $('workbench-modal').classList.remove('hidden');
+    this.renderWorkbench();
+    this.pushModal();
+  }
+
+  closeWorkbench(): void {
+    if (!this.workbenchVisible) return;
+    this.workbenchVisible = false;
+    $('workbench-modal').classList.add('hidden');
+    this.popModal();
+  }
+
+  private renderWorkbench(): void {
+    const save = getSave();
+    $('workbench-balance').textContent = `${save.shards} ◈`;
+    const body = $('workbench-body');
+    const shopItems = UPGRADES.filter((u) => u.unlockType === 'shop');
+    body.innerHTML = '';
+    shopItems.forEach((u) => {
+      const cost = u.cost ?? 0;
+      const owned = ownsUpgrade(u.id);
+      const affordable = save.shards >= cost;
+      const row = document.createElement('div');
+      row.className = `wb-item ${owned ? 'owned' : ''}`;
+      const btnState = owned ? '✓ OWNED' : 'BUY';
+      const disabled = owned || !affordable;
+      row.innerHTML =
+        `<div class="wb-info">` +
+        `<span class="wb-name">${u.name}</span>` +
+        `<span class="wb-desc">${u.description}</span>` +
+        `</div>` +
+        `<span class="wb-cost">${owned ? '—' : `${cost} ◈`}</span>` +
+        `<button class="shell-btn wb-buy ${disabled ? 'disabled' : 'accent'}" ${disabled ? 'disabled' : ''}>${btnState}</button>`;
+      const btn = row.querySelector('.wb-buy') as HTMLButtonElement;
+      if (!disabled) {
+        btn.addEventListener('click', () => this.tryBuy(u.id, cost, u.name));
+      }
+      body.appendChild(row);
+    });
+  }
+
+  private tryBuy(id: string, cost: number, name: string): void {
+    audio.unlock();
+    if (buyUpgrade(id, cost)) {
+      audio.uiToggle();
+      bus.emit(EVT.toast, { text: `PURCHASED — ${name}`, color: 'green' });
+    } else {
+      bus.emit(EVT.toast, { text: 'NOT ENOUGH SHARDS', color: 'orange' });
+    }
+    this.renderWorkbench(); // reflect new balance + owned/afford states
   }
 
   /* ------------------------------- name a slot ------------------------------- */
@@ -1458,6 +1529,14 @@ export class ShellUI {
         ev.preventDefault();
         ev.stopPropagation();
         this.closeCommandCenter();
+      }
+      return;
+    }
+    if (this.workbenchVisible) {
+      if (ev.code === 'Escape' || ev.code === 'KeyC' || ev.code === 'Tab') {
+        ev.preventDefault();
+        ev.stopPropagation();
+        this.closeWorkbench();
       }
       return;
     }

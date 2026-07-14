@@ -40,8 +40,11 @@ export const UPGRADES: UpgradeDef[] = [
   { id: 'refuse-label', name: 'Refuse the Label', description: 'The finale power: for a beat, reject whatever the Engine decided you are — clear your classification and pass through the read it tried to pin on you.', status: 'IMPLEMENTED', source: 'Fragment 5 — The Listening Station', unlockType: 'boss', zone: 'skyline-array' },
 
   // --- Channel B: Chip's Workbench (spend Signal Shards) ---
-  { id: 'hover-cell-plus', name: 'Hover Cell+', description: 'Longer hover, slower drain.', status: 'PLANNED', source: 'Chip’s Workbench', unlockType: 'shop', cost: 120 },
-  { id: 'wide-scan', name: 'Wide Scan', description: 'Bigger scan radius.', status: 'PLANNED', source: 'Chip’s Workbench', unlockType: 'shop', cost: 120 },
+  { id: 'hover-cell-plus', name: 'Hover Cell+', description: 'Longer hover, slower energy drain.', status: 'IMPLEMENTED', source: 'Chip’s Workbench', unlockType: 'shop', cost: 120 },
+  { id: 'wide-scan', name: 'Wide Scan', description: 'Bigger Scan Pulse radius — reveal and EMP reach further.', status: 'IMPLEMENTED', source: 'Chip’s Workbench', unlockType: 'shop', cost: 120 },
+  { id: 'max-hull-plus', name: 'Reinforced Hull', description: '+1 hull segment — take one more hit.', status: 'IMPLEMENTED', source: 'Chip’s Workbench', unlockType: 'shop', cost: 90 },
+  { id: 'pulse-rapid', name: 'Rapid Pulse', description: 'Faster Pulse Shot cadence — fire more often.', status: 'IMPLEMENTED', source: 'Chip’s Workbench', unlockType: 'shop', cost: 110 },
+  { id: 'dash-recharge', name: 'Drift Capacitor', description: 'Shorter Phase Drift cooldown — dash again sooner.', status: 'IMPLEMENTED', source: 'Chip’s Workbench', unlockType: 'shop', cost: 100 },
 
   // --- Channel C: scout Signal-Set completion ---
   { id: 'route-tracer', name: 'Route Tracer', description: 'Draw a glowing path as you move, the way Will drew maps.', status: 'PLANNED', source: 'Will / WILLOW Signal Set', unlockType: 'scout-set', scout: 'will' },

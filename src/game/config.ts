@@ -566,6 +566,18 @@ export const PROGRESSION = {
   },
 } as const;
 
+// Chip's Workbench — single-purchase shop upgrades (Channel B). Keyed by the
+// upgrade ids in `src/game/data/upgrades.ts` (unlockType:'shop'); `cost` there is
+// the Shard price, the numbers here are the gameplay effect applied in Player.ts
+// (gated by `ownsUpgrade(id)`, stacking on top of the active skin's mods).
+export const WORKBENCH_EFFECTS = {
+  'hover-cell-plus': { hoverDrainMul: 0.6 }, // slower energy drain → longer hover
+  'wide-scan': { scanRadiusMul: 1.4 }, // bigger Scan Pulse reveal/EMP radius
+  'max-hull-plus': { maxHpDelta: 1 }, // +1 hull segment
+  'pulse-rapid': { pulseCooldownMul: 0.78 }, // faster Pulse Shot cadence
+  'dash-recharge': { dashCooldownMul: 0.72 }, // shorter Phase Drift cooldown
+} as const;
+
 /* -------------------------- Zone 2: Motel Nowhere -------------------------- */
 export const MOTEL = {
   securityConeLength: 130,
