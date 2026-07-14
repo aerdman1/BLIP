@@ -14,7 +14,13 @@ export function registerServiceWorker(): void {
     reloaded = true;
     location.reload();
   };
-  navigator.serviceWorker.addEventListener('controllerchange', reloadOnce);
+  // Only reload on controllerchange if a worker was ALREADY controlling this page
+  // (i.e. a genuine update). On a first-ever visit, skipWaiting()+clients.claim()
+  // also fires controllerchange, and reloading then is gratuitous jank.
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadController) reloadOnce();
+  });
 
   window.addEventListener('load', () => {
     // Version query + updateViaCache:'none' force the browser to re-fetch sw.js

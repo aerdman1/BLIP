@@ -316,11 +316,13 @@ export class UIScene extends Phaser.Scene {
     const g = this.bars;
     g.clear();
 
-    // HP pips — same green→amber→red integrity language as the Sweep bar
-    const hpRatio = PLAYER.maxHp > 0 ? this.hp / PLAYER.maxHp : 0;
+    // HP pips — same green→amber→red integrity language as the Sweep bar.
+    // Use this.hpMax (skin-adjusted effective max from EVT.hudHp), NOT the raw
+    // PLAYER.maxHp constant, so ANCHOR (+1 hull) / ROCKET (−1 hull) render right.
+    const hpRatio = this.hpMax > 0 ? this.hp / this.hpMax : 0;
     const hc = this.healthColor(hpRatio);
     const hpp = this.healthPulse(hpRatio);
-    for (let i = 0; i < PLAYER.maxHp; i++) {
+    for (let i = 0; i < this.hpMax; i++) {
       const px = 8 + i * 9;
       if (i < this.hp) {
         g.fillStyle(hc, hpp).fillRect(px, 8, 7, 5);

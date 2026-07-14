@@ -71,8 +71,9 @@ export class TouchControls {
       this.stickPointer = null;
       touchInput.moveX = 0;
       touchInput.moveY = 0;
-      touchInput.aimX = 0;
-      touchInput.aimY = 0;
+      // NOTE: do NOT clear aimX/aimY here — the move stick is movement-only now and
+      // aim is owned by the ◎ drag-aim button (a separate pointer/thumb). Zeroing aim
+      // on move-stick release would snap a held aimed shot back to horizontal.
       knob.style.removeProperty('transform');
     };
     stick.addEventListener('pointerup', releaseStick);
