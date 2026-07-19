@@ -35,8 +35,8 @@ export const UPGRADES: UpgradeDef[] = [
   { id: 'emp-burst', name: 'EMP Burst', description: 'Your SCAN also fires an EMP shockwave — stuns enemies and clears their bolts in a radius.', status: 'IMPLEMENTED', source: 'Fragment 2 — The Vacancy Sign', unlockType: 'boss', zone: 'motel-nowhere' },
   { id: 'ghost-protocol', name: 'Ghost Protocol', description: 'Passive stealth — detection builds far slower, and for a beat after a dash you are unreadable.', status: 'IMPLEMENTED', source: 'Fragment 3 — The Weather Balloon', unlockType: 'boss', zone: 'tiger-stadium' },
   { id: 'pulse-ricochet', name: 'Pulse Ricochet', description: 'PULSE shots bounce off geometry and chain-deflect to nearby enemies.', status: 'IMPLEMENTED', source: 'Fragment 4 — The Harvest Pattern', unlockType: 'boss', zone: 'pattersons-orchard' },
-  { id: 'scan-memory', name: 'Scan Memory', description: 'Revealed objects stay visible far longer.', status: 'PLANNED', source: 'Patterson’s Orchard (secondary)', unlockType: 'boss', zone: 'pattersons-orchard' },
-  { id: 'phase-drift-plus', name: 'Phase Drift+', description: 'Longer dash that phases through bolts (air-dash to high routes).', status: 'PLANNED', source: 'Skyline Array (secondary)', unlockType: 'boss', zone: 'skyline-array' },
+  { id: 'scan-memory', name: 'Scan Memory', description: 'Your SCAN remembers — the ring lingers and everything it touched keeps a glowing echo marker for several seconds.', status: 'IMPLEMENTED', source: 'Patterson’s Orchard (secondary)', unlockType: 'boss', zone: 'pattersons-orchard' },
+  { id: 'phase-drift-plus', name: 'Phase Drift+', description: 'Longer, faster dash that phases clean through enemy bolts — plus one extra mid-air dash for high routes.', status: 'IMPLEMENTED', source: 'Skyline Array (secondary)', unlockType: 'boss', zone: 'skyline-array' },
   { id: 'refuse-label', name: 'Refuse the Label', description: 'The finale power: for a beat, reject whatever the Engine decided you are — clear your classification and pass through the read it tried to pin on you.', status: 'IMPLEMENTED', source: 'Fragment 5 — The Listening Station', unlockType: 'boss', zone: 'skyline-array' },
 
   // --- Channel B: Chip's Workbench (spend Signal Shards) ---
@@ -47,7 +47,7 @@ export const UPGRADES: UpgradeDef[] = [
   { id: 'dash-recharge', name: 'Drift Capacitor', description: 'Shorter Phase Drift cooldown — dash again sooner.', status: 'IMPLEMENTED', source: 'Chip’s Workbench', unlockType: 'shop', cost: 100 },
 
   // --- Channel C: scout Signal-Set completion ---
-  { id: 'route-tracer', name: 'Route Tracer', description: 'Draw a glowing path as you move, the way Will drew maps.', status: 'PLANNED', source: 'Will / WILLOW Signal Set', unlockType: 'scout-set', scout: 'will' },
+  { id: 'route-tracer', name: 'Route Tracer', description: 'A glowing line draws itself behind you as you move and fades a couple of seconds later — the way Will drew maps.', status: 'IMPLEMENTED', source: 'Will / WILLOW Signal Set', unlockType: 'scout-set', scout: 'will' },
   { id: 'echo-blink', name: 'Echo Blink', description: 'Place a signal echo, snap back to it. While it lives, scanners read the echo — not you (decoy).', status: 'IMPLEMENTED', source: 'Cameron / ECHO Signal Set (earn-wiring lands with Zone 4)', unlockType: 'scout-set', scout: 'cameron' },
 ];
 

@@ -6,6 +6,8 @@
  * All writes emit EVT.saveUpdated on the bus.
  */
 import { ACTIVE_SLOT_KEY, BUILD_VERSION, EVT, LEGACY_SAVE_KEY, SAVE_KEY, SLOT_COUNT, SLOT_NAMES_KEY } from '../config';
+import { SKINS } from '../data/skins';
+import { UPGRADES } from '../data/upgrades';
 import { bus } from './EventBus';
 
 export interface SaveFlags {
@@ -48,6 +50,11 @@ export interface SaveFlags {
   listeningStationDefeated: boolean; // the mirror boss down
   skylineFragmentCollected: boolean; // Signal Fragment #5 secured
   endingSeen: boolean; // the finale ending card has been viewed
+  // Optional Blipstream side nodes (one per zone 2–5) — pure side content
+  blipMotelSolved: boolean; // "Breaker Run" routed → motel signal bridge lit
+  blipStadiumSolved: boolean; // "Reflection" synced → stadium signal bridge lit
+  blipOrchardSolved: boolean; // "Pattern" crossed → orchard signal bridge lit
+  blipSkylineSolved: boolean; // "Tuning" matched → skyline signal bridge lit
 }
 
 export interface PlayerStats {
@@ -170,6 +177,10 @@ const defaultSave = (): SaveData => ({
     listeningStationDefeated: false,
     skylineFragmentCollected: false,
     endingSeen: false,
+    blipMotelSolved: false,
+    blipStadiumSolved: false,
+    blipOrchardSolved: false,
+    blipSkylineSolved: false,
   },
   unlockedSkins: ['contact47'],
   selectedSkin: 'contact47',
@@ -421,6 +432,22 @@ export function unlockSkin(id: string): void {
   updateSave((s) => {
     if (!s.unlockedSkins.includes(id)) s.unlockedSkins.push(id);
   });
+  grantScoutSetAbility(id);
+}
+
+/**
+ * Channel C payoff: completing a scout's Signal Set (which is the only thing
+ * that unlocks their skin) also hands over that scout's `scout-set` ability —
+ * e.g. Will / WILLOW → Route Tracer. Idempotent via grantAbility.
+ */
+function grantScoutSetAbility(skinId: string): void {
+  const scoutId = SKINS.find((s) => s.id === skinId)?.scoutId;
+  if (!scoutId) return;
+  const def = UPGRADES.find((u) => u.unlockType === 'scout-set' && u.scout === scoutId);
+  if (!def) return;
+  if (grantAbility(def.id)) {
+    bus.emit(EVT.toast, { text: `◆ ABILITY UNLOCKED — ${def.name.toUpperCase()}`, color: 'cyan' });
+  }
 }
 
 export function selectSkin(id: string): void {

@@ -20,14 +20,14 @@ import {
   PALETTE as P,
   PULSE,
   RENDER_ZOOM,
-  SCAN,
   SCENES,
   SIGNATURE,
   TEX,
   TILE,
   css,
 } from '../config';
-import { PATTERSONS_ORCHARD, walkLevel } from '../data/levels';
+import { PATTERSONS_ORCHARD, surfaceYAt, walkLevel } from '../data/levels';
+import { BlipSideNode } from '../entities/BlipSideNode';
 import { logById } from '../data/scouts';
 import { skinByScout } from '../data/skins';
 import { Collectible } from '../entities/Collectible';
@@ -44,7 +44,7 @@ import { foldCollapse } from '../systems/FoldTransition';
 import { PlayerInput } from '../systems/InputSystem';
 import { quests } from '../systems/QuestSystem';
 import { addShards, getSave, hasAbility, recordSetPiece, setProgress, unlockSkin, updateSave } from '../systems/SaveSystem';
-import { progression } from '../systems/ProgressionSystem';
+import { abilityUnlockLines, progression } from '../systems/ProgressionSystem';
 import { activeSkin } from '../systems/SkinState';
 import { registerScene, unregisterScene } from '../systems/TestAPI';
 import { uiOverlayActive } from '../systems/UIState';
@@ -60,6 +60,7 @@ export class OrchardScene extends Phaser.Scene {
   fx!: EffectsSystem;
 
   private solids!: Phaser.Physics.Arcade.StaticGroup;
+  private blipNode?: BlipSideNode;
   private mazeGroup!: Phaser.Physics.Arcade.StaticGroup;
   private fruitGroup!: Phaser.Physics.Arcade.StaticGroup;
   private gateGroup!: Phaser.Physics.Arcade.StaticGroup;
@@ -134,6 +135,7 @@ export class OrchardScene extends Phaser.Scene {
 
     this.wireCollisions();
     this.applySaveState();
+    this.setupBlipSideNode();
 
     if (!this.scene.isActive(SCENES.ui)) this.scene.launch(SCENES.ui);
 
@@ -303,6 +305,27 @@ export class OrchardScene extends Phaser.Scene {
     }
   }
 
+
+  /* ------------------- optional Blipstream side node (side content) ---------- */
+
+  /** Pure side content: never gates a quest, Fold, boss or fragment. Solving the
+   *  room lights a persistent signal bridge here and pays Signal Shards. */
+  private setupBlipSideNode(): void {
+    const groundY = surfaceYAt(PATTERSONS_ORCHARD, 7);
+    if (groundY === null) return;
+    this.blipNode = new BlipSideNode(this, this.solids, {
+      roomId: 'node-orchard',
+      flag: 'blipOrchardSolved',
+      label: 'PATTERN',
+      zoneLabel: 'Blipstream — Pattern',
+      returnScene: SCENES.orchard,
+      x: 7 * TILE,
+      groundY,
+      bridge: { x: (7 + 4) * TILE, y: groundY - 34 },
+      bridgeToast: 'THE ROWS REMEMBER — A LIT PATH RISES',
+    });
+  }
+
   private wireCollisions(): void {
     for (const grp of [this.solids, this.mazeGroup, this.fruitGroup, this.gateGroup]) {
       this.physics.add.collider(this.player, grp);
@@ -467,6 +490,8 @@ export class OrchardScene extends Phaser.Scene {
 
     if (this.input2.scanJustDown && this.player.canScan() && this.player.alive) this.doScan();
 
+    this.blipNode?.tryEnter(this.player.x, this.player.y, this.input2);
+
     // interact at the Fold mouth → the top-down maze
     if (
       this.input2.interactJustDown &&
@@ -545,7 +570,7 @@ export class OrchardScene extends Phaser.Scene {
   private doScan(): void {
     this.player.markScan();
     audio.scanPulse();
-    this.fx.scanRing(this.player.x, this.player.y, this.player.scanRadius, SCAN.durationMs);
+    this.fx.scanRing(this.player.x, this.player.y, this.player.scanRadius, this.player.scanRevealMs);
     this.bumpStat('scansUsed');
     const px = this.player.x;
     const py = this.player.y;
@@ -563,6 +588,13 @@ export class OrchardScene extends Phaser.Scene {
     if (this.boss && this.boss.state === 'fighting' && Phaser.Math.Distance.Between(px, py, this.boss.core.x, this.boss.core.y) < this.player.scanRadius + 40) {
       this.boss.onScanned();
     }
+    // Scan Memory (earned here): revealed rows keep a lingering echo marker
+    this.player.scanMemoryEcho(
+      this.hiddenPlatforms.filter(
+        (hp) => hp.revealed && Phaser.Math.Distance.Between(px, py, hp.x, hp.y) < this.player.scanRadius * 1.2,
+      ),
+      P.scoutCameron,
+    );
   }
 
   private checkPickups(): void {
@@ -635,6 +667,7 @@ export class OrchardScene extends Phaser.Scene {
   }
 
   private onWake(): void {
+    this.blipNode?.applyIfSolved();
     audio.playMusic('orchard');
     bus.emit(EVT.sceneChanged, { scene: SCENES.orchard, zone: "Patterson's Orchard" });
     quests.emitObjective();
@@ -755,6 +788,8 @@ export class OrchardScene extends Phaser.Scene {
       if (!s.completedZones.includes('pattersons-orchard')) s.completedZones.push('pattersons-orchard');
     });
     const ability = progression.grantZoneSignature('pattersons-orchard');
+    // secondary reward: the orchard also teaches the maze to stay remembered
+    const secondary = progression.grantSecondary('scan-memory');
     bus.emit(EVT.fragmentCount, { count: getSave().signalFragments });
     if (quests.stepId === 'collectFragment') quests.complete('collectFragment');
     bus.emit(EVT.scoutLog, {
@@ -762,7 +797,7 @@ export class OrchardScene extends Phaser.Scene {
       body:
         'The maze stops re-drawing itself. Somewhere a harvest is finally allowed to end, and the apples let go of the branch.\n\n' +
         'Fragment archived. Cameron’s file is no longer UNKNOWN — ECHO’s signal is yours.' +
-        (ability ? `\n\n◆ ABILITY UNLOCKED — ${ability.name}\n${ability.description}` : '') +
+        abilityUnlockLines(ability, secondary) +
         '\n\nDirective unchanged: stay unknown.',
       accent: 'cameron',
     });

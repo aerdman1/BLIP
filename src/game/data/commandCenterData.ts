@@ -170,7 +170,7 @@ export const BUILD_TODO: TodoItem[] = [
   { label: 'Music beat hook (EVT.musicBeat) → Motel neon flicker + lamp-sweep ambience', done: true },
   { label: 'Borrowed-ideas capture pass → Level Plans + Progression Plan (LEVEL-PENDING tags)', done: true },
   { label: 'Controller button remapping', done: false },
-  { label: 'More Blipstream nodes', done: false },
+  { label: 'More Blipstream nodes — optional side rooms in zones 2–5 (Breaker Run, Reflection, Pattern, Tuning)', done: true },
   { label: 'Custom shader post-FX (CSS CRT overlay shipped instead)', done: false },
   { label: 'Zones 5–6 (playable) — see LEVEL PLANS', done: false },
 ];

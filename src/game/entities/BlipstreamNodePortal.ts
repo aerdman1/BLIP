@@ -13,9 +13,12 @@ export class BlipstreamNodePortal {
   private y: number;
   completed = false;
 
-  constructor(scene: Phaser.Scene, x: number, groundY: number) {
+  private label: string;
+
+  constructor(scene: Phaser.Scene, x: number, groundY: number, label = 'NODE A') {
     this.x = x;
     this.y = groundY - 18;
+    this.label = label;
     this.sprite = scene.add.image(this.x, this.y, TEX.nodePortal).setDepth(12);
     this.glow = scene.add
       .image(this.x, this.y, TEX.glow8)
@@ -51,7 +54,7 @@ export class BlipstreamNodePortal {
     this.completed = true;
     this.sprite.setTint(P.signalGreen);
     this.glow.setTint(P.signalGreen).setAlpha(0.25);
-    this.prompt.setText('[NODE A — ROUTED]');
+    this.prompt.setText(`[${this.label} — ROUTED]`);
   }
 
   playerNear(px: number, py: number): boolean {

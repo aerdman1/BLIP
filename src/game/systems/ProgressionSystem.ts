@@ -16,4 +16,19 @@ export const progression = {
     const wasNew = grantAbility(id);
     return wasNew ? upgradeById(id) ?? null : null;
   },
+
+  /** Grant a zone's SECONDARY reward (the second ability a boss hands over).
+   *  Idempotent — returns the def only the first time. */
+  grantSecondary(id: string): UpgradeDef | null {
+    const wasNew = grantAbility(id);
+    return wasNew ? upgradeById(id) ?? null : null;
+  },
 };
+
+/** `◆ ABILITY UNLOCKED` reward-card lines for however many abilities landed. */
+export function abilityUnlockLines(...abilities: Array<UpgradeDef | null>): string {
+  return abilities
+    .filter((a): a is UpgradeDef => a !== null)
+    .map((a) => `\n\n◆ ABILITY UNLOCKED — ${a.name}\n${a.description}`)
+    .join('');
+}

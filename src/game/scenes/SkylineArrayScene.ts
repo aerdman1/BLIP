@@ -14,6 +14,7 @@ import {
   PROGRESSION,
   PULSE,
   RENDER_ZOOM,
+  SCAN,
   SCENES,
   SKYCAM,
   LIGHTNING,
@@ -26,7 +27,8 @@ import {
   VIEW_W,
 } from '../config';
 import { logById } from '../data/scouts';
-import { SKYLINE_ARRAY, walkLevel } from '../data/levels';
+import { SKYLINE_ARRAY, surfaceYAt, walkLevel } from '../data/levels';
+import { BlipSideNode } from '../entities/BlipSideNode';
 import { skinById, skinByScout } from '../data/skins';
 import { Collectible } from '../entities/Collectible';
 import { ListeningStationBoss } from '../entities/ListeningStationBoss';
@@ -37,7 +39,7 @@ import { audio } from '../systems/AudioSystem';
 import { EffectsSystem } from '../systems/EffectsSystem';
 import { bus } from '../systems/EventBus';
 import { PlayerInput } from '../systems/InputSystem';
-import { progression } from '../systems/ProgressionSystem';
+import { abilityUnlockLines, progression } from '../systems/ProgressionSystem';
 import { quests } from '../systems/QuestSystem';
 import { addShards, getSave, grantAbility, recordSetPiece, setProgress, unlockSkin, updateSave } from '../systems/SaveSystem';
 import { activeSkin } from '../systems/SkinState';
@@ -72,6 +74,7 @@ export class SkylineArrayScene extends Phaser.Scene {
   fx!: EffectsSystem;
 
   private solids!: Phaser.Physics.Arcade.StaticGroup;
+  private blipNode?: BlipSideNode;
   private catwalks!: Phaser.Physics.Arcade.StaticGroup;
   playerBolts!: Phaser.Physics.Arcade.Group;
   enemyBolts!: Phaser.Physics.Arcade.Group;
@@ -140,6 +143,7 @@ export class SkylineArrayScene extends Phaser.Scene {
 
     this.wireCollisions();
 
+    this.setupBlipSideNode();
     if (!this.scene.isActive(SCENES.ui)) this.scene.launch(SCENES.ui);
 
     quests.load('the-sky-listens');
@@ -302,6 +306,27 @@ export class SkylineArrayScene extends Phaser.Scene {
     // a thin one-way top platform: pass UP through it, land on top
     const r = this.add.rectangle(x, y - 5, 16, 5, C_CATWALK).setDepth(5);
     this.catwalks.add(r);
+  }
+
+
+  /* ------------------- optional Blipstream side node (side content) ---------- */
+
+  /** Pure side content: never gates a quest, Fold, boss or fragment. Solving the
+   *  room lights a persistent signal bridge here and pays Signal Shards. */
+  private setupBlipSideNode(): void {
+    const groundY = surfaceYAt(SKYLINE_ARRAY, 19);
+    if (groundY === null) return;
+    this.blipNode = new BlipSideNode(this, this.solids, {
+      roomId: 'node-skyline',
+      flag: 'blipSkylineSolved',
+      label: 'TUNING',
+      zoneLabel: 'Blipstream — Tuning',
+      returnScene: SCENES.skyline,
+      x: 19 * TILE,
+      groundY,
+      bridge: { x: (19 + 4) * TILE, y: groundY - 34 },
+      bridgeToast: 'THE ARRAY TUNES IN — A LIT CLIMB HOLDS',
+    });
   }
 
   private wireCollisions(): void {
@@ -496,16 +521,18 @@ export class SkylineArrayScene extends Phaser.Scene {
     this.arenaWalls.forEach((w) => w.destroy());
     this.arenaWalls = [];
     const ability = progression.grantZoneSignature('skyline-array');
+    // secondary reward: the storm-surf ascent hands you the longer, phasing drift
+    const secondary = progression.grantSecondary('phase-drift-plus');
     updateSave((s) => {
       s.flags.listeningStationDefeated = true;
       s.playerStats.enemiesDefeated += 1;
     });
     if (quests.stepId === 'bossFight') quests.complete('bossFight');
     bus.emit(EVT.toast, { text: 'THE LISTENING STATION GOES QUIET', color: 'green' });
-    this.time.delayedCall(900, () => this.collectFragment(ability !== null));
+    this.time.delayedCall(900, () => this.collectFragment(abilityUnlockLines(ability, secondary)));
   }
 
-  private collectFragment(ability: boolean): void {
+  private collectFragment(abilityLines = ''): void {
     if (!getSave().flags.skylineFragmentCollected) {
       audio.fragmentPickup();
       this.fx.flash(P.signal, 240);
@@ -522,7 +549,7 @@ export class SkylineArrayScene extends Phaser.Scene {
         body:
           'The eye closes. The rumor that wore your face lets go, and the sky is just the sky again.\n\n' +
           'Every Scout is home.' +
-          (ability ? '\n\n◆ ABILITY UNLOCKED — Refuse the Label\nReject whatever the Engine decided you are.' : '') +
+          abilityLines +
           '\n\nOne question left — and it is yours to answer.',
         accent: 'chip',
       });
@@ -580,9 +607,12 @@ export class SkylineArrayScene extends Phaser.Scene {
       audio.pulseShot();
     }
     // scanning — jams the Listening Station's iris (once you've refused its label)
+    this.blipNode?.tryEnter(this.player.x, this.player.y, this.input2);
+
     if (this.input2.scanJustDown && this.player.canScan() && this.player.alive) {
       this.player.markScan();
-      this.fx.scanRing(this.player.x, this.player.y, 90, 420, activeSkin().color);
+      // Scan Memory stretches the ring's dwell (scanRevealMs scales off SCAN.durationMs)
+      this.fx.scanRing(this.player.x, this.player.y, 90, 420 * (this.player.scanRevealMs / SCAN.durationMs), activeSkin().color);
       audio.scanPulse();
       this.boss?.onScanned();
     }
@@ -741,6 +771,7 @@ export class SkylineArrayScene extends Phaser.Scene {
   }
 
   private onWake(): void {
+    this.blipNode?.applyIfSolved();
     this.input.enabled = true;
     audio.playMusic('field');
     bus.emit(EVT.sceneChanged, { scene: SCENES.skyline, zone: 'Skyline Array' });

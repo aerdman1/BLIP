@@ -18,14 +18,14 @@ import {
   PALETTE as P,
   PULSE,
   RENDER_ZOOM,
-  SCAN,
   SCENES,
   SIGNATURE,
   TEX,
   TILE,
   css,
 } from '../config';
-import { TIGER_STADIUM, cellAt, walkLevel } from '../data/levels';
+import { TIGER_STADIUM, cellAt, surfaceYAt, walkLevel } from '../data/levels';
+import { BlipSideNode } from '../entities/BlipSideNode';
 import { logById } from '../data/scouts';
 import { skinByScout } from '../data/skins';
 import { Collectible } from '../entities/Collectible';
@@ -76,6 +76,7 @@ export class StadiumScene extends Phaser.Scene {
   classify = new ClassificationSystem();
 
   private solids!: Phaser.Physics.Arcade.StaticGroup;
+  private blipNode?: BlipSideNode;
   private lightTowers: LightTower[] = [];
   private safeZones: SafeZone[] = [];
 
@@ -173,6 +174,7 @@ export class StadiumScene extends Phaser.Scene {
 
     this.wireCollisions();
     this.applySaveState();
+    this.setupBlipSideNode();
 
     if (!this.scene.isActive(SCENES.ui)) this.scene.launch(SCENES.ui);
 
@@ -395,6 +397,27 @@ export class StadiumScene extends Phaser.Scene {
     this.tweens.add({ targets: shimmer, alpha: { from: 0.2, to: 0.55 }, duration: 1400, yoyo: true, repeat: -1 });
   }
 
+
+  /* ------------------- optional Blipstream side node (side content) ---------- */
+
+  /** Pure side content: never gates a quest, Fold, boss or fragment. Solving the
+   *  room lights a persistent signal bridge here and pays Signal Shards. */
+  private setupBlipSideNode(): void {
+    const groundY = surfaceYAt(TIGER_STADIUM, 10);
+    if (groundY === null) return;
+    this.blipNode = new BlipSideNode(this, this.solids, {
+      roomId: 'node-stadium',
+      flag: 'blipStadiumSolved',
+      label: 'REFLECTION',
+      zoneLabel: 'Blipstream — Reflection',
+      returnScene: SCENES.stadium,
+      x: 10 * TILE,
+      groundY,
+      bridge: { x: (10 + 4) * TILE, y: groundY - 34 },
+      bridgeToast: 'THE ECHO HOLDS — A LIT SHORTCUT OPENS',
+    });
+  }
+
   private wireCollisions(): void {
     this.physics.add.collider(this.player, this.solids);
 
@@ -513,6 +536,8 @@ export class StadiumScene extends Phaser.Scene {
 
     // scanning — expose the boss valve, stun nearby drones
     if (this.input2.scanJustDown && this.player.canScan() && this.player.alive) this.doScan();
+
+    this.blipNode?.tryEnter(this.player.x, this.player.y, this.input2);
 
     // dive into the rec pool
     if (
@@ -697,7 +722,7 @@ export class StadiumScene extends Phaser.Scene {
   private doScan(): void {
     this.player.markScan();
     audio.scanPulse();
-    this.fx.scanRing(this.player.x, this.player.y, this.player.scanRadius, SCAN.durationMs);
+    this.fx.scanRing(this.player.x, this.player.y, this.player.scanRadius, this.player.scanRevealMs);
     this.bumpStat('scansUsed');
     const px = this.player.x;
     const py = this.player.y;
@@ -712,9 +737,15 @@ export class StadiumScene extends Phaser.Scene {
       }
       audio.hazardZap();
     }
+    const tagged: Array<{ x: number; y: number }> = [];
     for (const d of this.ventDrones) {
-      if (d.active && Phaser.Math.Distance.Between(px, py, d.x, d.y) < this.player.scanRadius) d.stun(DRONE.scanStunSec);
+      if (d.active && Phaser.Math.Distance.Between(px, py, d.x, d.y) < this.player.scanRadius) {
+        d.stun(DRONE.scanStunSec);
+        tagged.push({ x: d.x, y: d.y });
+      }
     }
+    // Scan Memory: scanned eyes stay marked on the field long after the ping
+    this.player.scanMemoryEcho(tagged, P.scoutHenry);
     if (this.boss && this.boss.state === 'fighting' && Phaser.Math.Distance.Between(px, py, this.boss.core.x, this.boss.core.y) < this.player.scanRadius + 40) {
       this.boss.onScanned();
     }
@@ -791,6 +822,7 @@ export class StadiumScene extends Phaser.Scene {
   }
 
   private onWake(): void {
+    this.blipNode?.applyIfSolved();
     audio.playMusic('stadium');
     bus.emit(EVT.sceneChanged, { scene: SCENES.stadium, zone: 'Chagrin Falls High' });
     quests.emitObjective();

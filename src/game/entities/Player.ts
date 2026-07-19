@@ -26,7 +26,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   facing: 1 | -1 = 1;
   private baseTex: string = TEX.player;
   private skinColor: number = P.signal;
-  private airDashUsed = false;
+  private airDashesUsed = 0;
   pulseCount = 0; // for SPARK surge cadence
 
   private fx: EffectsSystem;
@@ -36,12 +36,18 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private dashUntil = 0;
   private dashCdUntil = 0;
   private dashCloakUntil = 0; // Ghost Protocol: unreadable window after a dash
+  private phaseGraceUntil = 0; // Phase Drift+: bolt-phase window (dash + exit grace)
   private cloakTinted = false;
   private shootCdUntil = 0;
   private scanCdUntil = 0;
   private invulnUntil = 0;
   private hoverEmitAt = 0;
   private afterimageAt = 0;
+  private traceAt = 0; // Route Tracer emit clock
+  private traceX = 0;
+  private traceY = 0;
+  private trace: Phaser.GameObjects.Image[] = []; // capped ring buffer
+  private scanEchoes: Phaser.GameObjects.Image[] = []; // Scan Memory markers
   private echoImg?: Phaser.GameObjects.Image;
   private echoX = 0;
   private echoY = 0;
@@ -62,7 +68,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // sprite is 16×20 (hero pass); collision stays the same 10×12 capsule
     body.setSize(PLAYER.width, PLAYER.height);
     body.setOffset((16 - PLAYER.width) / 2, 20 - PLAYER.height - 1);
-    body.setMaxVelocity(PLAYER.dashSpeed + 20, 470);
+    // headroom for skin dashSpeedMul + Phase Drift+ (SIGNATURE.phaseDrift)
+    body.setMaxVelocity(PLAYER.dashSpeed * SIGNATURE.phaseDrift.dashSpeedMul * 1.25 + 20, 470);
     this.setDepth(20);
     this.glow = scene.add.image(x, y + 10, TEX.playerGlow).setDepth(19).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.5);
     this.antennaTip = scene.add
@@ -228,6 +235,83 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     return Math.max(1, Math.round(PULSE.damage * (this.sm.pulseDamageMul ?? 1)));
   }
 
+  /** Scan Memory: the scan-ring FX (and every reveal it triggers) lingers. */
+  get scanRevealMs(): number {
+    return SCAN.durationMs * (hasAbility('scan-memory') ? SIGNATURE.scanMemory.ringMul : 1);
+  }
+
+  /** Phase Drift+: a dash phases clean through enemy bolts (hard immunity, not
+   *  just the base i-frames) and holds a short grace window on the way out. */
+  get boltPhased(): boolean {
+    return hasAbility('phase-drift-plus') && (this.isDashing || this.scene.time.now < this.phaseGraceUntil);
+  }
+
+  /**
+   * Scan Memory (Patterson's Orchard secondary): leave a lingering echo marker
+   * on everything the pulse touched, so revealed geometry/objects stay readable
+   * long after the ring fades. No-op unless the ability is owned. Cheap: plain
+   * tinted glow images on a capped ring buffer, tween-faded then destroyed.
+   */
+  scanMemoryEcho(targets: Array<{ x: number; y: number }>, tint: number = P.signal): void {
+    if (!hasAbility('scan-memory') || targets.length === 0) return;
+    const cfg = SIGNATURE.scanMemory;
+    for (const t of targets) {
+      const img = this.scene.add
+        .image(t.x, t.y, TEX.glow8)
+        .setTint(tint)
+        .setDepth(11)
+        .setBlendMode(Phaser.BlendModes.ADD)
+        .setAlpha(cfg.echoAlpha)
+        .setScale(0.9);
+      this.scanEchoes.push(img);
+      while (this.scanEchoes.length > cfg.maxEchoes) this.scanEchoes.shift()?.destroy();
+      this.scene.tweens.add({
+        targets: img,
+        alpha: { from: cfg.echoAlpha, to: cfg.echoAlpha * 0.45 },
+        duration: 800,
+        yoyo: true,
+        repeat: -1,
+      });
+      this.scene.time.delayedCall(cfg.echoMs, () => {
+        const i = this.scanEchoes.indexOf(img);
+        if (i >= 0) this.scanEchoes.splice(i, 1);
+        img.destroy();
+      });
+    }
+  }
+
+  /** Route Tracer (Will / WILLOW set): draw the map behind you as you move. */
+  private updateRouteTrace(now: number): void {
+    if (!hasAbility('route-tracer')) return;
+    const cfg = SIGNATURE.routeTracer;
+    if (now < this.traceAt) return;
+    if (Phaser.Math.Distance.Between(this.traceX, this.traceY, this.x, this.y) < cfg.minMovePx) return;
+    this.traceAt = now + cfg.emitEveryMs;
+    this.traceX = this.x;
+    this.traceY = this.y;
+    const dot = this.scene.add
+      .image(this.x, this.y + 2, TEX.glow8)
+      .setTint(P.scoutWill)
+      .setDepth(this.depth - 2)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setAlpha(cfg.alpha)
+      .setScale(cfg.scale);
+    this.trace.push(dot);
+    while (this.trace.length > cfg.maxSegments) this.trace.shift()?.destroy();
+    this.scene.tweens.add({
+      targets: dot,
+      alpha: 0,
+      scale: cfg.scale * 0.4,
+      duration: cfg.segmentMs,
+      ease: 'Quad.easeIn',
+      onComplete: () => {
+        const i = this.trace.indexOf(dot);
+        if (i >= 0) this.trace.splice(i, 1);
+        dot.destroy();
+      },
+    });
+  }
+
   /** damage a pulse deals to an exposed boss core — Pulse Resonance adds +1 */
   get coreDamage(): number {
     return this.pulseDamage + (hasAbility('pulse-resonance') ? PROGRESSION.pulseResonanceCoreBonus : 0);
@@ -313,27 +397,35 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     if (dir !== 0) this.facing = dir;
 
-    if (grounded) this.airDashUsed = false;
+    if (grounded) this.airDashesUsed = 0;
+    this.updateRouteTrace(now);
 
     /* --- Echo Blink: tap to place a decoy echo, tap again to snap back to it --- */
     if (input.echoJustDown) this.toggleEcho();
     if (this.echoActive && this.scene.time.now > this.echoExpireAt) this.clearEcho();
 
     /* --- dash (ROCKET: shorter cooldown + one extra mid-air dash) --- */
+    const phasePlus = hasAbility('phase-drift-plus');
+    // Phase Drift+ stacks an extra mid-air dash on top of ROCKET's
+    const maxAirDashes = (activeSkin().abilities.airDash ? 1 : 0) + (phasePlus ? SIGNATURE.phaseDrift.extraAirDashes : 0);
     const canGroundDash = now >= this.dashCdUntil;
-    const canAirDash = this.sm && activeSkin().abilities.airDash && !this.airDashUsed && !grounded;
+    const canAirDash = this.sm && maxAirDashes > 0 && this.airDashesUsed < maxAirDashes && !grounded;
     if (input.dashJustDown && !this.isDashing && (canGroundDash || canAirDash)) {
-      if (!canGroundDash && canAirDash) this.airDashUsed = true;
-      this.dashUntil = now + PLAYER.dashMs;
-      this.dashCdUntil = now + PLAYER.dashMs + PLAYER.dashCooldownMs * (this.sm.dashCooldownMul ?? 1) * this.wbDashCooldownMul;
+      if (!canGroundDash && canAirDash) this.airDashesUsed += 1;
+      const dashMs = PLAYER.dashMs * (phasePlus ? SIGNATURE.phaseDrift.dashMsMul : 1);
+      this.dashUntil = now + dashMs;
+      // phase window: bolts pass straight through the dash (+ a short exit grace)
+      if (phasePlus) this.phaseGraceUntil = this.dashUntil + SIGNATURE.phaseDrift.boltGraceMs;
+      this.dashCdUntil = now + dashMs + PLAYER.dashCooldownMs * (this.sm.dashCooldownMul ?? 1) * this.wbDashCooldownMul;
       // Ghost Protocol: the dash slips the read — stay unreadable past the dash itself
-      if (hasAbility('ghost-protocol')) this.dashCloakUntil = now + PLAYER.dashMs + SIGNATURE.ghost.dashCloakMs;
+      if (hasAbility('ghost-protocol')) this.dashCloakUntil = this.dashUntil + SIGNATURE.ghost.dashCloakMs;
       body.setAllowGravity(false);
       audio.dash();
       this.fx.sparks(this.x, this.y, this.trailTint(), 6);
     }
     if (this.isDashing) {
-      body.setVelocity(this.facing * PLAYER.dashSpeed * (this.sm.dashSpeedMul ?? 1), 0);
+      const phaseSpeed = hasAbility('phase-drift-plus') ? SIGNATURE.phaseDrift.dashSpeedMul : 1;
+      body.setVelocity(this.facing * PLAYER.dashSpeed * (this.sm.dashSpeedMul ?? 1) * phaseSpeed, 0);
       body.setAcceleration(0, 0);
       if (now >= this.afterimageAt) {
         this.afterimageAt = now + 40;
@@ -439,7 +531,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   /** returns true if damage was applied */
   damage(amount: number, fromX?: number): boolean {
-    if (!this.alive || this.invulnerable) return false;
+    if (!this.alive || this.invulnerable || this.boltPhased) return false;
     this.hp = Math.max(0, this.hp - amount);
     this.invulnUntil = this.scene.time.now + PLAYER.invulnMs;
     this.hurtFaceUntil = this.scene.time.now + 340; // ✕ ✕ face beat

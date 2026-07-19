@@ -378,6 +378,19 @@ export const PULSE = {
   maxActive: 14,
 } as const;
 
+/* ---------------------- Blipstream side rooms (zones 2–5) ------------------- */
+export const BLIP_ROOM = {
+  breakerHoldMs: 7000, // fallback latch window for breaker rooms
+  echoDelayMs: 2000, // fallback mirror-echo delay
+  echoSampleMs: 33, // position-history sample rate
+  syncPadRadius: 14, // how close counts as "on the pad"
+  phasePeriodMs: 2400, // fallback phasing-platform beat
+  phaseOnRatio: 0.55, // fraction of the beat a '%' platform is solid
+  phaseWarnMs: 420, // telegraph flicker before it drops out
+  clearShards: 60, // payout for solving an optional Blipstream node
+  bridgeTiles: 3, // signal-bridge platforms spawned in the overworld on solve
+} as const;
+
 export const SCAN = {
   radius: 150,
   durationMs: 520,
@@ -546,6 +559,33 @@ export const SIGNATURE = {
   ghost: {
     detectSlowMul: 0.45, // classification fills at 45% of normal while owned
     dashCloakMs: 1200, // undetectable window AFTER a dash ends (cones lose lock)
+  },
+  // Scan Memory (Patterson's Orchard secondary): the SCAN leaves a memory —
+  // the ring lingers and everything it touched keeps a glowing echo marker
+  // long after the pulse itself has faded.
+  scanMemory: {
+    ringMul: 3.4, // scan-ring FX lasts this much longer while owned
+    echoMs: 9000, // per-object memory marker lifetime
+    echoAlpha: 0.5,
+    maxEchoes: 48, // hard cap — oldest markers retire first (perf)
+  },
+  // Phase Drift+ (Skyline Array secondary): a longer, faster dash that phases
+  // clean through enemy bolts, plus an extra mid-air dash for high routes.
+  phaseDrift: {
+    dashMsMul: 1.55, // longer dash → longer distance
+    dashSpeedMul: 1.12,
+    extraAirDashes: 1, // stacks on ROCKET's air dash
+    boltGraceMs: 140, // i-frames held past the dash so bolts can't clip the exit
+  },
+  // Route Tracer (Will / WILLOW Signal Set): a glowing hand-drawn map line
+  // trailing behind you, the way Will drew maps. Purely cosmetic + readable.
+  routeTracer: {
+    emitEveryMs: 70,
+    minMovePx: 4, // don't draw while standing still
+    segmentMs: 2000, // each dot fades out over this long
+    maxSegments: 46, // capped ring buffer — oldest dot dies first
+    alpha: 0.55,
+    scale: 0.34,
   },
 } as const;
 

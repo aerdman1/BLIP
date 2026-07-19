@@ -15,7 +15,6 @@ import {
   PALETTE as P,
   PULSE,
   RENDER_ZOOM,
-  SCAN,
   SCENES,
   SIGNATURE,
   TEX,
@@ -889,7 +888,7 @@ export class FieldScene extends Phaser.Scene {
     this.player.markScan();
     audio.scanPulse();
     const radius = this.player.scanRadius;
-    this.fx.scanRing(this.player.x, this.player.y, radius, SCAN.durationMs);
+    this.fx.scanRing(this.player.x, this.player.y, radius, this.player.scanRevealMs);
     this.bumpStat('scansUsed');
     if (skinAbilities().reconPing) this.reconPing();
 
@@ -963,6 +962,16 @@ export class FieldScene extends Phaser.Scene {
     if (!revealedAny && !revealedCue && !boxScannedNow && !stunnedAny && !secretsFound && !bossPinged) {
       this.fx.floatText(px, py - 14, 'NO ANOMALIES', P.uiDim);
     }
+
+    // Scan Memory: everything the pulse touched keeps a glowing echo marker
+    this.player.scanMemoryEcho(
+      [
+        ...this.hiddenPlatforms.filter((hp) => hp.revealed && within(hp.x, hp.y)),
+        ...this.markers.filter((m) => m.revealed && within(m.x, m.y)),
+        ...(this.droneGroup.getChildren() as ScannerDrone[]).filter((d) => d.active && within(d.x, d.y)),
+      ],
+      P.scoutWill,
+    );
 
     if (quests.stepId === 'scanTutorial' && revealedAny) quests.complete('scanTutorial');
   }

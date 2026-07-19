@@ -24,6 +24,21 @@ export interface LevelMeta {
   arena: { leftPx: number; rightPx: number; centerX: number; surfaceY: number };
   /** Blipstream: moving red scan line sweep range + period */
   scanLine?: { x0: number; x1: number; periodMs: number };
+  /** Blipstream room tuning (per-room mechanics — see BlipstreamScene) */
+  blip?: {
+    /** one-line objective shown on entry */
+    objective: string;
+    /** breaker rooms: all breakers must be latched inside this window (ms) */
+    breakerHoldMs?: number;
+    /** mirror rooms: how far behind the echo replays you (ms) */
+    echoDelayMs?: number;
+    /** mirror rooms: negative gravity offset applied to the player (low-g) */
+    lowGravity?: number;
+    /** pattern rooms: phase period of '%' platforms (ms) */
+    phasePeriodMs?: number;
+    /** tuning rooms: band platforms start on this band (1 or 2) */
+    startBand?: number;
+  };
 }
 
 export interface LevelDef {
@@ -254,6 +269,172 @@ function buildNodeA(): LevelDef {
       zones: {},
       arena: { leftPx: 0, rightPx: 0, centerX: 0, surfaceY: 0 },
       scanLine: { x0: 19 * TILE, x1: 26 * TILE, periodMs: 3400 },
+      blip: { objective: 'ROUTE ALL THREE NODES' },
+    },
+  };
+}
+
+/* ========================= BLIPSTREAM SIDE ROOMS (B–E) ======================= *
+ * Optional Blipstream nodes hanging off zones 2–5. Same abstract waveform space
+ * as Node A, one new readable idea each. Extra legend chars (BlipstreamScene):
+ *   'b' breaker (shoot to latch, decays)     'd' sync pad (mirror rooms)
+ *   '%' phasing platform (telegraphed)       '1'/'2' frequency-band platform
+ *   'T' tuner switch (shoot to swap band)
+ * ---------------------------------------------------------------------------- */
+
+/** ZONE 2 — "Breaker Run". Chip's circuit: latch every breaker before the first
+ *  one bleeds out. Overloaded breakers stay lit once the whole run is hot. */
+function buildNodeMotel(): LevelDef {
+  const COLS = 56;
+  const ROWS = 15;
+  const g = blank(COLS, ROWS);
+
+  hrun(g, 1, 10, 11, '-'); // entry shelf
+  hrun(g, 14, 21, 10, '-'); // breaker 1
+  hrun(g, 25, 32, 12, '-'); // breaker 2 (low)
+  hrun(g, 36, 43, 9, '-'); // breaker 3 (high)
+  hrun(g, 47, 54, 11, '-'); // exit run
+
+  set(g, 23, 11, '~'); // hop platforms bridging the runs
+  set(g, 34, 10, '~');
+  set(g, 45, 10, '~');
+
+  hrun(g, 28, 29, 11, '!'); // static on the low shelf
+
+  set(g, 18, 9, 'b');
+  set(g, 29, 11, 'b');
+  set(g, 40, 8, 'b');
+
+  set(g, 51, 9, 'E');
+  set(g, 3, 10, 'P');
+
+  return {
+    id: 'node-motel',
+    rows: finish(g),
+    cols: COLS,
+    rowCount: ROWS,
+    meta: {
+      widthPx: COLS * TILE,
+      heightPx: ROWS * TILE,
+      zones: {},
+      arena: { leftPx: 0, rightPx: 0, centerX: 0, surfaceY: 0 },
+      blip: { objective: 'LATCH ALL 3 BREAKERS BEFORE THEY BLEED OUT', breakerHoldMs: 7000 },
+    },
+  };
+}
+
+/** ZONE 3 — "Reflection". Low-g space; your echo replays you mirrored and late.
+ *  Be on one pad while the echo of your past self lands on the other. */
+function buildNodeStadium(): LevelDef {
+  const COLS = 56;
+  const ROWS = 15;
+  const g = blank(COLS, ROWS);
+
+  hrun(g, 1, 16, 11, '-'); // left shelf (holds pad B)
+  hrun(g, 20, 34, 11, '-'); // middle floor
+  hrun(g, 38, 54, 11, '-'); // right shelf (holds pad A)
+  hrun(g, 24, 30, 7, '-'); // low-g upper ledge (flavour / shortcut)
+
+  set(g, 12, 10, 'd'); // pad B — the echo has to land here
+  set(g, 42, 10, 'd'); // pad A — you have to be standing here
+  set(g, 27, 10, '!'); // one static bar in the middle
+
+  set(g, 51, 9, 'E');
+  set(g, 3, 10, 'P');
+
+  return {
+    id: 'node-stadium',
+    rows: finish(g),
+    cols: COLS,
+    rowCount: ROWS,
+    meta: {
+      widthPx: COLS * TILE,
+      heightPx: ROWS * TILE,
+      zones: {},
+      arena: { leftPx: 0, rightPx: 0, centerX: 0, surfaceY: 0 },
+      blip: { objective: 'YOUR ECHO MIRRORS YOU, LATE — LIGHT BOTH PADS AT ONCE', echoDelayMs: 2000, lowGravity: 420 },
+    },
+  };
+}
+
+/** ZONE 4 — "Pattern". Phasing platforms telegraph their beat; read the
+ *  sequence, cross before it comes around again. */
+function buildNodeOrchard(): LevelDef {
+  const COLS = 56;
+  const ROWS = 15;
+  const g = blank(COLS, ROWS);
+
+  hrun(g, 1, 9, 11, '-'); // entry
+  hrun(g, 46, 54, 11, '-'); // landing + exit
+
+  // the crossing: four phasing platforms, staggered beats
+  set(g, 14, 11, '%');
+  set(g, 22, 10, '%');
+  set(g, 30, 11, '%');
+  set(g, 38, 10, '%');
+  set(g, 18, 12, '~'); // two live oscillators keep the rhythm readable
+  set(g, 34, 12, '~');
+
+  hrun(g, 26, 27, 13, '!'); // the drop below the pattern bites
+
+  set(g, 49, 10, 'o'); // routing node past the crossing
+  set(g, 52, 9, 'E');
+  set(g, 3, 10, 'P');
+
+  return {
+    id: 'node-orchard',
+    rows: finish(g),
+    cols: COLS,
+    rowCount: ROWS,
+    meta: {
+      widthPx: COLS * TILE,
+      heightPx: ROWS * TILE,
+      zones: {},
+      arena: { leftPx: 0, rightPx: 0, centerX: 0, surfaceY: 0 },
+      blip: { objective: 'READ THE PATTERN — CROSS BEFORE IT REPEATS', phasePeriodMs: 2400 },
+    },
+  };
+}
+
+/** ZONE 5 — "Tuning". Only one frequency band is solid at a time; shoot a tuner
+ *  to swap bands mid-route. ROCKET's air-dash makes the long gaps. */
+function buildNodeSkyline(): LevelDef {
+  const COLS = 60;
+  const ROWS = 15;
+  const g = blank(COLS, ROWS);
+
+  hrun(g, 1, 8, 11, '-'); // entry (always solid)
+  hrun(g, 50, 58, 11, '-'); // exit shelf (always solid)
+
+  // band 1 route (low), band 2 route (high) — you must swap twice
+  hrun(g, 12, 15, 11, '1');
+  hrun(g, 20, 23, 11, '1');
+  hrun(g, 40, 43, 11, '1');
+  hrun(g, 16, 19, 8, '2');
+  hrun(g, 28, 31, 8, '2');
+  hrun(g, 34, 37, 8, '2');
+
+  set(g, 25, 7, 'T'); // tuners — shoot from anywhere in line
+  set(g, 45, 12, 'T');
+
+  set(g, 26, 12, '!');
+  set(g, 39, 5, '!');
+
+  set(g, 54, 10, 'o');
+  set(g, 56, 9, 'E');
+  set(g, 3, 10, 'P');
+
+  return {
+    id: 'node-skyline',
+    rows: finish(g),
+    cols: COLS,
+    rowCount: ROWS,
+    meta: {
+      widthPx: COLS * TILE,
+      heightPx: ROWS * TILE,
+      zones: {},
+      arena: { leftPx: 0, rightPx: 0, centerX: 0, surfaceY: 0 },
+      blip: { objective: 'SHOOT A TUNER TO SWAP BANDS — RIDE THE LIVE ONE', startBand: 1 },
     },
   };
 }
@@ -691,6 +872,19 @@ function buildSkylineArray(): LevelDef {
 
 export const MILLER_FIELD: LevelDef = buildMillerField();
 export const NODE_A: LevelDef = buildNodeA();
+export const NODE_MOTEL: LevelDef = buildNodeMotel();
+export const NODE_STADIUM: LevelDef = buildNodeStadium();
+export const NODE_ORCHARD: LevelDef = buildNodeOrchard();
+export const NODE_SKYLINE: LevelDef = buildNodeSkyline();
+
+/** every Blipstream room by id — BlipstreamScene picks one via `blipRoomId` */
+export const BLIP_ROOMS: Record<string, LevelDef> = {
+  'node-a': NODE_A,
+  'node-motel': NODE_MOTEL,
+  'node-stadium': NODE_STADIUM,
+  'node-orchard': NODE_ORCHARD,
+  'node-skyline': NODE_SKYLINE,
+};
 export const MOTEL_NOWHERE: LevelDef = buildMotelNowhere();
 export const TIGER_STADIUM: LevelDef = buildTigerStadium();
 export const POOL_MIRROR: LevelDef = buildPoolMirror();
@@ -708,6 +902,15 @@ export function walkLevel(
       if (ch !== ' ') cb(ch, c, r, c * TILE + TILE / 2, r * TILE + TILE / 2);
     }
   });
+}
+
+/** top surface (px, tile top edge) of the first solid tile under `col`, or null.
+ *  Used to hang optional props (e.g. a Blipstream node) on a zone's ground. */
+export function surfaceYAt(def: LevelDef, col: number, solidChars = '#='): number | null {
+  for (let r = 0; r < def.rowCount; r++) {
+    if (solidChars.includes(def.rows[r]?.[col] ?? ' ')) return r * TILE;
+  }
+  return null;
 }
 
 /** what character sits at (col,row), ' ' when out of bounds */

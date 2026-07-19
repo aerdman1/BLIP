@@ -16,13 +16,13 @@ import {
   PALETTE as P,
   PULSE,
   RENDER_ZOOM,
-  SCAN,
   SCENES,
   SIGNATURE,
   TEX,
   TILE,
 } from '../config';
-import { MOTEL_NOWHERE, walkLevel } from '../data/levels';
+import { MOTEL_NOWHERE, surfaceYAt, walkLevel } from '../data/levels';
+import { BlipSideNode } from '../entities/BlipSideNode';
 import { logById } from '../data/scouts';
 import { skinByScout } from '../data/skins';
 import { Collectible } from '../entities/Collectible';
@@ -72,6 +72,7 @@ export class MotelScene extends Phaser.Scene {
   classify = new ClassificationSystem();
 
   private solids!: Phaser.Physics.Arcade.StaticGroup;
+  private blipNode?: BlipSideNode;
   private neonSolids!: Phaser.Physics.Arcade.StaticGroup;
   private neon: NeonPlat[] = [];
   private switches: PowerSwitch[] = [];
@@ -144,6 +145,7 @@ export class MotelScene extends Phaser.Scene {
 
     this.wireCollisions();
     this.applySaveState();
+    this.setupBlipSideNode();
 
     if (!this.scene.isActive(SCENES.ui)) this.scene.launch(SCENES.ui);
 
@@ -318,6 +320,27 @@ export class MotelScene extends Phaser.Scene {
     if (on && group === 'A' && quests.stepId === 'powerDiner') quests.complete('powerDiner');
   }
 
+
+  /* ------------------- optional Blipstream side node (side content) ---------- */
+
+  /** Pure side content: never gates a quest, Fold, boss or fragment. Solving the
+   *  room lights a persistent signal bridge here and pays Signal Shards. */
+  private setupBlipSideNode(): void {
+    const groundY = surfaceYAt(MOTEL_NOWHERE, 6);
+    if (groundY === null) return;
+    this.blipNode = new BlipSideNode(this, this.solids, {
+      roomId: 'node-motel',
+      flag: 'blipMotelSolved',
+      label: 'BREAKER RUN',
+      zoneLabel: 'Blipstream — Breaker Run',
+      returnScene: SCENES.motel,
+      x: 6 * TILE,
+      groundY,
+      bridge: { x: (6 + 4) * TILE, y: groundY - 34 },
+      bridgeToast: 'THE LOT ANSWERS — A NEON STAIRCASE HOLDS',
+    });
+  }
+
   private wireCollisions(): void {
     this.physics.add.collider(this.player, this.solids);
     this.physics.add.collider(this.player, this.neonSolids);
@@ -450,6 +473,8 @@ export class MotelScene extends Phaser.Scene {
     // scanning
     if (this.input2.scanJustDown && this.player.canScan() && this.player.alive) this.doScan();
 
+    this.blipNode?.tryEnter(this.player.x, this.player.y, this.input2);
+
     // jack into the fuse box
     if (
       this.input2.interactJustDown &&
@@ -562,7 +587,7 @@ export class MotelScene extends Phaser.Scene {
   private doScan(): void {
     this.player.markScan();
     audio.scanPulse();
-    this.fx.scanRing(this.player.x, this.player.y, this.player.scanRadius, SCAN.durationMs);
+    this.fx.scanRing(this.player.x, this.player.y, this.player.scanRadius, this.player.scanRevealMs);
     this.bumpStat('scansUsed');
     const px = this.player.x;
     const py = this.player.y;
@@ -576,12 +601,16 @@ export class MotelScene extends Phaser.Scene {
       audio.hazardZap();
     }
     // scan pings dark neon platforms so you can read the route before powering it
+    const pinged: Array<{ x: number; y: number }> = [];
     for (const n of this.neon) {
       if (!this.powered[n.group] && Phaser.Math.Distance.Between(px, py, n.img.x, n.img.y) <= this.player.scanRadius) {
         n.ghost.setAlpha(0.85);
         this.tweens.add({ targets: n.ghost, alpha: 0.4, duration: 900 });
+        pinged.push({ x: n.img.x, y: n.img.y });
       }
     }
+    // Scan Memory: dark neon routes keep a lingering echo you can platform by
+    this.player.scanMemoryEcho(pinged, P.scoutChip);
     if (this.boss?.alive && Phaser.Math.Distance.Between(px, py, this.boss.core.x, this.boss.core.y) < this.player.scanRadius + 30) {
       this.boss.onScanned();
     }
@@ -649,6 +678,7 @@ export class MotelScene extends Phaser.Scene {
   }
 
   private onWake(): void {
+    this.blipNode?.applyIfSolved();
     this.input.enabled = true; // the Fold (enterCircuit) disabled input — restore on return
     audio.playMusic('motel'); // restore motel music after the circuit
     bus.emit(EVT.sceneChanged, { scene: SCENES.motel, zone: 'Motel Nowhere' });

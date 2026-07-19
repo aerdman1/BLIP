@@ -6,8 +6,8 @@
  * Rules: .claude/skills/blipstream-puzzle (no literal interiors, short, world-changing).
  */
 import Phaser from 'phaser';
-import { EVT, VIEW_H, PALETTE as P, PULSE, RENDER_ZOOM, SCAN, SCENES, TEX, css } from '../config';
-import { NODE_A, walkLevel } from '../data/levels';
+import { BLIP_ROOM, EVT, VIEW_H, PALETTE as P, PULSE, RENDER_ZOOM, SCAN, SCENES, TEX, css } from '../config';
+import { BLIP_ROOMS, NODE_A, walkLevel, type LevelDef } from '../data/levels';
 import { Player } from '../entities/Player';
 import { Projectile, fireFrom, makeProjectileGroup } from '../entities/Projectile';
 import { audio } from '../systems/AudioSystem';
@@ -28,8 +28,42 @@ interface NodeSwitch {
   index: number;
 }
 
+/** a breaker: shoot to latch, it bleeds back out unless the whole run goes hot */
+interface Breaker {
+  sprite: Phaser.Physics.Arcade.Image;
+  glow: Phaser.GameObjects.Image;
+  latched: boolean;
+  latchedAt: number;
+}
+
+/** a '%' platform that phases in and out on a telegraphed beat */
+interface PhasePlatform {
+  img: Phaser.Physics.Arcade.Image;
+  phase: number; // 0..1 offset in the beat
+  solid: boolean;
+}
+
+/** a frequency-band platform — only solid while its band is the live one */
+interface BandPlatform {
+  img: Phaser.Physics.Arcade.Image;
+  band: number;
+  baseY: number;
+}
+
 export class BlipstreamScene extends Phaser.Scene {
   player!: Player;
+  private def: LevelDef = NODE_A;
+  private roomId = 'node-a';
+  private breakers: Breaker[] = [];
+  private phasePlats: PhasePlatform[] = [];
+  private bandPlats: BandPlatform[] = [];
+  private tuners: Phaser.Physics.Arcade.Image[] = [];
+  private liveBand = 1;
+  private syncPads: Array<{ img: Phaser.GameObjects.Image; lit: boolean }> = [];
+  private echo?: Phaser.GameObjects.Image;
+  private echoTrail: Array<{ t: number; x: number; y: number }> = [];
+  private synced = false;
+  private objectiveText?: Phaser.GameObjects.Text;
   private input2!: PlayerInput;
   private fx!: EffectsSystem;
   private platforms!: Phaser.Physics.Arcade.StaticGroup;
@@ -56,13 +90,24 @@ export class BlipstreamScene extends Phaser.Scene {
   }
 
   create(): void {
-    const def = NODE_A;
+    this.roomId = (this.registry.get('blipRoomId') as string) ?? 'node-a';
+    const def = BLIP_ROOMS[this.roomId] ?? NODE_A;
+    this.def = def;
     this.fx = new EffectsSystem(this);
     attachScreenFilter(this, true); // level screen filter (dialed down for gameplay)
     this.input2 = new PlayerInput(this);
     this.hazards = [];
     this.oscPlatforms = [];
     this.nodes = [];
+    this.breakers = [];
+    this.phasePlats = [];
+    this.bandPlats = [];
+    this.tuners = [];
+    this.syncPads = [];
+    this.echoTrail = [];
+    this.echo = undefined;
+    this.synced = false;
+    this.liveBand = def.meta.blip?.startBand ?? 1;
     this.exiting = false;
     this.isPaused = false;
     this.gameOverShown = false;
@@ -104,6 +149,43 @@ export class BlipstreamScene extends Phaser.Scene {
           const sprite = this.physics.add.staticImage(x, y, TEX.nodeSwitch).setDepth(10);
           (sprite.body as Phaser.Physics.Arcade.StaticBody).setSize(18, 18);
           this.nodes.push({ sprite, glow, active: false, index: nodeIndex++ });
+          break;
+        }
+        case 'b': {
+          // breaker — shoot to latch; bleeds back out after the hold window
+          const glow = this.add.image(x, y, TEX.glow8).setScale(2.4).setTint(P.neonAmberDim).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.3).setDepth(9);
+          const sprite = this.physics.add.staticImage(x, y, TEX.powerSwitch).setDepth(10).setTint(P.neonAmberDim);
+          (sprite.body as Phaser.Physics.Arcade.StaticBody).setSize(18, 18);
+          this.breakers.push({ sprite, glow, latched: false, latchedAt: 0 });
+          break;
+        }
+        case '%': {
+          // phasing platform — solid only on its beat, telegraphed before it drops
+          const img = this.physics.add.staticImage(x + 8, y, TEX.wavePlatform).setDepth(8);
+          img.setDisplaySize(32, 8);
+          (img.body as Phaser.Physics.Arcade.StaticBody).setSize(32, 8);
+          img.setTint(P.signal);
+          this.phasePlats.push({ img: img as unknown as Phaser.Physics.Arcade.Image, phase: (this.phasePlats.length * 0.27) % 1, solid: true });
+          break;
+        }
+        case '1':
+        case '2': {
+          const band = ch === '1' ? 1 : 2;
+          const img = this.physics.add.staticImage(x, y, TEX.wavePlatform).setDepth(8);
+          (img.body as Phaser.Physics.Arcade.StaticBody).setSize(16, 8).setOffset(0, 0);
+          img.setTint(band === 1 ? P.signal : P.signalGreen);
+          this.bandPlats.push({ img: img as unknown as Phaser.Physics.Arcade.Image, band, baseY: y });
+          break;
+        }
+        case 'T': {
+          const t = this.physics.add.staticImage(x, y, TEX.nodeSwitch).setDepth(10).setTint(P.white);
+          (t.body as Phaser.Physics.Arcade.StaticBody).setSize(18, 18);
+          this.tuners.push(t as unknown as Phaser.Physics.Arcade.Image);
+          break;
+        }
+        case 'd': {
+          const pad = this.add.image(x, y + 4, TEX.syncPad).setDepth(7).setTint(P.signalDim).setAlpha(0.75);
+          this.syncPads.push({ img: pad, lit: false });
           break;
         }
         case 'E': {
@@ -166,6 +248,38 @@ export class BlipstreamScene extends Phaser.Scene {
       });
     });
 
+    // bolts latch breakers
+    this.breakers.forEach((br) => {
+      this.physics.add.overlap(this.playerBolts, br.sprite, (_s, bolt) => {
+        const b = bolt as Projectile;
+        if (!b.active || br.latched) return;
+        b.kill();
+        this.latchBreaker(br);
+      });
+    });
+
+    // bolts swap the live frequency band
+    this.tuners.forEach((t) => {
+      this.physics.add.overlap(this.playerBolts, t, (_s, bolt) => {
+        const b = bolt as Projectile;
+        if (!b.active) return;
+        b.kill();
+        this.swapBand(t.x, t.y);
+      });
+    });
+
+    // mirror rooms — the delayed echo + low gravity
+    if (this.syncPads.length >= 2) {
+      this.echo = this.add
+        .image(this.spawnPoint.x, this.spawnPoint.y, TEX.echoBody)
+        .setDepth(9)
+        .setAlpha(0.6)
+        .setTint(P.signalGreen);
+      const lowG = def.meta.blip?.lowGravity ?? 0;
+      if (lowG) (this.player.body as Phaser.Physics.Arcade.Body).setGravityY(-lowG);
+    }
+    this.applyBandState();
+
     this.physics.world.setBounds(0, -VIEW_H, def.meta.widthPx, def.meta.heightPx + VIEW_H);
     this.physics.world.setBoundsCollision(true, true, false, false);
     this.cameras.main.setZoom(RENDER_ZOOM);
@@ -177,6 +291,21 @@ export class BlipstreamScene extends Phaser.Scene {
     audio.playMusic('blipstream');
     bus.emit(EVT.sceneChanged, { scene: SCENES.blipstream, zone: zoneLabel });
     bus.emit(EVT.toast, { text: 'INSIDE THE SIGNAL', color: 'cyan' });
+    const objective = def.meta.blip?.objective;
+    if (objective) {
+      this.objectiveText = this.add
+        .text(this.spawnPoint.x, this.spawnPoint.y - 40, objective, {
+          fontFamily: 'monospace',
+          fontSize: '8px',
+          color: css(P.signal),
+          backgroundColor: 'rgba(5,7,15,0.72)',
+          padding: { x: 3, y: 2 },
+        })
+        .setOrigin(0.5)
+        .setDepth(14)
+        .setResolution(2);
+      this.tweens.add({ targets: this.objectiveText, alpha: 0, delay: 4200, duration: 900 });
+    }
     this.player.refreshHud();
 
     this.input.keyboard?.on('keydown-ESC', this.togglePause, this);
@@ -279,8 +408,116 @@ export class BlipstreamScene extends Phaser.Scene {
       onComplete: () => dot.destroy(),
     });
 
-    const activeCount = this.nodes.filter((n) => n.active).length;
-    if (activeCount >= this.nodes.length) this.openGate();
+    this.checkSolved();
+  }
+
+  /* ------------------------- room mechanics (side rooms) --------------------- */
+
+  /** every lock in the room is satisfied → the exit answers */
+  private checkSolved(): void {
+    if (this.nodes.some((n) => !n.active)) return;
+    if (this.breakers.some((b) => !b.latched)) return;
+    if (this.syncPads.length >= 2 && !this.synced) return;
+    this.openGate();
+  }
+
+  /** ZONE 2 — latch a breaker. The whole run has to be hot at once; a lone
+   *  breaker bleeds back out after the hold window. All hot → they overload lit. */
+  private latchBreaker(br: Breaker): void {
+    br.latched = true;
+    br.latchedAt = this.time.now;
+    br.sprite.setTint(P.neonAmber);
+    br.glow.setTint(P.neonAmber).setAlpha(0.85);
+    audio.nodeActivate();
+    this.fx.sparks(br.sprite.x, br.sprite.y, P.neonAmber, 10);
+    const hot = this.breakers.filter((b) => b.latched).length;
+    this.fx.floatText(br.sprite.x, br.sprite.y - 12, `BREAKER ${hot}/${this.breakers.length}`, P.neonAmber);
+    if (hot >= this.breakers.length) {
+      this.fx.flash(P.neonAmber, 140);
+      bus.emit(EVT.toast, { text: 'OVERLOAD — THE RUN STAYS LIT', color: 'orange' });
+    }
+    this.checkSolved();
+  }
+
+  private unlatchBreaker(br: Breaker): void {
+    br.latched = false;
+    br.sprite.setTint(P.neonAmberDim);
+    br.glow.setTint(P.neonAmberDim).setAlpha(0.3);
+    this.fx.floatText(br.sprite.x, br.sprite.y - 12, 'BLED OUT', P.danger);
+    audio.hazardZap();
+  }
+
+  /** ZONE 5 — swap which frequency band is solid */
+  private swapBand(x: number, y: number): void {
+    this.liveBand = this.liveBand === 1 ? 2 : 1;
+    audio.nodeActivate();
+    this.fx.sparks(x, y, P.white, 8);
+    this.fx.floatText(x, y - 12, `BAND ${this.liveBand}`, this.liveBand === 1 ? P.signal : P.signalGreen);
+    this.applyBandState();
+  }
+
+  private applyBandState(): void {
+    for (const bp of this.bandPlats) {
+      const live = bp.band === this.liveBand;
+      bp.img.setAlpha(live ? 1 : 0.18);
+      (bp.img.body as Phaser.Physics.Arcade.StaticBody).enable = live;
+    }
+  }
+
+  /** ZONE 3 — light both sync pads at once (you now, your echo 2s ago, mirrored) */
+  private updateEcho(now: number): void {
+    if (!this.echo) return;
+    const delay = this.def.meta.blip?.echoDelayMs ?? BLIP_ROOM.echoDelayMs;
+    const last = this.echoTrail[this.echoTrail.length - 1];
+    if (!last || now - last.t >= BLIP_ROOM.echoSampleMs) {
+      this.echoTrail.push({ t: now, x: this.player.x, y: this.player.y });
+    }
+    while (this.echoTrail.length > 2 && this.echoTrail[1].t <= now - delay) this.echoTrail.shift();
+    const src = this.echoTrail[0];
+    if (src && now - src.t >= delay * 0.9) {
+      this.echo.setPosition(this.def.meta.widthPx - src.x, src.y); // mirrored horizontally
+      this.echo.setFlipX(true);
+    }
+
+    // pads: pad[0] wants the echo, pad[1] wants you
+    const [padEcho, padYou] = this.syncPads;
+    const r = BLIP_ROOM.syncPadRadius;
+    const echoOn = Math.abs(this.echo.x - padEcho.img.x) < r && Math.abs(this.echo.y - padEcho.img.y) < r + 6;
+    const youOn = Math.abs(this.player.x - padYou.img.x) < r && Math.abs(this.player.y - padYou.img.y) < r + 6;
+    this.setPad(padEcho, echoOn);
+    this.setPad(padYou, youOn);
+    if (echoOn && youOn && !this.synced) {
+      this.synced = true;
+      audio.doorUnlock();
+      this.fx.flash(P.signalGreen, 150);
+      this.fx.floatText(this.player.x, this.player.y - 16, 'SYNCED', P.signalGreen);
+      this.checkSolved();
+    }
+  }
+
+  private setPad(pad: { img: Phaser.GameObjects.Image; lit: boolean }, lit: boolean): void {
+    if (pad.lit === lit) return;
+    pad.lit = lit;
+    pad.img.setTint(lit ? P.signalGreen : P.signalDim).setAlpha(lit ? 1 : 0.75);
+  }
+
+  /** ZONE 4 — phasing platforms: solid on the beat, telegraphed before they go */
+  private updatePhasePlatforms(now: number): void {
+    if (!this.phasePlats.length) return;
+    const period = this.def.meta.blip?.phasePeriodMs ?? BLIP_ROOM.phasePeriodMs;
+    for (const pp of this.phasePlats) {
+      const t = ((now / period) + pp.phase) % 1;
+      const solid = t < BLIP_ROOM.phaseOnRatio;
+      const warn = solid && t > BLIP_ROOM.phaseOnRatio - BLIP_ROOM.phaseWarnMs / period;
+      if (solid !== pp.solid) {
+        pp.solid = solid;
+        (pp.img.body as Phaser.Physics.Arcade.StaticBody).enable = solid;
+      }
+      const img = pp.img as unknown as Phaser.GameObjects.Image;
+      if (!solid) img.setAlpha(0.16).setTint(P.signalDim);
+      else if (warn) img.setAlpha(0.45 + 0.45 * Math.abs(Math.sin(now * 0.03))).setTint(P.danger);
+      else img.setAlpha(1).setTint(P.signal);
+    }
   }
 
   private openGate(): void {
@@ -296,6 +533,14 @@ export class BlipstreamScene extends Phaser.Scene {
 
   /** Test API: instantly route everything and leave */
   solveAndExit(): void {
+    this.breakers.forEach((b) => {
+      b.latched = true;
+      b.latchedAt = this.time.now;
+      b.sprite.setTint(P.neonAmber);
+      b.glow.setTint(P.neonAmber).setAlpha(0.85);
+    });
+    this.synced = true;
+    this.syncPads.forEach((p) => this.setPad(p, true));
     this.nodes.forEach((n) => {
       if (!n.active) {
         n.active = true;
@@ -311,7 +556,12 @@ export class BlipstreamScene extends Phaser.Scene {
   private exitToField(solved: boolean): void {
     if (this.exiting) return;
     this.exiting = true;
-    if (solved) this.registry.set('nodeJustSolved', true);
+    // Node A drives the Miller Field quest via `nodeJustSolved`; the optional
+    // side rooms report separately so no zone mistakes them for its own beat.
+    if (solved) {
+      if (this.roomId === 'node-a') this.registry.set('nodeJustSolved', true);
+      else this.registry.set('blipRoomSolved', this.roomId);
+    }
     audio.transitionWarp();
     this.fx.staticBurst(420);
     this.fx.flash(P.white, 160);
@@ -370,6 +620,23 @@ export class BlipstreamScene extends Phaser.Scene {
       (osc.img.body as Phaser.Physics.Arcade.StaticBody).updateFromGameObject();
     }
 
+    // side-room mechanics
+    this.updatePhasePlatforms(now);
+    this.updateEcho(now);
+    if (this.breakers.length && this.breakers.some((b) => !b.latched)) {
+      const hold = this.def.meta.blip?.breakerHoldMs ?? BLIP_ROOM.breakerHoldMs;
+      for (const br of this.breakers) {
+        if (br.latched && now - br.latchedAt > hold) this.unlatchBreaker(br);
+      }
+    }
+    for (const bp of this.bandPlats) {
+      const live = bp.band === this.liveBand;
+      const img = bp.img as unknown as Phaser.GameObjects.Image;
+      img.y = bp.baseY + Math.sin(now * 0.0022 + bp.baseY * 0.05 + bp.band) * (live ? 5 : 2);
+      (bp.img.body as Phaser.Physics.Arcade.StaticBody).updateFromGameObject();
+      (bp.img.body as Phaser.Physics.Arcade.StaticBody).enable = live;
+    }
+
     // hazards (static red bars)
     if (this.player.alive && !this.player.invulnerable) {
       for (const h of this.hazards) {
@@ -382,12 +649,12 @@ export class BlipstreamScene extends Phaser.Scene {
     }
 
     // sweeping scan line
-    const sl = NODE_A.meta.scanLine;
+    const sl = this.def.meta.scanLine;
     if (sl) {
       const t = (Math.sin((now / sl.periodMs) * Math.PI * 2) + 1) / 2;
       const x = sl.x0 + (sl.x1 - sl.x0) * t;
-      this.scanLine.setPosition(x, NODE_A.meta.heightPx / 2);
-      this.scanLineGlow.setPosition(x, NODE_A.meta.heightPx / 2);
+      this.scanLine.setPosition(x, this.def.meta.heightPx / 2);
+      this.scanLineGlow.setPosition(x, this.def.meta.heightPx / 2);
       if (this.player.alive && !this.player.invulnerable && Math.abs(this.player.x - x) < 5) {
         audio.hazardZap();
         this.fx.sparks(this.player.x, this.player.y, P.danger, 6);
@@ -399,8 +666,8 @@ export class BlipstreamScene extends Phaser.Scene {
     this.waveform.clear();
     this.waveform.lineStyle(1, P.signalDim, 0.5);
     this.waveform.beginPath();
-    const baseY = NODE_A.meta.heightPx - 14;
-    for (let x = 0; x < NODE_A.meta.widthPx; x += 4) {
+    const baseY = this.def.meta.heightPx - 14;
+    for (let x = 0; x < this.def.meta.widthPx; x += 4) {
       const y = baseY + Math.sin(x * 0.04 + now * 0.004) * 4 + Math.sin(x * 0.013 - now * 0.002) * 3;
       if (x === 0) this.waveform.moveTo(x, y);
       else this.waveform.lineTo(x, y);
@@ -408,7 +675,7 @@ export class BlipstreamScene extends Phaser.Scene {
     this.waveform.strokePath();
 
     // fell out of the waveform — reset to entry
-    if (this.player.y > NODE_A.meta.heightPx + 40 && this.player.alive) {
+    if (this.player.y > this.def.meta.heightPx + 40 && this.player.alive) {
       this.hurtPlayer(1, this.player.x + 1);
       if (this.player.alive) {
         this.player.setPosition(this.spawnPoint.x, this.spawnPoint.y);
