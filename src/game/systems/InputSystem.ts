@@ -15,6 +15,7 @@
 import Phaser from 'phaser';
 import { EVT, PAD } from '../config';
 import { bus } from './EventBus';
+import { padBinding, type PadAction } from './PadBindings';
 import { readPad, type PadSnapshot } from './PadSim';
 import { touchInput } from './TouchInput';
 
@@ -91,6 +92,18 @@ export class PlayerInput {
     return this.pad?.buttons[index] === true && this.prevPad?.buttons[index] !== true;
   }
 
+  /** held — resolved through the remappable binding (primary or alt) */
+  private actDown(action: PadAction): boolean {
+    const b = padBinding(action);
+    return this.padDown(b.btn) || (b.alt !== undefined && this.padDown(b.alt));
+  }
+
+  /** just-pressed — resolved through the remappable binding (primary or alt) */
+  private actJust(action: PadAction): boolean {
+    const b = padBinding(action);
+    return this.padJust(b.btn) || (b.alt !== undefined && this.padJust(b.alt));
+  }
+
   private get padAxisX(): number {
     const x = this.pad?.axes[0] ?? 0;
     return Math.abs(x) > PAD.deadZone ? x : 0;
@@ -130,7 +143,7 @@ export class PlayerInput {
   }
 
   get jumpDown(): boolean {
-    return this.k.jump.isDown || this.k.jumpW.isDown || this.k.jumpUp.isDown || this.padDown(PAD.jump) || touchInput.jumpHeld;
+    return this.k.jump.isDown || this.k.jumpW.isDown || this.k.jumpUp.isDown || this.actDown('jump') || touchInput.jumpHeld;
   }
 
   /** DEV fly-mode: descend (S / ↓ / left-stick down) */
@@ -143,13 +156,13 @@ export class PlayerInput {
       Phaser.Input.Keyboard.JustDown(this.k.jump) ||
       Phaser.Input.Keyboard.JustDown(this.k.jumpW) ||
       Phaser.Input.Keyboard.JustDown(this.k.jumpUp) ||
-      this.padJust(PAD.jump) ||
+      this.actJust('jump') ||
       this.tJumpJust
     );
   }
 
   get dashJustDown(): boolean {
-    return Phaser.Input.Keyboard.JustDown(this.k.dash) || this.padJust(PAD.dash) || this.padJust(PAD.dashAlt) || this.tDashJust;
+    return Phaser.Input.Keyboard.JustDown(this.k.dash) || this.actJust('dash') || this.tDashJust;
   }
 
   /** held — shots auto-fire on the pulse cooldown */
@@ -159,8 +172,7 @@ export class PlayerInput {
     return (
       this.k.shoot.isDown ||
       pointerShoot ||
-      this.padDown(PAD.shoot) ||
-      this.padDown(PAD.shootAlt) ||
+      this.actDown('shoot') ||
       touchInput.shootHeld
     );
   }
@@ -188,24 +200,24 @@ export class PlayerInput {
   }
 
   get scanJustDown(): boolean {
-    return this.rightJust || Phaser.Input.Keyboard.JustDown(this.k.scan) || this.padJust(PAD.scan) || this.padJust(PAD.scanAlt) || this.tScanJust;
+    return this.rightJust || Phaser.Input.Keyboard.JustDown(this.k.scan) || this.actJust('scan') || this.tScanJust;
   }
 
   get interactJustDown(): boolean {
-    return Phaser.Input.Keyboard.JustDown(this.k.interact) || this.padJust(PAD.interact) || this.tInteractJust;
+    return Phaser.Input.Keyboard.JustDown(this.k.interact) || this.actJust('interact') || this.tInteractJust;
   }
 
   get echoJustDown(): boolean {
-    return Phaser.Input.Keyboard.JustDown(this.k.echo) || this.padJust(PAD.dpadUp) || this.tEchoJust;
+    return Phaser.Input.Keyboard.JustDown(this.k.echo) || this.actJust('echo') || this.tEchoJust;
   }
 
   /** START — pause toggle (poll before any early-return in scene.update) */
   get pauseJustDown(): boolean {
-    return this.padJust(PAD.start) || this.tPauseJust;
+    return this.actJust('pause') || this.tPauseJust;
   }
 
   /** BACK/SELECT — command center toggle */
   get commandCenterJustDown(): boolean {
-    return this.padJust(PAD.select);
+    return this.actJust('commandCenter');
   }
 }

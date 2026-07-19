@@ -48,7 +48,7 @@ export const UPGRADES: UpgradeDef[] = [
 
   // --- Channel C: scout Signal-Set completion ---
   { id: 'route-tracer', name: 'Route Tracer', description: 'A glowing line draws itself behind you as you move and fades a couple of seconds later — the way Will drew maps.', status: 'IMPLEMENTED', source: 'Will / WILLOW Signal Set', unlockType: 'scout-set', scout: 'will' },
-  { id: 'echo-blink', name: 'Echo Blink', description: 'Place a signal echo, snap back to it. While it lives, scanners read the echo — not you (decoy).', status: 'IMPLEMENTED', source: 'Cameron / ECHO Signal Set (earn-wiring lands with Zone 4)', unlockType: 'scout-set', scout: 'cameron' },
+  { id: 'echo-blink', name: 'Echo Blink', description: 'Place a signal echo, snap back to it. While it lives, scanners read the echo — not you (decoy).', status: 'IMPLEMENTED', source: 'Cameron / ECHO Signal Set', unlockType: 'scout-set', scout: 'cameron' },
 ];
 
 /** the marquee signature ability a zone's boss grants (Channel A) */

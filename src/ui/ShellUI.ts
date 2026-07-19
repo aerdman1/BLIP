@@ -10,6 +10,15 @@ import type Phaser from 'phaser';
 import { EVT, FILTERS, FRAGMENT_TOTAL, PAD, SCENES, TEX, type FilterId } from '../game/config';
 import { audio } from '../game/systems/AudioSystem';
 import { bus } from '../game/systems/EventBus';
+import {
+  PAD_ACTIONS,
+  allPadBindings,
+  isPadDefault,
+  padButtonLabel,
+  resetPadBindings,
+  setPadBinding,
+  type PadAction,
+} from '../game/systems/PadBindings';
 import { readPad } from '../game/systems/PadSim';
 import { addShards, allSlotSummaries, buyUpgrade, getSave, getSlotName, grantAbility, ownsUpgrade, resetSave, resetSlot, setActiveSlot, setSlotName, unlockSkin, updateSave } from '../game/systems/SaveSystem';
 import { rewards } from '../game/systems/RewardSystem';
@@ -145,6 +154,10 @@ export class ShellUI {
   private prevPad: ReturnType<typeof readPad> = null;
   private prevStickY = 0;
   private padPollTimer: number | null = null;
+  /** action currently waiting for a button press in the remap UI */
+  private listenAction: PadAction | null = null;
+  /** buttons already held when listening began (ignored until released) */
+  private listenHeld = new Set<number>();
   private menuScoutButtons: HTMLButtonElement[] = [];
   private touch: TouchControls;
   private openCommandCenter: (section?: string) => void;
@@ -931,12 +944,20 @@ export class ShellUI {
           <tr><td>Command Center</td><td class="key">C · TAB</td><td class="pad">BACK · SHARE</td></tr>
           <tr><td>Menu navigation</td><td class="key">↑ ↓ + ENTER</td><td class="pad">D-pad / stick + A · ✕</td></tr>
         </table>
-        <p class="row-sub" style="margin-top:8px">Touch (iPad): on-screen D-pad + action buttons appear automatically — see FIELD MANUAL ▸ Controls. Custom remapping is on the roadmap.</p>
+        <p class="row-sub" style="margin-top:8px">Touch (iPad): on-screen D-pad + action buttons appear automatically — see FIELD MANUAL ▸ Controls.</p>
       </div>
       <div class="settings-section">
         <h3>GAMEPAD</h3>
         <div class="settings-row"><div id="pad-status-line">no controller detected — press any button on it</div></div>
         <div class="settings-row"><div class="row-sub">LIVE INPUT: <span id="pad-last-button">—</span></div></div>
+      </div>
+      <div class="settings-section">
+        <h3>CONTROLLER — BUTTON REMAPPING</h3>
+        <div id="rebind-list"></div>
+        <div class="settings-row">
+          <div class="row-label">RESTORE<span class="row-sub" id="rebind-hint">click REBIND, then press a button on your controller</span></div>
+          <button class="filter-select" id="rebind-reset">RESET TO DEFAULTS</button>
+        </div>
       </div>
       <div class="settings-section">
         <h3>UPDATES</h3>
@@ -1054,6 +1075,80 @@ export class ShellUI {
     });
 
     $('settings-close').addEventListener('click', () => this.closeSettings());
+
+    this.renderRebindList();
+    $('rebind-reset').addEventListener('click', () => {
+      resetPadBindings();
+      this.listenAction = null;
+      this.renderRebindList();
+      audio.uiToggle();
+    });
+  }
+
+  /* ------------------------- controller remapping UI ------------------------ */
+
+  private renderRebindList(): void {
+    const host = document.getElementById('rebind-list');
+    if (!host) return;
+    const b = allPadBindings();
+    host.innerHTML = PAD_ACTIONS.map((a) => {
+      const listening = this.listenAction === a.id;
+      const alt = b[a.id].alt !== undefined ? ` <span class="row-sub">(or ${padButtonLabel(b[a.id].alt as number)})</span>` : '';
+      const val = listening ? '<b class="ok">press a button…</b>' : `${padButtonLabel(b[a.id].btn)}${alt}`;
+      return `<div class="settings-row">
+        <div class="row-label">${a.label}<span class="row-sub">${val}</span></div>
+        <button class="filter-select" data-rebind="${a.id}">${listening ? 'CANCEL' : 'REBIND'}</button>
+      </div>`;
+    }).join('');
+    host.querySelectorAll('[data-rebind]').forEach((el) =>
+      el.addEventListener('click', () => {
+        const id = (el as HTMLElement).dataset.rebind as PadAction;
+        if (this.listenAction === id) {
+          this.listenAction = null;
+        } else {
+          this.listenAction = id;
+          const pad = readPad();
+          this.listenHeld = new Set(
+            pad ? Object.entries(pad.buttons).filter(([, v]) => v).map(([k]) => Number(k)) : []
+          );
+        }
+        this.renderRebindList();
+        audio.uiToggle();
+      })
+    );
+    const hint = document.getElementById('rebind-hint');
+    if (hint) {
+      hint.textContent = this.listenAction
+        ? 'press a button on your controller (or click CANCEL)'
+        : isPadDefault()
+          ? 'defaults active — click REBIND, then press a button'
+          : 'custom bindings active';
+    }
+  }
+
+  /** while listening, grab the first freshly-pressed pad button */
+  private pollRebind(pad: ReturnType<typeof readPad>): void {
+    const action = this.listenAction;
+    if (!action) return;
+    if (!pad) return;
+    for (const [k, v] of Object.entries(pad.buttons)) {
+      const idx = Number(k);
+      if (!v) {
+        this.listenHeld.delete(idx);
+        continue;
+      }
+      if (this.listenHeld.has(idx)) continue;
+      const res = setPadBinding(action, idx);
+      if (!res.ok) continue;
+      this.listenAction = null;
+      this.renderRebindList();
+      if (res.swappedWith) {
+        const other = PAD_ACTIONS.find((a) => a.id === res.swappedWith)?.label ?? res.swappedWith;
+        const hint = document.getElementById('rebind-hint');
+        if (hint) hint.textContent = `swapped with ${other}`;
+      }
+      return;
+    }
   }
 
   openSettings(): void {
@@ -1061,6 +1156,8 @@ export class ShellUI {
     this.settingsVisible = true;
     $('settings-modal').classList.remove('hidden');
     this.pushModal();
+    this.listenAction = null;
+    this.renderRebindList();
     // live pad readout while open
     this.padPollTimer = window.setInterval(() => {
       const pad = readPad();
@@ -1070,6 +1167,7 @@ export class ShellUI {
           ? `<b class="ok">CONNECTED</b> — ${pad.id ?? 'standard controller'}`
           : 'no controller detected — press any button on it';
       }
+      if (this.listenAction) this.pollRebind(pad);
       const last = document.getElementById('pad-last-button');
       if (last && pad) {
         const pressed = Object.entries(pad.buttons)
@@ -1090,6 +1188,7 @@ export class ShellUI {
       window.clearInterval(this.padPollTimer);
       this.padPollTimer = null;
     }
+    this.listenAction = null;
     this.popModal();
   }
 

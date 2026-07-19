@@ -163,16 +163,16 @@ export const BUILD_TODO: TodoItem[] = [
   { label: 'Per-skin signature abilities + classification tie-in', done: true },
   { label: 'Scout characters you meet — kid sprite + name tag over head', done: true },
   { label: 'Signal Portrait cards + Command Center gallery (drop art in public/assets/portraits)', done: true },
-  { label: 'LEVEL-PENDING: Henry/Cameron/Danny Signal Sets + portraits — wire when Zones 3–5 exist', done: false },
+  { label: 'Henry/Cameron/Danny Signal Sets + portraits', done: true },
   { label: 'Scan-stun: a scan pulse freezes drones (Dead Cells double-duty verbs)', done: true },
   { label: 'Scan-secrets + Scout Field Notes (scan hidden spots → shards / notebook pages) + CC gallery', done: true },
-  { label: 'Echo Blink prototype (ECHO decoy blink, F key) — ERD-grantable; earn-wiring LEVEL-PENDING (Zone 4)', done: true },
+  { label: 'Echo Blink (ECHO decoy blink, F key) — earned from Cameron/ECHO Signal Set', done: true },
   { label: 'Music beat hook (EVT.musicBeat) → Motel neon flicker + lamp-sweep ambience', done: true },
   { label: 'Borrowed-ideas capture pass → Level Plans + Progression Plan (LEVEL-PENDING tags)', done: true },
-  { label: 'Controller button remapping', done: false },
+  { label: 'Controller button remapping (Settings ▸ Controller — rebind + reset)', done: true },
   { label: 'More Blipstream nodes — optional side rooms in zones 2–5 (Breaker Run, Reflection, Pattern, Tuning)', done: true },
-  { label: 'Custom shader post-FX (CSS CRT overlay shipped instead)', done: false },
-  { label: 'Zones 5–6 (playable) — see LEVEL PLANS', done: false },
+  { label: 'Custom shader post-FX — superseded: the CSS CRT overlay shipped instead', done: true },
+  { label: 'All 5 zones playable (Miller Field → Skyline Array finale + EndingScene)', done: true },
 ];
 
 export const ART_DIRECTION: string[] = [
