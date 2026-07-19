@@ -4,6 +4,10 @@
    amber chrome, crimson danger. (UI reference pass 2026-07-10)
    ================================================================ */
 :root {
+  /* Height of the slimmed top bar in the touch gameplay layout (phone + tablet).
+     One value drives both the bar and the game-frame height so they can't drift. */
+  --compact-topbar-h: 34px;
+
   --midnight: #071126;
   --deep-indigo: #101a3a;
   --panel-dark: #090d16;
@@ -1286,17 +1290,48 @@ input[type='range'].vol::-webkit-slider-thumb {
 /* Compact gameplay is the phone/tablet play layout: the desktop instrument
    shell gets out of the way so the game is actually playable. Menus, pause,
    Command Center and modals still use the normal chrome. */
-body.compact-gameplay #top-bar,
+/* Only the two tall text strips go away — the top bar STAYS (slimmed) on every
+   touch layout so SOUND and ◇ GOD are always reachable on phone and tablet. */
 body.compact-gameplay #objective-bar,
 body.compact-gameplay #status-strip {
   display: none;
 }
-body.compact-gameplay #app-shell,
-body.compact-gameplay #game-frame {
+body.compact-gameplay #top-bar {
+  /* slim it via padding/type rather than a fixed height, so nothing clips */
+  height: auto;
+  min-height: 0;
+  padding: 3px 6px;
+  gap: 6px;
+}
+body.compact-gameplay #top-bar .shell-btn {
+  font-size: 10px;
+  padding: 4px 7px;
+  height: auto;
+}
+/* the long "CONTACT-47 / FIELD UNIT" badge is the first thing to sacrifice */
+body.compact-gameplay #unit-badge .badge-text,
+body.compact-gameplay #unit-badge .badge-trail {
+  display: none;
+}
+body.compact-gameplay #unit-badge {
+  padding: 2px 6px;
+}
+/* The shell fills the viewport; the frame takes whatever the slim bar leaves.
+   Phaser (Scale.FIT) then letterboxes the 480x270 canvas inside it — ShellUI
+   calls scale.refresh() when these classes toggle so it never keeps a stale size. */
+/* No magic numbers: the shell is the viewport, the bar takes its natural height,
+   and the frame flexes into whatever is left. Immune to the bar's real height. */
+body.compact-gameplay #app-shell {
   height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+body.compact-gameplay #top-bar {
+  flex: 0 0 auto;
 }
 body.compact-gameplay #game-frame {
-  flex: 1 1 100dvh;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 body.compact-gameplay #game-root {
   inset: 0;

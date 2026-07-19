@@ -186,11 +186,14 @@ export class ShellUI {
     window.addEventListener('resize', () => {
       this.positionMenuScoutTargets();
       this.refreshGameplayChrome();
+      this.refitCanvas();
     });
     window.addEventListener('orientationchange', () => window.setTimeout(() => {
       this.positionMenuScoutTargets();
       this.refreshGameplayChrome();
+      this.refitCanvas();
     }, 120));
+    this.observeGameFrame();
     window.addEventListener('keydown', (ev) => this.onKeyDown(ev), { capture: true });
 
     // iOS Safari ignores `user-scalable=no`, so block its pinch-zoom gestures
@@ -275,9 +278,70 @@ export class ShellUI {
         window.matchMedia('(orientation: landscape) and (max-width: 900px) and (max-height: 520px)').matches);
     const isGameplay = this.touchGameplayScenes.includes(this.lastScene);
     const unobstructed = !this.menuVisible && !this.pauseVisible && this.modalDepth === 0;
+    const compact = isGameplay && unobstructed && (coarse || phoneSized);
+    const changed = document.body.classList.contains('compact-gameplay') !== compact;
     document.body.classList.toggle('gameplay-active', isGameplay && unobstructed);
-    document.body.classList.toggle('compact-gameplay', isGameplay && unobstructed && (coarse || phoneSized));
+    document.body.classList.toggle('compact-gameplay', compact);
     document.body.classList.toggle('sweep-active', isGameplay && unobstructed && this.lastScene === SCENES.sweep);
+    // These classes resize #game-frame. Phaser (Scale.FIT) must re-measure its
+    // parent afterwards or the canvas keeps a stale size and overflows/offsets
+    // the viewport — the core "looks broken on mobile" bug. Wait a frame so the
+    // new CSS has been applied before refreshing.
+    if (changed) this.refitCanvas();
+  }
+
+  /** Re-measure the parent and re-letterbox the 480x270 canvas.
+   *
+   *  Phaser's own window-resize handling does NOT reliably re-fit here (verified:
+   *  after a viewport change a plain `resize` event left the canvas at its old
+   *  size, overflowing the viewport — only an explicit refresh() corrected it).
+   *  So every layout change routes through this. The delayed second pass is for
+   *  iOS Safari, which reports stale innerWidth/Height right after a rotation. */
+  private refitCanvas(): void {
+    const refresh = () => {
+      try {
+        // Measure the container ourselves and hand Phaser the size explicitly.
+        // refresh() alone is NOT enough: Phaser caches its parent bounds, and
+        // after a rotation/layout change it re-centres the canvas while keeping
+        // a stale SCALE (verified: a 390x219 canvas left inside an 844x360 box).
+        // setParentSize() makes the re-fit deterministic.
+        const root = document.getElementById('game-root');
+        if (root) {
+          const r = root.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0) {
+            this.game.scale.setParentSize(Math.round(r.width), Math.round(r.height));
+          }
+        }
+        this.game.scale.refresh();
+      } catch {
+        /* game not booted yet — the next layout change will refit */
+      }
+    };
+    requestAnimationFrame(refresh);
+    window.setTimeout(refresh, 260); // iOS reports stale dimensions right after a rotation
+  }
+
+  /** The reliable backstop: watch the canvas's actual container box instead of
+   *  trusting resize/orientationchange events. This catches rotation, the chrome
+   *  classes resizing #game-frame, AND iOS Safari collapsing/expanding its address
+   *  bar mid-play (which changes 100dvh without a useful event). */
+  private observeGameFrame(): void {
+    if (typeof ResizeObserver !== 'function') return;
+    const root = document.getElementById('game-root');
+    if (!root) return;
+    let lastW = 0;
+    let lastH = 0;
+    const ro = new ResizeObserver((entries) => {
+      const r = entries[0]?.contentRect;
+      if (!r) return;
+      const w = Math.round(r.width);
+      const h = Math.round(r.height);
+      if (w === lastW && h === lastH) return; // ignore no-op churn
+      lastW = w;
+      lastH = h;
+      this.refitCanvas();
+    });
+    ro.observe(root);
   }
 
   private refreshOrientationNudge(): void {
