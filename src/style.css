@@ -1660,7 +1660,9 @@ body.compact-gameplay.sweep-active .sweep-hud-banner {
 #touch-controls .tc-shoot { right: 96px; bottom: 4px; width: 74px; height: 74px; font-size: 26px; color: var(--warning); border-color: var(--amber-dim); }
 #touch-controls .tc-scan { right: 104px; bottom: 84px; width: 60px; height: 60px; font-size: 13px; }
 #touch-controls .tc-dash { right: 4px; bottom: 138px; width: 56px; height: 56px; font-size: 24px; }
-#touch-controls .tc-echo { right: 130px; bottom: 142px; width: 58px; height: 44px; font-size: 10px; letter-spacing: 1px; color: var(--violet); border-color: rgba(124, 92, 255, 0.65); }
+/* bottom was 142, which left ECHO's box overlapping SCAN's top edge by ~2px —
+   a mis-tap risk on touch. 152 gives clear separation. */
+#touch-controls .tc-echo { right: 130px; bottom: 152px; width: 58px; height: 44px; font-size: 10px; letter-spacing: 1px; color: var(--violet); border-color: rgba(124, 92, 255, 0.65); }
 #touch-controls .tc-interact { right: 70px; bottom: 150px; width: 52px; height: 52px; font-size: 18px; }
 
 /* pause pip top-right (clears the top instrument bar which is outside the frame) */
@@ -1668,7 +1670,7 @@ body.compact-gameplay.sweep-active .sweep-hud-banner {
   top: max(10px, env(safe-area-inset-top));
   right: max(12px, env(safe-area-inset-right));
   width: 44px;
-  height: 38px;
+  height: 44px; /* was 38 — under the 44px minimum comfortable tap target */
   font-size: 14px;
 }
 
