@@ -1253,8 +1253,14 @@ export const TD_VISUALS = {
    *  already night-graded offline (mean luminance ~0.12), so this layer only
    *  shapes contrast and falloff. Pushing it higher double-darkens the scene
    *  to near-black — measured, not guessed. */
-  darkness: 0.22,
-  darknessLow: 0.16,
+  darkness: 0.24,
+  darknessLow: 0.18,
+  /** Hard ceiling on any single additive light. Above ~0.55 the pools saturate
+   *  to flat white and destroy all terrain detail near the Node — the exact
+   *  blowout visible in the first pass. */
+  lightMaxAlpha: 0.55,
+  /** edge darkening, so the frame reads composed instead of uniformly bright */
+  vignette: 0.42,
   lightsHigh: 24,
   lightsLow: 12,
 } as const;
@@ -1278,9 +1284,16 @@ export const TD_PALETTE = {
   foliageNear: 0x061009,
   foliageMid: 0x14301d,
   foliageFar: 0x1c3a3c, // haze-shifted toward blue
-  haze: 0x16323a,
-  shadow: 0x040a10, // cool, never pure black
-  signal: 0x8dff7a,
+  haze: 0x14303c,
+  shadow: 0x050c14, // cool, never pure black
+  signal: 0x7fe86a,
+  /* accent hues — IDEAL2 gets its richness from COOL BIOLUMINESCENCE and WARM
+     lamps read against a desaturated base, not from more green. Kept scarce:
+     max ~5% frame coverage each, so they punctuate rather than compete. */
+  bioTeal: 0x35e0d0,
+  bioBlue: 0x4aa8ff,
+  emberWarm: 0xff9d4a,
+  sporePink: 0xd06ad8,
   signalCore: 0xd4ffe8,
   danger: 0xff3b30,
   rim: 0xffe9c4, // warm rim light on actors

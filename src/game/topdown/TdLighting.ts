@@ -83,10 +83,14 @@ export class TdLighting {
   private lights: Phaser.GameObjects.Image[] = [];
   private handles: LightHandle[] = [];
   private fog: Phaser.GameObjects.TileSprite[] = [];
+  private vignette?: Phaser.GameObjects.Image;
   private cap: number;
   private t = 0;
 
+  private cam?: Phaser.Cameras.Scene2D.Camera;
+
   constructor(scene: Phaser.Scene, aw: number, ah: number) {
+    this.cam = scene.cameras.main;
     const low = tdQuality() === 'low';
     this.cap = low ? TD_VISUALS.lightsLow : TD_VISUALS.lightsHigh;
     ensureLightTexture(scene);
@@ -121,10 +125,38 @@ export class TdLighting {
     // lifts the black point just enough to keep terrain readable where no light
     // pool reaches — the "ambient floor" the spec requires.
     scene.add
-      .rectangle(0, 0, aw, ah, C.haze, TD_VISUALS.ambientFloor * 0.06)
+      .rectangle(0, 0, aw, ah, C.haze, TD_VISUALS.ambientFloor * 0.1)
       .setOrigin(0)
       .setDepth(DEPTH.lighting + 2)
       .setBlendMode(Phaser.BlendModes.ADD);
+
+    // 2c — VIGNETTE. IDEAL2's depth comes as much from what is dark at the
+    // edges as from what is lit at the centre. Screen-space, so it frames the
+    // view regardless of where the camera is in the arena.
+    const vKey = 'td-vignette';
+    if (!scene.textures.exists(vKey)) {
+      const vw = 256;
+      const vh = 144;
+      const vt = scene.textures.createCanvas(vKey, vw, vh);
+      if (vt) {
+        const vc = vt.context;
+        const vg = vc.createRadialGradient(vw / 2, vh / 2, vh * 0.28, vw / 2, vh / 2, vh * 0.82);
+        vg.addColorStop(0, 'rgba(0,0,0,0)');
+        vg.addColorStop(0.6, 'rgba(0,0,0,0.35)');
+        vg.addColorStop(1, 'rgba(0,0,0,1)');
+        vc.fillStyle = vg;
+        vc.fillRect(0, 0, vw, vh);
+        vt.refresh();
+        scene.textures.get(vKey)?.setFilter(Phaser.Textures.FilterMode.LINEAR);
+      }
+    }
+    this.vignette = scene.add
+      .image(0, 0, vKey)
+      .setOrigin(0.5)
+      // positioned in WORLD space against the camera's view each frame (see
+      // update) — a scrollFactor of 0 would double-apply the camera offset
+      .setDepth(DEPTH.weather + 5)
+      .setAlpha(TD_VISUALS.vignette);
 
     // 3 — localized drifting fog. Sheets, not a full-screen wash.
     if (!low) {
@@ -163,9 +195,18 @@ export class TdLighting {
       img.setScale(h.radius / 64);
       img.setTint(h.color);
       // the ambient floor guarantees combat never drops below legibility
-      img.setAlpha(Math.max(h.intensity, 0));
+      // CLAMPED. An unclamped additive pool saturates to flat white and erases
+      // every bit of terrain detail under it — the blowout around the Node in
+      // the first pass. The cap keeps a light reading as light, not as a hole.
+      img.setAlpha(Phaser.Math.Clamp(h.intensity, 0, TD_VISUALS.lightMaxAlpha));
     }
     for (; i < this.cap; i++) if (this.lights[i].visible) this.lights[i].setVisible(false);
+
+    if (this.vignette && this.cam) {
+      this.vignette
+        .setPosition(this.cam.worldView.centerX, this.cam.worldView.centerY)
+        .setDisplaySize(this.cam.worldView.width * 1.02, this.cam.worldView.height * 1.02);
+    }
 
     for (let f = 0; f < this.fog.length; f++) {
       const sp = 5 + f * 7;
@@ -184,6 +225,7 @@ export class TdLighting {
     this.darkness.destroy();
     this.lights.forEach((l) => l.destroy());
     this.fog.forEach((f) => f.destroy());
+    this.vignette?.destroy();
     this.lights = [];
     this.fog = [];
     this.handles = [];

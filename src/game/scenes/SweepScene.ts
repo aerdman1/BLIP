@@ -234,9 +234,9 @@ export class SweepScene extends Phaser.Scene {
           emissive: TEX.tdBlipEmis,
           emissiveColor: TD_PALETTE.signal,
           lighting: this.tdLight,
-          lightRadius: 84,
+          lightRadius: 92,
           lightColor: TD_PALETTE.rim,
-          lightIntensity: 0.22,
+          lightIntensity: 0.3,
         })
       );
     }
@@ -349,6 +349,8 @@ export class SweepScene extends Phaser.Scene {
         tile: T, w: W, h: H, solid, halls: this.arena.halls,
         floor: floorCoords, markers: keyMarkers, art: this.tdArt,
       });
+      this.tdLight = new TdLighting(this, AW, AH);
+      this.tdTerrain.accentLights = (h) => void this.tdLight?.add(h);
       this.tdTerrain.build();
       // collision bodies — identical merged rects to the legacy path
       for (let y = 0; y < H; y++) {
@@ -362,7 +364,6 @@ export class SweepScene extends Phaser.Scene {
           wall.setDisplaySize(ww, T).setVisible(false).refreshBody();
         }
       }
-      this.tdLight = new TdLighting(this, AW, AH);
       this.tdShadows = new TopDownShadows(this);
       this.tdNodeRig = new SignalNodeRig(this, node.x, node.y, this.tdLight);
       return;

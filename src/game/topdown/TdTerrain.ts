@@ -21,6 +21,7 @@ import Phaser from 'phaser';
 import { TD_PALETTE as C, TD_VISUALS, TEX } from '../config';
 import { DEPTH, sortedDepth } from '../render/Depth';
 import { OBLIQUE } from '../render/Oblique';
+import { ensureShadowTexture } from '../render/TopDownShadows';
 import type { TdArt } from './TdAssets';
 
 export interface TerrainInput {
@@ -49,12 +50,20 @@ export class TdTerrain {
   private layers: Phaser.GameObjects.TileSprite[] = [];
   private shadowBake?: Phaser.GameObjects.Graphics;
   private maskImg?: Phaser.GameObjects.Image;
+  private overlays: Phaser.GameObjects.Image[] = [];
   private props: Phaser.GameObjects.Image[] = [];
   private rng = mulberry(0x5eed47);
+
+  /** injected by the scene so terrain can register its own accent lights */
+  accentLights?: (h: { x: number; y: number; radius: number; color: number; intensity: number }) => void;
 
   constructor(private scene: Phaser.Scene, private input: TerrainInput) {}
 
   build(): void {
+    // The prop contact-AO below needs the shadow texture, and terrain builds
+    // BEFORE TopDownShadows is constructed — without this every AO sprite
+    // renders Phaser's __MISSING placeholder (bright green boxes on the grid).
+    ensureShadowTexture(this.scene);
     const { tile: T, w: W, h: H } = this.input;
     const AW = W * T;
     const AH = H * T;
@@ -64,40 +73,38 @@ export class TdTerrain {
     this.dressEdges();
     this.scatterProps();
     this.buildCanopy(AW, AH);
+    this.scatterAccents();
   }
 
   /* ------------------------------ 1. ground ---------------------------------- */
   private bakeGround(AW: number, AH: number): void {
     const { tile: T, w: W, h: H, solid, halls, art } = this.input;
 
-    // LAYERED TILING, NOT CELL STAMPING.
+    // ONE SEAMLESS BASE + NON-REPEATING ORGANIC OVERLAYS.
     //
-    // Stamping material per cell (any cell size) leaves a visible rectangular
-    // grid across the whole arena — which fails the spec's "no rectangular edge
-    // is ever visible" outright. Instead three full-arena tileSprites of the
-    // SAME materials at DIFFERENT tile scales and offsets are layered: their
-    // repeat periods are mutually irrational, so the eye finds no grid, and
-    // varying alpha gives organic lit/shadow drift. Cost is 3 draw calls for
-    // the entire ground instead of hundreds.
-    const scale = TD_VISUALS.groundCell / 512; // photoscan → world material size
+    // The first pass layered three tileSprites at MISMATCHED tile scales to
+    // avoid a visible grid. That backfired: a non-integer tileScale makes the
+    // GPU sample across the texture's wrap boundary, so every repeat edge
+    // showed a 1px seam and the arena read as a field of rectangles — the exact
+    // artefact this pass exists to remove.
+    //
+    // Now: the base tiles at a scale that keeps the seamless photoscan actually
+    // seamless, and ALL variation comes from full-arena overlays that do not
+    // repeat at all (one stretched cloud texture each), so there is no wrap
+    // boundary anywhere to produce an edge.
+    const scale = TD_VISUALS.groundCell / 512;
 
-    const layer = (key: string, s: number, alpha: number, ox: number, oy: number, depth: number) => {
-      const ts = this.scene.add
-        .tileSprite(0, 0, AW, AH, key)
-        .setOrigin(0)
-        .setDepth(depth)
-        .setAlpha(alpha);
-      ts.tileScaleX = s;
-      ts.tileScaleY = s;
-      ts.tilePositionX = ox;
-      ts.tilePositionY = oy;
-      return ts;
-    };
+    const base = this.scene.add
+      .tileSprite(0, 0, AW, AH, art.ground)
+      .setOrigin(0)
+      .setDepth(DEPTH.ground);
+    base.tileScaleX = scale;
+    base.tileScaleY = scale;
+    this.layers.push(base);
 
-    this.layers.push(layer(art.ground, scale, 1, 0, 0, DEPTH.ground));
-    // lit + dark drift at deliberately mismatched periods
-    this.layers.push(layer(art.groundLit, scale * 1.61, 0.4, 137, 61, DEPTH.ground + 1));
-    this.layers.push(layer(art.groundDark, scale * 0.83, 0.34, 311, 199, DEPTH.ground + 2));
+    // organic lit/shadow drift — soft blobs, no repeats, no edges
+    this.cloudOverlay(AW, AH, 'td-cloud-lit', art.groundLit, 0x9fd8a8, 0.5, DEPTH.ground + 1, 0x000000);
+    this.cloudOverlay(AW, AH, 'td-cloud-dark', art.groundDark, 0x38505c, 0.55, DEPTH.ground + 2, 0x000000);
 
     // Worn paths along the authored corridors — where the player actually walks.
     //
@@ -139,7 +146,13 @@ export class TdTerrain {
         .setOrigin(0)
         .setScale(2)
         .setVisible(false);
-      const pathLayer = layer(art.path, scale, 0.85, 0, 0, DEPTH.patch);
+      const pathLayer = this.scene.add
+        .tileSprite(0, 0, AW, AH, art.path)
+        .setOrigin(0)
+        .setDepth(DEPTH.patch)
+        .setAlpha(0.85);
+      pathLayer.tileScaleX = scale;
+      pathLayer.tileScaleY = scale;
       pathLayer.setMask(new Phaser.Display.Masks.BitmapMask(this.scene, maskImg));
       this.maskImg = maskImg;
       this.layers.push(pathLayer);
@@ -162,6 +175,45 @@ export class TdTerrain {
     this.shadowBake = shade;
   }
 
+  /**
+   * A full-arena, NON-REPEATING soft-blob overlay. Generated once into a canvas
+   * at 1/4 arena size and stretched, so it has no wrap boundary and therefore
+   * cannot produce a seam. This is what gives the ground its large-scale
+   * lit/shadow variation now that the tiled layers are gone.
+   */
+  private cloudOverlay(
+    AW: number, AH: number, key: string, _srcKey: string, tint: number,
+    alpha: number, depth: number, _unused: number
+  ): void {
+    if (this.scene.textures.exists(key)) this.scene.textures.remove(key);
+    const w = Math.max(64, Math.ceil(AW / 4));
+    const h = Math.max(64, Math.ceil(AH / 4));
+    const ct = this.scene.textures.createCanvas(key, w, h);
+    if (!ct) return;
+    const ctx = ct.context;
+    ctx.clearRect(0, 0, w, h);
+    for (let i = 0; i < 34; i++) {
+      const cx = this.rng() * w;
+      const cy = this.rng() * h;
+      const r = (0.08 + this.rng() * 0.22) * Math.max(w, h);
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      g.addColorStop(0, `rgba(255,255,255,${0.16 + this.rng() * 0.2})`);
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    }
+    ct.refresh();
+    this.scene.textures.get(key)?.setFilter(Phaser.Textures.FilterMode.LINEAR);
+    const img = this.scene.add
+      .image(0, 0, key)
+      .setOrigin(0)
+      .setDisplaySize(AW, AH)
+      .setDepth(depth)
+      .setTint(tint)
+      .setAlpha(alpha);
+    this.overlays.push(img);
+  }
+
   /* ------------------------------ 2. wall extrusion -------------------------- */
   private buildWalls(): void {
     const { tile: T, w: W, h: H, solid, art } = this.input;
@@ -178,16 +230,27 @@ export class TdTerrain {
         // otherwise you would draw a facade inside a solid block.
         const exposed = !solid[y + 1]?.slice(x0, x).every(Boolean);
         if (exposed) {
-          this.scene.add
+          const face = this.scene.add
             .tileSprite(x0 * T, baseY - OBLIQUE.wallH, ww, OBLIQUE.wallH, art.wallFace)
+            .setOrigin(0, 0)
+            .setDepth(sortedDepth(baseY) - 1);
+          // Offset each run's texture and vary its tint. A shared origin made
+          // every wall repeat in lockstep, which read as vertical picket
+          // stripes across the arena rather than as foliage.
+          face.tilePositionX = this.rng() * 512;
+          face.setTint(0x9fb0aa);
+          // a darker band where the face meets the ground = contact occlusion
+          this.scene.add
+            .rectangle(x0 * T, baseY - 3, ww, 4, C.shadow, 0.42)
             .setOrigin(0, 0)
             .setDepth(sortedDepth(baseY) - 1);
         }
         // top cap
-        this.scene.add
+        const cap = this.scene.add
           .tileSprite(x0 * T, y * T - OBLIQUE.wallH, ww, T, art.wallTop)
           .setOrigin(0, 0)
           .setDepth(sortedDepth(baseY));
+        cap.tilePositionX = this.rng() * 512;
       }
     }
   }
@@ -212,12 +275,25 @@ export class TdTerrain {
           .setScale(TD_VISUALS.artScale * (0.7 + this.rng() * 0.5))
           .setAlpha(0.9);
         if (this.rng() < 0.5) img.setFlipX(true);
+        img.setTint(0xc4d6d4);
+        if (this.rng() < 0.45) this.contactAO(x, y - 1, img.displayWidth);
         this.props.push(img);
       }
     }
   }
 
   /* ------------------------------ 4. prop scatter ---------------------------- */
+  /** A soft dark ellipse under a prop's base. Without it, cut-out foliage reads
+   *  as a sticker floating on the terrain — the "pasted on" look in pass one. */
+  private contactAO(x: number, y: number, w: number): void {
+    const img = this.scene.add
+      .image(x, y, TEX.tdShadow)
+      .setDepth(DEPTH.shadow)
+      .setScale((w / 46) * 1.1, (w / 46) * 1.1 * OBLIQUE.k)
+      .setAlpha(0.5);
+    this.props.push(img);
+  }
+
   private scatterProps(): void {
     const { tile: T, floor, markers, art } = this.input;
     if (!art.hd) return;
@@ -236,13 +312,52 @@ export class TdTerrain {
       const p = candidates[i];
       const x = (p.tx + 0.5) * T + (this.rng() - 0.5) * 14;
       const y = (p.ty + 1) * T - 2;
+      // Wide scale variance reads as ELEVATION: a few large silhouettes near
+      // the camera against many small ones gives the flat plane a sense of
+      // depth that uniform props never will.
+      const big = this.rng() < 0.22;
+      const sc = TD_VISUALS.artScale * (big ? 1.35 + this.rng() * 0.6 : 0.6 + this.rng() * 0.45);
       const img = this.scene.add
         .image(x, y, pool[Math.floor(this.rng() * pool.length)])
         .setOrigin(0.5, 1)
         .setDepth(sortedDepth(y))
-        .setScale(TD_VISUALS.artScale * (0.85 + this.rng() * 0.45));
+        .setScale(sc);
       if (this.rng() < 0.5) img.setFlipX(true);
+      // nearer/bigger props catch a touch more light; distant ones sink to haze
+      img.setTint(big ? 0xffffff : 0xcfe0dc);
+      this.contactAO(x, y - 2, img.displayWidth);
       this.props.push(img);
+    }
+  }
+
+  /**
+   * Colour accents. The first pass was one hue end to end — green ground, green
+   * light, green node — which reads as a filter rather than art direction.
+   * IDEAL2 stays cool and desaturated overall and earns its richness from a few
+   * SMALL saturated notes: teal bioluminescence in the undergrowth and warm
+   * amber embers. Scarce on purpose (~5% coverage each), and never red — red
+   * belongs to threat.
+   */
+  private scatterAccents(): void {
+    const { tile: T, floor, art } = this.input;
+    if (!art.hd || !this.accentLights) return;
+    const spots = floor.filter((p) => p.edge);
+    for (let i = spots.length - 1; i > 0; i--) {
+      const j = Math.floor(this.rng() * (i + 1));
+      [spots[i], spots[j]] = [spots[j], spots[i]];
+    }
+    const picks = Math.min(14, spots.length);
+    for (let i = 0; i < picks; i++) {
+      const p = spots[i];
+      const x = (p.tx + 0.5) * T + (this.rng() - 0.5) * T;
+      const y = (p.ty + 0.5) * T + (this.rng() - 0.5) * T;
+      const warm = this.rng() < 0.3;
+      this.accentLights({
+        x, y,
+        radius: warm ? 34 + this.rng() * 22 : 26 + this.rng() * 20,
+        color: warm ? C.emberWarm : this.rng() < 0.75 ? C.bioTeal : C.bioBlue,
+        intensity: warm ? 0.2 + this.rng() * 0.12 : 0.16 + this.rng() * 0.14,
+      });
     }
   }
 
@@ -279,6 +394,8 @@ export class TdTerrain {
     this.layers.forEach((l) => l.destroy());
     this.shadowBake?.destroy();
     this.maskImg?.destroy();
+    this.overlays.forEach((o) => o.destroy());
+    this.overlays = [];
     this.props.forEach((p) => p.destroy());
     this.layers = [];
     this.props = [];
