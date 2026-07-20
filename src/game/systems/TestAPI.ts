@@ -697,6 +697,37 @@ export function installTestAPI(game: Phaser.Game): void {
       return { ...r, player: api.getPlayerState() ?? api.getSweepState() };
     },
 
+    /** Top-down HD visual state — asserts the render contract the visual
+     *  overhaul depends on (backbuffer density, framing, texture integrity).
+     *  Read-only; exists so e2e can verify what a screenshot cannot. */
+    getTdVisualState: () => {
+      if (!gameRef) return null;
+      const active = gameRef.scene.isActive(SCENES.sweep) || gameRef.scene.isPaused(SCENES.sweep);
+      const sc = active
+        ? (gameRef.scene.getScene(SCENES.sweep) as unknown as {
+            td?: boolean;
+            cameras: { main: { zoom: number } };
+            textures: { getTextureKeys: () => string[]; get: (k: string) => { key: string } | null };
+          } | null)
+        : null;
+      const missing: string[] = [];
+      if (sc?.td) {
+        for (const key of sc.textures.getTextureKeys()) {
+          if (!key.startsWith('td-')) continue;
+          const t = sc.textures.get(key);
+          if (!t || t.key === '__MISSING') missing.push(key);
+        }
+      }
+      return {
+        bufferW: gameRef.scale.width,
+        bufferH: gameRef.scale.height,
+        inSweep: !!active,
+        hd: !!sc?.td,
+        zoom: sc ? +sc.cameras.main.zoom.toFixed(4) : null,
+        missingTextures: missing,
+      };
+    },
+
     /** Top-down (SweepScene) player state — getPlayerState() covers the side-view
      *  scenes; this covers the Sweep/Fold combat where the player is a BlipCraft. */
     getSweepState: () => {

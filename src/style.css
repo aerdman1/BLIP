@@ -214,6 +214,9 @@ button { font-family: var(--mono); }
 }
 #game-root { position: absolute; inset: 0; }
 #game-root canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
+/* Top-down HD: the backbuffer is LARGER than the CSS box, so the canvas is being
+   DOWN-scaled. `pixelated` on a downscale aliases harshly — let the browser filter. */
+body.td-hires #game-root canvas { image-rendering: auto; }
 
 /* High-resolution DOM gameplay UI. World sprites stay pixelated; readable UI
    text is rendered by the browser so it does not get block-scaled by Phaser. */
@@ -1744,4 +1747,188 @@ body.compact-gameplay #touch-controls .tc-stick {
   background:
     radial-gradient(circle at 50% 50%, rgba(168, 255, 62, 0.08), rgba(8, 14, 26, 0.14) 43%, rgba(8, 14, 26, 0.28) 44%, rgba(8, 14, 26, 0.1) 72%),
     repeating-radial-gradient(circle, rgba(246, 231, 180, 0.14) 0 1px, transparent 1px 15px);
+}
+
+/* ============================================================================
+   TOP-DOWN HD HUD (`.td-hud`)
+   Scoped entirely under #sweep-hud-dom.td-hud and body.td-hud-active so the
+   side-scrolling UI is provably untouched. Four panels, one concern each; the
+   world gets the rest of the screen.
+   ========================================================================== */
+#sweep-hud-dom.td-hud {
+  --td-ink: #dff3e4;
+  --td-dim: #8fae99;
+  --td-sig: #8dff7a;
+  --td-warn: #ffc247;
+  --td-crit: #ff5a4d;
+  --td-pad: clamp(8px, 1.6vw, 18px);
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+}
+#sweep-hud-dom.td-hud > * { position: absolute; }
+
+/* panel skin: one soft card, no double frames, no heavy borders */
+#sweep-hud-dom.td-hud .td-objective,
+#sweep-hud-dom.td-hud .td-vitals {
+  background: linear-gradient(180deg, rgba(6, 16, 12, 0.82), rgba(4, 10, 8, 0.72));
+  border: 1px solid rgba(141, 255, 122, 0.16);
+  border-radius: 10px;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+}
+
+/* ---- objective: top-left ---- */
+#sweep-hud-dom.td-hud .td-objective {
+  top: var(--td-pad); left: var(--td-pad);
+  min-width: clamp(150px, 20vw, 240px);
+  padding: clamp(7px, 1vw, 11px) clamp(10px, 1.2vw, 14px);
+}
+#sweep-hud-dom.td-hud .td-objective-title {
+  color: var(--td-ink);
+  font-size: clamp(10px, 1.15vw, 14px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+#sweep-hud-dom.td-hud .td-objective-title.ready { color: var(--td-sig); }
+#sweep-hud-dom.td-hud .td-objective-sub {
+  color: var(--td-dim);
+  font-size: clamp(9px, 0.92vw, 12px);
+  margin-top: 2px;
+}
+#sweep-hud-dom.td-hud .td-objective-sub.clear { color: var(--td-sig); }
+#sweep-hud-dom.td-hud .td-objective-bar {
+  margin-top: 7px; height: 3px; border-radius: 2px;
+  background: rgba(255, 255, 255, 0.09); overflow: hidden;
+}
+#sweep-hud-dom.td-hud .td-objective-bar i {
+  display: block; height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--td-sig), #d4ffe8);
+  box-shadow: 0 0 8px rgba(141, 255, 122, 0.65);
+  transition: width 0.25s ease-out;
+}
+
+/* ---- vitals: bottom-left ---- */
+#sweep-hud-dom.td-hud .td-vitals {
+  bottom: var(--td-pad); left: var(--td-pad);
+  display: flex; align-items: center; gap: 9px;
+  padding: clamp(6px, 0.8vw, 9px) clamp(9px, 1.1vw, 13px);
+  min-width: clamp(160px, 21vw, 250px);
+}
+#sweep-hud-dom.td-hud .td-vitals-chip {
+  width: clamp(20px, 2.2vw, 28px); height: clamp(20px, 2.2vw, 28px);
+  border-radius: 6px; flex: none;
+  background: radial-gradient(circle at 38% 32%, #f2f4ee 0%, #b9c2b6 62%, #6d7a70 100%);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+  position: relative;
+}
+/* CONTACT-47's visor — the character read, drawn in CSS so it stays crisp */
+#sweep-hud-dom.td-hud .td-vitals-chip::after {
+  content: ''; position: absolute; left: 16%; right: 16%; top: 38%; height: 24%;
+  border-radius: 3px; background: var(--td-sig);
+  box-shadow: 0 0 7px rgba(141, 255, 122, 0.85);
+}
+#sweep-hud-dom.td-hud .td-vitals-body { flex: 1; min-width: 0; }
+#sweep-hud-dom.td-hud .td-vitals-name {
+  color: var(--td-dim); font-size: clamp(7px, 0.72vw, 9px);
+  letter-spacing: 0.16em; font-weight: 600;
+}
+#sweep-hud-dom.td-hud .td-hp {
+  margin: 4px 0 3px; height: 5px; border-radius: 3px;
+  background: rgba(255, 255, 255, 0.09); overflow: hidden;
+}
+#sweep-hud-dom.td-hud .td-hp i {
+  display: block; height: 100%; width: 100%;
+  background: var(--td-sig); box-shadow: 0 0 8px rgba(141, 255, 122, 0.5);
+  transition: width 0.18s ease-out, background 0.18s linear;
+}
+#sweep-hud-dom.td-hud .td-hp i[data-state='warn'] { background: var(--td-warn); box-shadow: 0 0 8px rgba(255, 194, 71, 0.5); }
+#sweep-hud-dom.td-hud .td-hp i[data-state='crit'] { background: var(--td-crit); box-shadow: 0 0 9px rgba(255, 90, 77, 0.6); animation: tdCrit 0.9s ease-in-out infinite; }
+@keyframes tdCrit { 50% { opacity: 0.55; } }
+#sweep-hud-dom.td-hud .td-weapon { display: flex; align-items: baseline; gap: 6px; }
+#sweep-hud-dom.td-hud .td-weapon .cap { color: var(--td-dim); font-size: clamp(7px, 0.68vw, 9px); letter-spacing: 0.14em; }
+#sweep-hud-dom.td-hud .td-weapon .val { color: var(--td-ink); font-size: clamp(9px, 0.95vw, 12px); font-weight: 700; letter-spacing: 0.05em; }
+
+/* ---- overdrive: bottom-centre, restrained until READY ---- */
+#sweep-hud-dom.td-hud .td-overdrive {
+  bottom: var(--td-pad); left: 50%; transform: translateX(-50%);
+  width: clamp(140px, 19vw, 230px); text-align: center;
+  opacity: calc(0.6 * var(--td-pulse, 1));
+  transition: opacity 0.2s linear;
+}
+#sweep-hud-dom.td-hud .td-overdrive span {
+  display: block; color: var(--td-dim);
+  font-size: clamp(7px, 0.7vw, 9px); letter-spacing: 0.2em; font-weight: 600;
+}
+#sweep-hud-dom.td-hud .td-overdrive span.ready { color: var(--td-sig); }
+#sweep-hud-dom.td-hud .td-overdrive:has(span.ready) { opacity: var(--td-pulse, 1); }
+#sweep-hud-dom.td-hud .td-overdrive div {
+  margin-top: 4px; height: 3px; border-radius: 2px;
+  background: rgba(255, 255, 255, 0.1); overflow: hidden;
+}
+#sweep-hud-dom.td-hud .td-overdrive i {
+  display: block; height: 100%; width: 0%;
+  background: linear-gradient(90deg, #4a6cff, #3df0ff, var(--td-sig));
+  transition: width 0.2s linear;
+}
+
+/* ---- abilities: bottom-right ---- */
+#sweep-hud-dom.td-hud .td-abilities {
+  bottom: var(--td-pad); right: var(--td-pad);
+  display: flex; gap: clamp(6px, 0.8vw, 11px);
+}
+#sweep-hud-dom.td-hud .td-abilities span {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  color: var(--td-ink); font-size: clamp(7px, 0.72vw, 9px);
+  letter-spacing: 0.12em; font-weight: 600;
+}
+#sweep-hud-dom.td-hud .td-abilities span::before {
+  content: attr(data-k);
+  display: grid; place-items: center;
+  min-width: clamp(20px, 2.3vw, 30px); height: clamp(15px, 1.7vw, 21px);
+  padding: 0 5px; border-radius: 5px;
+  background: rgba(6, 16, 12, 0.8);
+  border: 1px solid rgba(141, 255, 122, 0.2);
+  color: var(--td-dim); font-size: clamp(6px, 0.62vw, 8px); letter-spacing: 0.06em;
+}
+
+/* ---- transient banner (the only contextual alert) ---- */
+#sweep-hud-dom.td-hud .sweep-hud-banner {
+  top: 22%; left: 50%; transform: translate(-50%, -6px);
+  color: var(--td-sig); font-size: clamp(15px, 2.4vw, 30px);
+  font-weight: 800; letter-spacing: 0.07em; white-space: nowrap;
+  text-shadow: 0 0 18px rgba(141, 255, 122, 0.55);
+  opacity: 0; transition: opacity 0.25s ease, transform 0.25s ease;
+}
+#sweep-hud-dom.td-hud .sweep-hud-banner.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---- shell chrome suppression: the world owns the screen ----
+   The status strip and objective ticker duplicate what the panels above already
+   say. Hidden only while the top-down arena is up; side-view keeps all of it. */
+body.td-hud-active #status-strip,
+body.td-hud-active #objective-bar { display: none; }
+body.td-hud-active #game-frame { border-radius: 0; }
+
+/* ---- responsive ---- */
+@media (max-width: 700px), (orientation: landscape) and (max-height: 520px) {
+  #sweep-hud-dom.td-hud { --td-pad: 7px; }
+  #sweep-hud-dom.td-hud .td-vitals-name { display: none; }
+  /* the touch cluster already shows the abilities — never duplicate them */
+  body.compact-gameplay #sweep-hud-dom.td-hud .td-abilities { display: none; }
+  #sweep-hud-dom.td-hud .td-overdrive { width: clamp(110px, 34vw, 190px); }
+}
+@media (max-width: 420px) {
+  #sweep-hud-dom.td-hud .td-objective { min-width: 0; max-width: 52vw; }
+}
+/* respect notches on phones */
+@supports (padding: env(safe-area-inset-left)) {
+  #sweep-hud-dom.td-hud .td-objective,
+  #sweep-hud-dom.td-hud .td-vitals { margin-left: env(safe-area-inset-left); }
+  #sweep-hud-dom.td-hud .td-abilities { margin-right: env(safe-area-inset-right); }
+  #sweep-hud-dom.td-hud .td-vitals,
+  #sweep-hud-dom.td-hud .td-overdrive,
+  #sweep-hud-dom.td-hud .td-abilities { margin-bottom: env(safe-area-inset-bottom); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #sweep-hud-dom.td-hud .td-hp i[data-state='crit'] { animation: none; }
 }

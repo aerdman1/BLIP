@@ -8,3 +8,8 @@ playwright-report/
 .DS_Store
 *.local
 .vercel
+
+# Top-down art pipeline: raw CC0 originals, intermediate sprites and the
+# review contact sheet. Regenerate with scripts/art/. The PROCESSED outputs
+# under public/assets/topdown/ ARE committed.
+art-src/

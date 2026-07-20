@@ -1,0 +1,96 @@
+{
+  "generatedAt": "2026-07-20T02:28:16.949Z",
+  "note": "All sources are site-wide CC0 (public domain). No attribution required.",
+  "entries": [
+    {
+      "id": "ambientcg:Grass004",
+      "file": "art-src/originals/ambientcg_grass004_color.jpg",
+      "sourcePage": "https://ambientcg.com/view?id=Grass004",
+      "fileUrl": "https://ambientcg.com/get?file=Grass004_1K-JPG.zip",
+      "apiUrl": "https://ambientcg.com/api/v2/full_json?id=Grass004&include=downloadData",
+      "license": "CC0-1.0",
+      "attributionRequired": false,
+      "retrieved": "2026-07-20",
+      "sha256": "9e1c60da44b34a9738b1256ba827541f097dc583521b1d281e61b5f4b4217bc5",
+      "bytes": 1985561,
+      "status": "ok"
+    },
+    {
+      "id": "ambientcg:Ground037",
+      "file": "art-src/originals/ambientcg_ground037_color.jpg",
+      "sourcePage": "https://ambientcg.com/view?id=Ground037",
+      "fileUrl": "https://ambientcg.com/get?file=Ground037_1K-JPG.zip",
+      "apiUrl": "https://ambientcg.com/api/v2/full_json?id=Ground037&include=downloadData",
+      "license": "CC0-1.0",
+      "attributionRequired": false,
+      "retrieved": "2026-07-20",
+      "sha256": "d92bec8a35b9cb16ec79b421ca0f572a7400286eae109beafa266629ef49a6cf",
+      "bytes": 2187764,
+      "status": "ok"
+    },
+    {
+      "id": "ambientcg:Rock030",
+      "file": "art-src/originals/ambientcg_rock030_color.jpg",
+      "sourcePage": "https://ambientcg.com/view?id=Rock030",
+      "fileUrl": "https://ambientcg.com/get?file=Rock030_1K-JPG.zip",
+      "apiUrl": "https://ambientcg.com/api/v2/full_json?id=Rock030&include=downloadData",
+      "license": "CC0-1.0",
+      "attributionRequired": false,
+      "retrieved": "2026-07-20",
+      "sha256": "1dca8a336518ce0adca4b5cbe2ab30819c8769388f1c15278082a99f022c615a",
+      "bytes": 1483352,
+      "status": "ok"
+    },
+    {
+      "id": "polyhaven:aerial_grass_rock",
+      "file": "art-src/originals/polyhaven_aerial_grass_rock_diff_1k.jpg",
+      "sourcePage": "https://polyhaven.com/a/aerial_grass_rock",
+      "fileUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/aerial_grass_rock/aerial_grass_rock_diff_1k.jpg",
+      "apiUrl": "https://api.polyhaven.com/files/aerial_grass_rock",
+      "license": "CC0-1.0",
+      "attributionRequired": false,
+      "retrieved": "2026-07-20",
+      "sha256": "57b8041bfe0d0f01430e4dbaad45e7ddddf0a9fc97317f90dbc51f7b0d9e1b5d",
+      "bytes": 666655,
+      "status": "ok"
+    },
+    {
+      "id": "polyhaven:aerial_ground_rock",
+      "file": "art-src/originals/polyhaven_aerial_ground_rock_diff_1k.jpg",
+      "sourcePage": "https://polyhaven.com/a/aerial_ground_rock",
+      "fileUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/aerial_ground_rock/aerial_ground_rock_diff_1k.jpg",
+      "apiUrl": "https://api.polyhaven.com/files/aerial_ground_rock",
+      "license": "CC0-1.0",
+      "attributionRequired": false,
+      "retrieved": "2026-07-20",
+      "sha256": "c14761998b32630dd193b0fbfd31c8c6f5a144a701b84f87f9d7c33596cc554f",
+      "bytes": 599629,
+      "status": "ok"
+    },
+    {
+      "id": "polyhaven:aerial_rocks_02",
+      "file": "art-src/originals/polyhaven_aerial_rocks_02_diff_1k.jpg",
+      "sourcePage": "https://polyhaven.com/a/aerial_rocks_02",
+      "fileUrl": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/aerial_rocks_02/aerial_rocks_02_diff_1k.jpg",
+      "apiUrl": "https://api.polyhaven.com/files/aerial_rocks_02",
+      "license": "CC0-1.0",
+      "attributionRequired": false,
+      "retrieved": "2026-07-20",
+      "sha256": "708373b2af7fd07ac8de1500556006aaf904c41a99985a849cacc78874f38eac",
+      "bytes": 785923,
+      "status": "ok"
+    },
+    {
+      "id": "kenney:foliage-sprites",
+      "file": "art-src/unzip/kenney-foliage",
+      "sourcePage": "https://kenney.nl/assets/foliage-sprites",
+      "fileUrl": "https://kenney.nl/media/pages/assets/foliage-sprites/b65bd70c69-1677495980/kenney_foliage-sprites.zip",
+      "license": "CC0-1.0",
+      "attributionRequired": false,
+      "retrieved": "2026-07-20",
+      "sha256": "8e3e944acaa731a90e0b004846d2ce99ee8a65d5479b4c2f421cab7cdde128e5",
+      "bytes": 2432412,
+      "status": "ok"
+    }
+  ]
+}

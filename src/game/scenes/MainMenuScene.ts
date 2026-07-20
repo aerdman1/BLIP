@@ -12,6 +12,7 @@ import { audio } from '../systems/AudioSystem';
 import { bus } from '../systems/EventBus';
 import { getSave, resetSave, updateSave } from '../systems/SaveSystem';
 import { quests } from '../systems/QuestSystem';
+import { restoreBase } from '../render/RenderScale';
 import { registerScene, unregisterScene } from '../systems/TestAPI';
 import { attachScreenFilter, nightVisionIntro } from '../systems/ScreenFilter';
 
@@ -40,6 +41,7 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   create(): void {
+    restoreBase(this); // defensive: the Sweep raises the backbuffer; never inherit it
     this.starting = false;
     this.cameras.main.setZoom(RENDER_ZOOM).centerOn(VIEW_W / 2, VIEW_H / 2);
     attachScreenFilter(this, false); // keeps the title camera in sync with the filter setting

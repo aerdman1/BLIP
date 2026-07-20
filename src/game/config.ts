@@ -1127,6 +1127,164 @@ export const TEX = {
   // Zone 4 — top-down orchard biome (Sweep `maze-z4`)
   sweepCornGround: 'sweep-corn-ground', // orchard biome ground (corn rows)
   sweepCornWall: 'sweep-corn-wall', // orchard biome WALL tile (corn stalks)
+
+  /* ---- TOP-DOWN HD ("td") — the Sweep visual overhaul, surface-z1 only ----
+   * A SEPARATE namespace from `sweep*` on purpose. `sweep*` keys are procedural
+   * pixel art shared by the motel/orchard arenas and MUST keep working. `td*`
+   * keys are real HD art loaded from public/assets/topdown/ and are the ONLY
+   * keys ever given a LINEAR texture filter (see render/RenderScale.linearTd).
+   * Atlas frame names are these exact strings. */
+  tdGround: 'td-ground', // base ground tile (tileSprite — individual file, not atlased)
+  tdGroundLit: 'td-ground-lit',
+  tdGroundDark: 'td-ground-dark',
+  tdPath: 'td-path',
+  tdWallTop: 'td-wall-top', // wall top-cap tile
+  tdWallFace: 'td-wall-face', // wall extrusion face strip
+  tdBlip: 'td-blip', // CONTACT-47
+  tdBlipEmis: 'td-blip-emis', // visor emissive (additive layer)
+  tdDrifter: 'td-drifter',
+  tdDrifterEmis: 'td-drifter-emis',
+  tdTagger: 'td-tagger',
+  tdTaggerEmis: 'td-tagger-emis',
+  tdDiver: 'td-diver',
+  tdDiverEmis: 'td-diver-emis',
+  tdWarden: 'td-warden',
+  tdWardenEmis: 'td-warden-emis',
+  tdSniper: 'td-sniper',
+  tdSniperEmis: 'td-sniper-emis',
+  tdSplitter: 'td-splitter',
+  tdSplitterEmis: 'td-splitter-emis',
+  tdWeaver: 'td-weaver',
+  tdWeaverEmis: 'td-weaver-emis',
+  tdTurret: 'td-turret',
+  tdTurretEmis: 'td-turret-emis',
+  tdElite: 'td-elite',
+  tdEliteEmis: 'td-elite-emis',
+  tdNode: 'td-node',
+  tdNodeEmis: 'td-node-emis',
+  tdRock: 'td-rock',
+  tdLog: 'td-log',
+  tdBush: 'td-bush',
+  tdFern: 'td-fern',
+  tdTuft: 'td-tuft',
+  tdCanopy: 'td-canopy',
+  tdDebris: 'td-debris',
+  tdScrap: 'td-scrap',
+  // runtime-canvas (not loaded): sweep-only aliases so LINEAR never touches the
+  // shared glow8/spark/px keys the side-view scenes depend on.
+  tdGlow: 'td-glow',
+  tdShadow: 'td-shadow',
+  tdLight: 'td-light',
+  tdFog: 'td-fog',
+  tdRing: 'td-ring',
+} as const;
+
+/** Individual tile files (tileSprite needs real texture wrap — cannot be atlased). */
+export const TD_TILE_KEYS = [
+  TEX.tdGround, TEX.tdGroundLit, TEX.tdGroundDark, TEX.tdPath, TEX.tdWallTop, TEX.tdWallFace,
+] as const;
+
+/** Atlas frame keys — must match the frame names emitted by scripts/art/build-atlas.mjs. */
+export const TD_ATLAS_FRAMES = [
+  TEX.tdBlip, TEX.tdBlipEmis,
+  TEX.tdDrifter, TEX.tdDrifterEmis, TEX.tdTagger, TEX.tdTaggerEmis,
+  TEX.tdDiver, TEX.tdDiverEmis, TEX.tdWarden, TEX.tdWardenEmis,
+  TEX.tdSniper, TEX.tdSniperEmis, TEX.tdSplitter, TEX.tdSplitterEmis,
+  TEX.tdWeaver, TEX.tdWeaverEmis, TEX.tdTurret, TEX.tdTurretEmis,
+  TEX.tdElite, TEX.tdEliteEmis, TEX.tdNode, TEX.tdNodeEmis,
+  TEX.tdRock, TEX.tdLog, TEX.tdBush, TEX.tdFern, TEX.tdTuft,
+  TEX.tdCanopy, TEX.tdDebris, TEX.tdScrap,
+] as const;
+
+/** Sprite key per enemy archetype (HD top-down). Body + emissive layer. */
+export const TD_ENEMY_TEX: Record<SweepEnemyKind, { body: string; emis: string }> = {
+  drifter: { body: TEX.tdDrifter, emis: TEX.tdDrifterEmis },
+  tagger: { body: TEX.tdTagger, emis: TEX.tdTaggerEmis },
+  diver: { body: TEX.tdDiver, emis: TEX.tdDiverEmis },
+  warden: { body: TEX.tdWarden, emis: TEX.tdWardenEmis },
+  sniper: { body: TEX.tdSniper, emis: TEX.tdSniperEmis },
+  splitter: { body: TEX.tdSplitter, emis: TEX.tdSplitterEmis },
+  weaver: { body: TEX.tdWeaver, emis: TEX.tdWeaverEmis },
+  turret: { body: TEX.tdTurret, emis: TEX.tdTurretEmis },
+};
+
+/* ------------------------ top-down HD visual treatment ---------------------- */
+/**
+ * THE SINGLE KNOB for the top-down overhaul. `enabled: false` ⇒ every td entry
+ * point becomes a no-op and the Sweep renders exactly as it did before.
+ * Scoped to ONE arena on purpose (see `useTdVisuals`) — the other arenas keep
+ * their procedural pixel art untouched.
+ */
+export const TD_VISUALS = {
+  enabled: true,
+  /** the ONLY arena overhauled in this pass; add ids as later arenas are done */
+  arenas: ['surface-z1'] as readonly string[],
+  /** backbuffer density multiplier: 480d × 270d. Integer keeps math clean. */
+  density: { desktop: 3, touch: 2 },
+  /** 'auto' ⇒ 'low' on touch (mirrors VISUAL_FX.quality) */
+  quality: 'auto' as 'auto' | 'high' | 'low',
+  /**
+   * Display scale for every `td-*` sprite.
+   *
+   * The art is AUTHORED AT 2x its intended on-screen size (supersampling: the
+   * camera then minifies it slightly, which is what produces smooth edges
+   * instead of aliasing). Everything that draws td art must therefore render at
+   * this scale, or a 230px canopy lands in a 585px-wide viewport and blacks out
+   * the arena — which is exactly what happened before this existed.
+   */
+  artScale: 0.5,
+  /** Ground material repeat in px. The albedos are 512² photoscans; repeating
+   *  them at 256 means only 2x minification, which stays crisp. Smaller values
+   *  (64) minify 8x and turn the grass into aliased static. */
+  groundCell: 256,
+  /** foreshortening: a prop of render height H occupies H*k of ground depth */
+  obliqueK: 0.55,
+  /** subtle lens tilt — render-y offset per world-y away from camera centre */
+  lensTilt: 0.02,
+  /** wall extrusion height in px (the "face" strip above each wall tile) */
+  wallHeight: 22,
+  /** global light direction for baked + dynamic shadows (radians, screen space) */
+  lightAngle: 2.36, // ≈135° → light from upper-left, shadows fall lower-right
+  shadowLen: 0.42, // shadow offset as a fraction of caster height
+  maxDynamicShadows: 24,
+  /** ambient floor — the darkness layer never drops legibility below this */
+  ambientFloor: 0.42,
+  /** Multiply-layer strength. Kept LOW on purpose: the ground albedos are
+   *  already night-graded offline (mean luminance ~0.12), so this layer only
+   *  shapes contrast and falloff. Pushing it higher double-darkens the scene
+   *  to near-black — measured, not guessed. */
+  darkness: 0.22,
+  darknessLow: 0.16,
+  lightsHigh: 24,
+  lightsLow: 12,
+} as const;
+
+/** Is the HD top-down treatment active for this arena id? */
+export function useTdVisuals(arenaId: string): boolean {
+  return TD_VISUALS.enabled && TD_VISUALS.arenas.includes(arenaId);
+}
+
+/** Top-down palette — EXTENDS PALETTE, never replaces it. Night forest, one
+ *  dominant hue (green), red reserved for threat, shadows cool not black. */
+export const TD_PALETTE = {
+  groundDeep: 0x08150e,
+  ground: 0x0f2418,
+  groundLit: 0x1a3a26,
+  wet: 0x0b1c16,
+  path: 0x241a10,
+  pathLit: 0x33260f,
+  wallTop: 0x16301f,
+  wallFace: 0x08130c,
+  foliageNear: 0x061009,
+  foliageMid: 0x14301d,
+  foliageFar: 0x1c3a3c, // haze-shifted toward blue
+  haze: 0x16323a,
+  shadow: 0x040a10, // cool, never pure black
+  signal: 0x8dff7a,
+  signalCore: 0xd4ffe8,
+  danger: 0xff3b30,
+  rim: 0xffe9c4, // warm rim light on actors
+  amber: 0xe6c14a,
 } as const;
 
 /* ---------------------------------- events --------------------------------- */

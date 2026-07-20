@@ -17,6 +17,16 @@ const CORE_URLS = [
   '/assets/portraits/henry.png',
   '/assets/portraits/cameron.png',
   '/assets/portraits/danny.png',
+  // HD top-down art (surface-z1) — the game's only file-loaded game assets.
+  // Precached so the arena works offline; images are served cache-first below.
+  '/assets/topdown/topdown-z1.webp',
+  '/assets/topdown/topdown-z1.json',
+  '/assets/topdown/td-ground.webp',
+  '/assets/topdown/td-ground-lit.webp',
+  '/assets/topdown/td-ground-dark.webp',
+  '/assets/topdown/td-path.webp',
+  '/assets/topdown/td-wall-top.webp',
+  '/assets/topdown/td-wall-face.webp',
   '/qa-status.json',
 ];
 

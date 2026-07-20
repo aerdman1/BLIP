@@ -131,7 +131,7 @@ export const BUILD_TODO: TodoItem[] = [
   { label: 'Mini-boss: The Scarecrow Antenna', done: true },
   { label: 'HYBRID: top-down Scan combat mode (SweepScene)', done: true },
   { label: 'HYBRID: the Fold transition (side-view ⇄ top-down)', done: true },
-  { label: 'HYBRID: Z1 cold-open — top-down Surface → Fold → Miller Field', done: true },
+  { label: 'HYBRID: Z1 cold-open — top-down Surface → Fold → Miller Field (HD visual overhaul: hi-res backbuffer, y-sorted 2.5D, CC0 photoscan terrain, DOM HUD)', done: true },
   { label: 'HYBRID: Z2 fuse box → top-down circuit → Fold back (powers wing)', done: true },
   { label: 'HYBRID: top-down/alt beats — Z3 rec-pool dive + Z4 maze crop-draw (Fold → maze-z4); Z5–Z6 planned', done: true },
   { label: "Zone 4 — Patterson's Orchard: apple climb + shifting corn maze + cider cellar + Fold to maze-z4 + crop-circle bloom + FULL Harvest Pattern boss (read-glyph strike windows + low-HP harvest sweeps) + orchard music", done: true },

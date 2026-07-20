@@ -9,7 +9,7 @@
  * fire yourself. Tuning in config.SWEEP.
  */
 import Phaser from 'phaser';
-import { EVT, PALETTE as P, RENDER_ZOOM, SCENES, SWEEP, SWEEP_BOSS, SWEEP_ELITE, TEX, css, type SweepEnemyKind } from '../config';
+import { EVT, PALETTE as P, RENDER_ZOOM, SCENES, SWEEP, SWEEP_BOSS, SWEEP_ELITE, TD_ENEMY_TEX, TD_PALETTE, TEX, VIEW_W, css, useTdVisuals, type SweepEnemyKind } from '../config';
 import { buildSweepTextures } from '../art/sweepTextures';
 import { BlipCraft } from '../entities/sweep/BlipCraft';
 import { SweepEnemy } from '../entities/sweep/SweepEnemy';
@@ -26,6 +26,12 @@ import { readPad } from '../systems/PadSim';
 import { addShards, updateSave } from '../systems/SaveSystem';
 import { activeSkin } from '../systems/SkinState';
 import { uiOverlayActive } from '../systems/UIState';
+import { enterHiRes, linearAllTd, restoreBase } from '../render/RenderScale';
+import { TopDownShadows } from '../render/TopDownShadows';
+import { bindAtlasFrames, resolveTdArt, type TdArt } from '../topdown/TdAssets';
+import { TdTerrain } from '../topdown/TdTerrain';
+import { TdLighting } from '../topdown/TdLighting';
+import { ActorRig, SignalNodeRig } from '../topdown/TdActors';
 
 type PickupType = 'health' | 'weapon' | 'boon';
 
@@ -106,6 +112,15 @@ export class SweepScene extends Phaser.Scene {
   private bossActive = false; // the Maze Heart is alive and gating the breach
   private bossAddsSpawned = false; // one-time reinforcement wave fired
 
+  /* ---- HD top-down visual treatment (surface-z1 only; see TD_VISUALS) ---- */
+  private td = false; // is the HD treatment active for this arena?
+  private tdArt!: TdArt;
+  private tdTerrain?: TdTerrain;
+  private tdLight?: TdLighting;
+  private tdShadows?: TopDownShadows;
+  private tdNodeRig?: SignalNodeRig;
+  private tdRigs = new Map<Phaser.GameObjects.GameObject, ActorRig>();
+
   private exiting = false;
   private gameOverShown = false;
   private isPaused = false;
@@ -117,6 +132,22 @@ export class SweepScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Resolve the arena id FIRST — it decides whether this is the overhauled
+    // arena, which in turn decides the backbuffer size. Must happen before any
+    // camera or texture work.
+    const arenaId = (this.registry.get('sweepArenaId') as string) ?? DEFAULT_ARENA;
+    // Decide HD in ONE place, and only after confirming the art actually loaded.
+    // Raising the backbuffer for an arena that then falls back to procedural art
+    // would give us the cost of hi-res with none of the benefit.
+    bindAtlasFrames(this);
+    this.tdArt = resolveTdArt(this);
+    this.td = useTdVisuals(arenaId) && this.tdArt.hd;
+    if (this.td) {
+      // Raise the backbuffer synchronously — never in a delayedCall, or an iOS
+      // rotation refit can interleave with the resize. Restored in onShutdown().
+      enterHiRes(this);
+      linearAllTd(this);
+    }
     buildSweepTextures(this);
     this.fx = new EffectsSystem(this);
     this.input2 = new PlayerInput(this);
@@ -148,8 +179,7 @@ export class SweepScene extends Phaser.Scene {
     this.bossActive = false;
     this.bossAddsSpawned = false;
 
-    const id = (this.registry.get('sweepArenaId') as string) ?? DEFAULT_ARENA;
-    this.arena = SWEEP_ARENAS[id] ?? SWEEP_ARENAS[DEFAULT_ARENA];
+    this.arena = SWEEP_ARENAS[arenaId] ?? SWEEP_ARENAS[DEFAULT_ARENA];
     this.traverse = this.arena.mode === 'traverse';
 
     const T = SWEEP.tile;
@@ -168,7 +198,16 @@ export class SweepScene extends Phaser.Scene {
       this.arena.biome === 'motel' ? '#080810' : this.arena.biome === 'orchard' ? '#0e0a16' : '#08130d'
     );
     const coarsePointer = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
-    this.cameras.main.setZoom(RENDER_ZOOM * (coarsePointer ? SWEEP.touchCameraZoom : SWEEP.cameraZoom));
+    // Multiply by the SAME density the backbuffer was raised by, so the visible
+    // world region is identical to the 480x270 build — no gameplay retuning.
+    const dens = this.scale.width / VIEW_W;
+    this.cameras.main.setZoom(dens * RENDER_ZOOM * (coarsePointer ? SWEEP.touchCameraZoom : SWEEP.cameraZoom));
+    if (this.td) {
+      // Pixel-snapping at a fractional zoom produces jitter, and y-sorted
+      // shadows need sub-pixel continuity. Sweep camera only.
+      this.cameras.main.setRoundPixels(false);
+      this.cameras.main.setBackgroundColor(css(TD_PALETTE.groundDeep));
+    }
     this.cameras.main.setBounds(0, 0, AW, AH);
 
     this.physics.world.gravity.y = 0;
@@ -187,6 +226,20 @@ export class SweepScene extends Phaser.Scene {
     this.player = new BlipCraft(this, spawnX, spawnY, this.fx);
     (this.player.body as Phaser.Physics.Arcade.Body).setCollideWorldBounds(true);
     this.cameras.main.startFollow(this.player, true, 0.16, 0.16);
+    if (this.td) {
+      this.tdRigs.set(
+        this.player,
+        new ActorRig(this, this.player, {
+          body: TEX.tdBlip,
+          emissive: TEX.tdBlipEmis,
+          emissiveColor: TD_PALETTE.signal,
+          lighting: this.tdLight,
+          lightRadius: 84,
+          lightColor: TD_PALETTE.rim,
+          lightIntensity: 0.22,
+        })
+      );
+    }
 
     this.reticle = this.add.image(spawnX, spawnY - 40, TEX.sweepReticle).setDepth(30).setTint(P.signal).setAlpha(0.9);
 
@@ -286,6 +339,34 @@ export class SweepScene extends Phaser.Scene {
       Math.abs(tx - m.tx) + Math.abs(ty - m.ty) < d;
     const keyMarkers = [this.arena.spawn, this.arena.node, this.arena.breach].filter(Boolean) as Array<{ tx: number; ty: number }>;
     const clearOf = (tx: number, ty: number, d = 2) => !keyMarkers.some((m) => near(tx, ty, m, d));
+
+    // ── HD PATH ─────────────────────────────────────────────────────────────
+    // The overhauled arena builds its ground, walls, edges, props and canopy in
+    // TdTerrain instead. `solid`/`floorTiles` above are the shared collision
+    // truth and are used by BOTH paths — nothing about layout changes.
+    if (this.td) {
+      this.tdTerrain = new TdTerrain(this, {
+        tile: T, w: W, h: H, solid, halls: this.arena.halls,
+        floor: floorCoords, markers: keyMarkers, art: this.tdArt,
+      });
+      this.tdTerrain.build();
+      // collision bodies — identical merged rects to the legacy path
+      for (let y = 0; y < H; y++) {
+        let x = 0;
+        while (x < W) {
+          if (!solid[y][x]) { x++; continue; }
+          const x0 = x;
+          while (x < W && solid[y][x]) x++;
+          const ww = (x - x0) * T;
+          const wall = this.walls.create(x0 * T + ww / 2, y * T + T / 2, TEX.px) as Phaser.Physics.Arcade.Image;
+          wall.setDisplaySize(ww, T).setVisible(false).refreshBody();
+        }
+      }
+      this.tdLight = new TdLighting(this, AW, AH);
+      this.tdShadows = new TopDownShadows(this);
+      this.tdNodeRig = new SignalNodeRig(this, node.x, node.y, this.tdLight);
+      return;
+    }
 
     // 2 — tonal ground patches (lit + shadow) so it never reads as one flat field
     const patch = (tex: string, alpha: number, count: number, wt: number, ht: number) => {
@@ -454,6 +535,29 @@ export class SweepScene extends Phaser.Scene {
     this.showBanner('CROP CIRCLE COMPLETE');
   }
 
+  /** Single funnel for every enemy spawn — guarantees the HD rig is attached no
+   *  matter which code path created the drone (waves, authored, splits, adds). */
+  private addEnemy(e: SweepEnemy): SweepEnemy {
+    this.enemies.add(e);
+    if (this.td) {
+      const art = TD_ENEMY_TEX[e.kind];
+      this.tdRigs.set(
+        e,
+        new ActorRig(this, e, {
+          body: art.body,
+          emissive: art.emis,
+          emissiveColor: TD_PALETTE.danger,
+          lift: 10, // drones hover — their shadow detaches and softens
+          lighting: this.tdLight,
+          lightRadius: 54,
+          lightColor: TD_PALETTE.danger,
+          lightIntensity: 0.22,
+        })
+      );
+    }
+    return e;
+  }
+
   /** charge the Node from a kill (double near the node); opens the breach at target */
   private addNodeCharge(x: number, y: number): void {
     if (!this.traverse || this.breachOpen || this.nodeFull) return;
@@ -491,7 +595,7 @@ export class SweepScene extends Phaser.Scene {
     e.setData('elite', true).setData('boss', true);
     this.eliteAura = this.add.image(e.x, e.y, TEX.glow8).setDepth(15).setTint(P.danger).setBlendMode(Phaser.BlendModes.ADD).setScale(3).setAlpha(0.45);
     this.tweens.add({ targets: this.eliteAura, alpha: { from: 0.3, to: 0.62 }, scale: { from: 2.6, to: 3.4 }, duration: 640, yoyo: true, repeat: -1 });
-    this.enemies.add(e);
+    this.addEnemy(e);
     this.elite = e;
     this.eliteBeam = this.add.graphics().setDepth(17);
     this.eliteCfg = SWEEP_BOSS;
@@ -579,7 +683,7 @@ export class SweepScene extends Phaser.Scene {
     // menacing threat glow around the elite
     this.eliteAura = this.add.image(e.x, e.y, TEX.glow8).setDepth(15).setTint(P.danger).setBlendMode(Phaser.BlendModes.ADD).setScale(2).setAlpha(0.4);
     this.tweens.add({ targets: this.eliteAura, alpha: { from: 0.25, to: 0.55 }, scale: { from: 1.8, to: 2.4 }, duration: 700, yoyo: true, repeat: -1 });
-    this.enemies.add(e);
+    this.addEnemy(e);
     this.elite = e;
     this.eliteBeam = this.add.graphics().setDepth(17);
     this.eliteCfg = SWEEP_ELITE;
@@ -656,7 +760,7 @@ export class SweepScene extends Phaser.Scene {
       const sx = x + Math.cos(a) * 34;
       const sy = y + Math.sin(a) * 34;
       this.fx.sparks(sx, sy, P.danger, 6);
-      this.enemies.add(new SweepEnemy(this, sx, sy, kind as SweepEnemyKind));
+      this.addEnemy(new SweepEnemy(this, sx, sy, kind as SweepEnemyKind));
     });
   }
 
@@ -713,7 +817,7 @@ export class SweepScene extends Phaser.Scene {
       shard.maxHp = 1;
       shard.setScale(0.7).setTint(P.violetGlitch);
       (shard.body as Phaser.Physics.Arcade.Body).setVelocity(Math.cos(a) * 90, Math.sin(a) * 90);
-      this.enemies.add(shard);
+      this.addEnemy(shard);
     }
   }
 
@@ -721,7 +825,7 @@ export class SweepScene extends Phaser.Scene {
     const T = SWEEP.tile;
     // authored placements — enemies live in the rooms/corridors the designer chose
     (this.arena.enemies ?? []).forEach((m) => {
-      this.enemies.add(new SweepEnemy(this, (m.tx + 0.5) * T, (m.ty + 0.5) * T, m.type));
+      this.addEnemy(new SweepEnemy(this, (m.tx + 0.5) * T, (m.ty + 0.5) * T, m.type));
     });
   }
 
@@ -752,7 +856,7 @@ export class SweepScene extends Phaser.Scene {
     );
     const pool = edgeTiles.length ? edgeTiles : this.floorTiles;
     const p = pool.length ? Phaser.Utils.Array.GetRandom(pool) : { x: this.mapW / 2, y: 20 };
-    this.enemies.add(new SweepEnemy(this, p.x, p.y, kind));
+    this.addEnemy(new SweepEnemy(this, p.x, p.y, kind));
   }
 
   private get aggro(): number {
@@ -1062,6 +1166,7 @@ export class SweepScene extends Phaser.Scene {
     if (this.isPaused || this.gameOverShown || this.exiting) return;
     const now = this.time.now;
     const dt = delta / 1000;
+    if (this.td) this.updateTdVisuals(dt);
 
     // ── aim: right stick if pushed · touch auto-aims nearest · else the mouse ──
     let firing = false;
@@ -1288,7 +1393,39 @@ export class SweepScene extends Phaser.Scene {
     }
   }
 
+  /** Per-frame HD visual work. Deliberately cheap: no allocation, no texture
+   *  work — only position/depth/alpha on pre-allocated objects. */
+  private updateTdVisuals(dt: number): void {
+    for (const [host, rig] of this.tdRigs) {
+      if (!host.active) { rig.destroy(); this.tdRigs.delete(host); continue; }
+      rig.update(dt);
+    }
+    // one pooled pass places every dynamic shadow
+    const casters: Array<{ x: number; y: number; active: boolean; tdShadowW?: number; tdLift?: number }> = [];
+    if (this.player.active) casters.push({ x: this.player.x, y: this.player.y + 8, active: true, tdShadowW: 26 });
+    (this.enemies.getChildren() as SweepEnemy[]).forEach((e) => {
+      if (e.active) casters.push({ x: e.x, y: e.y + 8, active: true, tdShadowW: 22, tdLift: 10 });
+    });
+    this.tdShadows?.update(casters);
+    this.tdNodeRig?.update(dt, this.chargeTarget > 0 ? this.nodeCharge / this.chargeTarget : 0);
+    this.tdLight?.update(dt);
+  }
+
   private onShutdown(): void {
+    // Restore the 480x270 backbuffer. THIS IS LOAD-BEARING: SHUTDOWN is the one
+    // hook that covers every exit path (breach, death, quit-to-menu, dev warp).
+    // Miss it and the next scene lays out 480-coord content in a 1440x810 buffer.
+    restoreBase(this);
+    this.tdRigs.forEach((r) => r.destroy());
+    this.tdRigs.clear();
+    this.tdNodeRig?.destroy();
+    this.tdShadows?.destroy();
+    this.tdLight?.destroy();
+    this.tdTerrain?.destroy();
+    this.tdNodeRig = undefined;
+    this.tdShadows = undefined;
+    this.tdLight = undefined;
+    this.tdTerrain = undefined;
     bus.emit(EVT.hudSweep, { active: false });
     this.unsubs.forEach((u) => u());
     this.unsubs = [];
