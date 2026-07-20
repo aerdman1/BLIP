@@ -792,7 +792,7 @@ export interface BestiaryRoadmapPhase {
   order: number;
   title: string;
   targetIds: string[];
-  status: 'done' | 'next' | 'planned';
+  status: 'done' | 'next' | 'planned' | 'blocked';
   note: string;
 }
 
@@ -823,14 +823,14 @@ export const BESTIARY_ASSET_ROADMAP: BestiaryRoadmapPhase[] = [
     title: 'The Maze Heart',
     targetIds: ['sweep-maze-heart'],
     status: 'planned',
-    note: 'Zone 4 Fold finale boss. No HD pipeline reaches maze-z4, so this needs its own custom procedural-quality pass rather than an atlas swap.',
+    note: "Zone 4 Fold finale boss (maze-z4 arena). Its own custom pass is valid regardless of arena treatment — but if maze-z4 gets added to TD_VISUALS.arenas as part of the pending level-art pass (see phase 4), it may be worth an HD-style asset instead of a procedural one. Confirm once that pass lands.",
   },
   {
     order: 4,
-    title: 'Top-down fallback enemy set (motel / stadium / orchard arenas)',
+    title: 'Top-down fallback enemy set (remaining Sweep arenas)',
     targetIds: ['sweep-drifter', 'sweep-tagger', 'sweep-diver', 'sweep-warden', 'sweep-sniper', 'sweep-splitter', 'sweep-weaver', 'sweep-turret', 'sweep-elite'],
-    status: 'planned',
-    note: 'The same 8 archetypes + elite, but their non-HD pixel-art fallback used in every Sweep arena except surface-z1.',
+    status: 'blocked',
+    note: "BLOCKED — pending the user's own level-art pass, upgrading all remaining top-down arenas (circuit-z2/Motel, maze-z4/Orchard, and any Stadium arena added later) to the same HD standard as surface-z1/Miller Field. Once that lands, this phase's target changes from 'reskin the old procedural-fallback sprites' to 'extend the HD atlas + TD_VISUALS.arenas to those arenas' — a level/pipeline task, not a straight sprite swap. Do not commission procedural-fallback art for this phase until the level pass is confirmed done zone-by-zone.",
   },
   {
     order: 5,

@@ -735,9 +735,16 @@ export class CommandCenter {
 
   private roadmapPhase(p: BestiaryRoadmapPhase, nameById: Map<string, string>): string {
     const statusChip =
-      p.status === 'done' ? '<span class="cc-chip ok">DONE</span>' : p.status === 'next' ? '<span class="cc-chip warn">NEXT UP</span>' : '<span class="cc-chip">PLANNED</span>';
+      p.status === 'done'
+        ? '<span class="cc-chip ok">DONE</span>'
+        : p.status === 'next'
+          ? '<span class="cc-chip warn">NEXT UP</span>'
+          : p.status === 'blocked'
+            ? '<span class="cc-chip bad">BLOCKED</span>'
+            : '<span class="cc-chip">PLANNED</span>';
+    const mark = p.status === 'done' ? '☑' : p.status === 'next' ? '▸' : p.status === 'blocked' ? '⏸' : '☐';
     return `<li class="${p.status === 'done' ? 'done' : p.status === 'next' ? 'current' : ''}">
-      ${p.status === 'done' ? '☑' : p.status === 'next' ? '▸' : '☐'} <b>#${p.order} — ${esc(p.title)}</b> ${statusChip}
+      ${mark} <b>#${p.order} — ${esc(p.title)}</b> ${statusChip}
       <div class="cc-note" style="margin:2px 0 0 18px">${esc(p.note)}</div>
       <div class="cc-chips" style="margin:4px 0 0 18px">${p.targetIds.map((id) => `<span class="cc-chip">${esc(nameById.get(id) ?? id)}</span>`).join('')}</div>
     </li>`;
