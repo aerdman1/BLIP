@@ -9,7 +9,7 @@
  * fire yourself. Tuning in config.SWEEP.
  */
 import Phaser from 'phaser';
-import { EVT, PALETTE as P, RENDER_ZOOM, SCENES, SWEEP, SWEEP_BOSS, SWEEP_ELITE, TD_ENEMY_TEX, TD_PALETTE, TD_VISUALS, TEX, VIEW_W, css, useTdVisuals, type SweepEnemyKind } from '../config';
+import { EVT, PALETTE as P, RENDER_ZOOM, SCENES, SWEEP, SWEEP_BOSS, SWEEP_ELITE, TD_ENEMY_TEX, TD_PALETTE, TD_VISUALS, TEX, VIEW_W, css, type SweepEnemyKind } from '../config';
 import { buildSweepTextures } from '../art/sweepTextures';
 import { BlipCraft } from '../entities/sweep/BlipCraft';
 import { SweepEnemy } from '../entities/sweep/SweepEnemy';
@@ -29,6 +29,7 @@ import { uiOverlayActive } from '../systems/UIState';
 import { enterHiRes, linearAllTd, restoreBase } from '../render/RenderScale';
 import { TopDownShadows } from '../render/TopDownShadows';
 import { bindAtlasFrames, resolveTdArt, type TdArt } from '../topdown/TdAssets';
+import { tdBiomeFor, type TdBiomeDef } from '../topdown/TdBiomes';
 import { TdTerrain } from '../topdown/TdTerrain';
 import { TdLighting } from '../topdown/TdLighting';
 import { ActorRig, SignalNodeRig } from '../topdown/TdActors';
@@ -112,8 +113,9 @@ export class SweepScene extends Phaser.Scene {
   private bossActive = false; // the Maze Heart is alive and gating the breach
   private bossAddsSpawned = false; // one-time reinforcement wave fired
 
-  /* ---- HD top-down visual treatment (surface-z1 only; see TD_VISUALS) ---- */
+  /* ---- HD top-down visual treatment (per biome; see TdBiomes) ---- */
   private td = false; // is the HD treatment active for this arena?
+  private tdBiome: TdBiomeDef | null = null;
   private tdArt!: TdArt;
   private tdTerrain?: TdTerrain;
   private tdLight?: TdLighting;
@@ -140,9 +142,18 @@ export class SweepScene extends Phaser.Scene {
     // Decide HD in ONE place, and only after confirming the art actually loaded.
     // Raising the backbuffer for an arena that then falls back to procedural art
     // would give us the cost of hi-res with none of the benefit.
-    bindAtlasFrames(this);
-    this.tdArt = resolveTdArt(this);
-    this.td = useTdVisuals(arenaId) && this.tdArt.hd;
+    // ONE condition, not two: this arena's biome has an HD descriptor AND that
+    // descriptor's art actually loaded. (Previously a hardcoded arena allowlist
+    // had to agree with a separate art check — two sources of truth for one
+    // question.) A biome with no descriptor renders procedurally, as before.
+    this.tdBiome = TD_VISUALS.enabled ? tdBiomeFor(arenaId) : null;
+    if (this.tdBiome) {
+      bindAtlasFrames(this, this.tdBiome);
+      this.tdArt = resolveTdArt(this, this.tdBiome);
+      this.td = this.tdArt.hd;
+    } else {
+      this.td = false;
+    }
     if (this.td) {
       // Raise the backbuffer synchronously — never in a delayedCall, or an iOS
       // rotation refit can interleave with the resize. Restored in onShutdown().
@@ -357,6 +368,7 @@ export class SweepScene extends Phaser.Scene {
       this.tdTerrain = new TdTerrain(this, {
         tile: T, w: W, h: H, solid, halls: this.arena.halls,
         floor: floorCoords, markers: keyMarkers, art: this.tdArt,
+        biome: this.tdBiome!,
       });
       this.tdLight = new TdLighting(this, AW, AH);
       this.tdTerrain.accentLights = (h) => void this.tdLight?.add(h);

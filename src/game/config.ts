@@ -1193,12 +1193,23 @@ export const TEX = {
   tdRing: 'td-ring',
 } as const;
 
-/** Individual tile files (tileSprite needs real texture wrap — cannot be atlased). */
+/** Individual tile files for the zone-1 biome (tileSprite needs real texture
+ *  wrap — cannot be atlased). Per-biome tile keys live in TdBiomes. */
 export const TD_TILE_KEYS = [
   TEX.tdGround, TEX.tdGroundLit, TEX.tdGroundDark, TEX.tdPath, TEX.tdWallTop, TEX.tdWallFace,
 ] as const;
 
-/** Atlas frame keys — must match the frame names emitted by scripts/art/build-atlas.mjs. */
+/**
+ * SHARED atlas frames — the cast, not the scenery.
+ *
+ * Player, drones, elite and Node look the same in every zone: the Interpretation
+ * Engine's rendering of you does not change because the ground under you did.
+ * Every biome's atlas must contain these.
+ *
+ * Scenery frames (props, landmarks, canopy) are NOT here — each biome declares
+ * its own in TdBiomes, so a motel atlas is never required to ship a fern.
+ * Frame names must match those emitted by scripts/art/build-atlas.mjs.
+ */
 export const TD_ATLAS_FRAMES = [
   TEX.tdBlip, TEX.tdBlipEmis,
   TEX.tdDrifter, TEX.tdDrifterEmis, TEX.tdTagger, TEX.tdTaggerEmis,
@@ -1206,10 +1217,6 @@ export const TD_ATLAS_FRAMES = [
   TEX.tdSniper, TEX.tdSniperEmis, TEX.tdSplitter, TEX.tdSplitterEmis,
   TEX.tdWeaver, TEX.tdWeaverEmis, TEX.tdTurret, TEX.tdTurretEmis,
   TEX.tdElite, TEX.tdEliteEmis, TEX.tdNode, TEX.tdNodeEmis,
-  TEX.tdRock, TEX.tdLog, TEX.tdBush, TEX.tdFern, TEX.tdTuft,
-  TEX.tdCanopy, TEX.tdDebris, TEX.tdScrap,
-  TEX.tdLmPod, TEX.tdLmPodEmis, TEX.tdLmRelay, TEX.tdLmRelayEmis,
-  TEX.tdLmRoots, TEX.tdLmPool, TEX.tdLmPoolEmis,
 ] as const;
 
 /** Sprite key per enemy archetype (HD top-down). Body + emissive layer. */

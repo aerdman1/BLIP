@@ -23,6 +23,7 @@ import { DEPTH, sortedDepth } from '../render/Depth';
 import { OBLIQUE } from '../render/Oblique';
 import { ensureShadowTexture } from '../render/TopDownShadows';
 import type { TdArt } from './TdAssets';
+import type { TdBiomeDef } from './TdBiomes';
 
 export interface TerrainInput {
   tile: number;
@@ -33,6 +34,8 @@ export interface TerrainInput {
   floor: Array<{ tx: number; ty: number; edge: boolean }>;
   markers: Array<{ tx: number; ty: number }>;
   art: TdArt;
+  /** which zone's vocabulary to build from — see TdBiomes */
+  biome: TdBiomeDef;
 }
 
 /** Deterministic RNG so screenshots are reproducible across runs. */
@@ -106,8 +109,9 @@ export class TdTerrain {
     this.layers.push(base);
 
     // organic lit/shadow drift — soft blobs, no repeats, no edges
-    this.cloudOverlay(AW, AH, 'td-cloud-lit', art.groundLit, 0x9fd8a8, 0.5, DEPTH.ground + 1, 0x000000);
-    this.cloudOverlay(AW, AH, 'td-cloud-dark', art.groundDark, 0x38505c, 0.55, DEPTH.ground + 2, 0x000000);
+    const tints = this.input.biome.tints;
+    this.cloudOverlay(AW, AH, 'td-cloud-lit', art.groundLit, tints.cloudLit, 0.5, DEPTH.ground + 1, 0x000000);
+    this.cloudOverlay(AW, AH, 'td-cloud-dark', art.groundDark, tints.cloudDark, 0.55, DEPTH.ground + 2, 0x000000);
 
     // Worn paths along the authored corridors — where the player actually walks.
     //
@@ -245,20 +249,53 @@ export class TdTerrain {
     const ctx = ct.context;
     ctx.clearRect(0, 0, mw, mh);
     ctx.fillStyle = '#fff';
+    const hardEdge = this.input.biome.wallStyle === 'hardEdge';
     for (let ty = 0; ty < H; ty++)
       for (let tx = 0; tx < W; tx++) {
         if (!solid[ty][tx]) continue;
-        // three overlapping lobes per cell, jittered — the union across
-        // neighbouring cells reads as an eroded rock bank, not a grid
-        for (let k = 0; k < 3; k++) {
-          const cx = ((tx + 0.5) * T + (this.rng() - 0.5) * T * 0.7) / 2;
-          const cy = ((ty + 0.5) * T + (this.rng() - 0.5) * T * 0.7) / 2;
-          const r = (T * (0.42 + this.rng() * 0.3)) / 2;
-          ctx.beginPath();
-          ctx.arc(cx, cy, r, 0, Math.PI * 2);
-          ctx.fill();
+        if (hardEdge) {
+          // BUILT walls: the cell is filled square, then bitten into at the
+          // corners and along the edges. Erosion here is DAMAGE to a made
+          // thing — chipped stucco, a broken breezeblock course — so the
+          // straight run survives and the arena still reads as architecture.
+          // (Running the 'rock' lobes over a motel dissolves it into geology.)
+          ctx.fillRect((tx * T) / 2, (ty * T) / 2, T / 2, T / 2);
+        } else {
+          // three overlapping lobes per cell, jittered — the union across
+          // neighbouring cells reads as an eroded rock bank, not a grid
+          for (let k = 0; k < 3; k++) {
+            const cx = ((tx + 0.5) * T + (this.rng() - 0.5) * T * 0.7) / 2;
+            const cy = ((ty + 0.5) * T + (this.rng() - 0.5) * T * 0.7) / 2;
+            const r = (T * (0.42 + this.rng() * 0.3)) / 2;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
       }
+    // Chip the built silhouette AFTER every cell is filled, so a bite taken at
+    // a shared border is not painted back over by the neighbouring cell.
+    if (hardEdge) {
+      ctx.globalCompositeOperation = 'destination-out';
+      for (let ty = 0; ty < H; ty++)
+        for (let tx = 0; tx < W; tx++) {
+          if (!solid[ty][tx]) continue;
+          // only bite EXPOSED edges — an interior seam is not a silhouette
+          const open = [
+            [0, -1], [0, 1], [-1, 0], [1, 0],
+          ].filter(([dx, dy]) => !solid[ty + dy]?.[tx + dx]);
+          for (const [dx, dy] of open) {
+            if (this.rng() < 0.45) continue;
+            const cx = ((tx + 0.5 + dx * 0.5) * T + (this.rng() - 0.5) * T * 0.5) / 2;
+            const cy = ((ty + 0.5 + dy * 0.5) * T + (this.rng() - 0.5) * T * 0.5) / 2;
+            const r = (T * (0.1 + this.rng() * 0.16)) / 2;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      ctx.globalCompositeOperation = 'source-over';
+    }
     ct.refresh();
     const maskImg = this.scene.add.image(0, 0, key).setOrigin(0).setScale(2).setVisible(false);
     this.wallMaskImg = maskImg;
@@ -307,7 +344,7 @@ export class TdTerrain {
         .tileSprite(0, 0, AW, AH, art.wallFace)
         .setOrigin(0)
         .setDepth(DEPTH.sorted - 3)
-        .setTint(0x8a9098);
+        .setTint(this.input.biome.tints.wallFace);
       faces.tileScaleX = scale;
       faces.tileScaleY = scale;
       faces.setMask(new Phaser.Display.Masks.BitmapMask(this.scene, fMask));
@@ -321,8 +358,11 @@ export class TdTerrain {
         const baseY = (ty + 1) * T;
         const cx = (tx + 0.5) * T;
         if (this.rng() < 0.8) {
+          const bank = this.input.biome.bank;
+          // preserves the original 0.65/0.35 rock:bush split for a 2-entry pool
+          const pick = bank[this.rng() < 0.65 ? 0 : Math.min(1, bank.length - 1)];
           const rk = this.scene.add
-            .image(cx + (this.rng() - 0.5) * T * 0.9, baseY + 2, this.rng() < 0.65 ? TEX.tdRock : TEX.tdBush)
+            .image(cx + (this.rng() - 0.5) * T * 0.9, baseY + 2, pick)
             .setOrigin(0.5, 1)
             .setDepth(sortedDepth(baseY + 2))
             .setScale(TD_VISUALS.artScale * (0.7 + this.rng() * 0.8));
@@ -340,9 +380,9 @@ export class TdTerrain {
   /* ------------------------------ 3. irregular edges ------------------------- */
   /** Bury every straight room/hall boundary under organic cover. */
   private dressEdges(): void {
-    const { tile: T, floor, art } = this.input;
+    const { tile: T, floor, art, biome } = this.input;
     if (!art.hd) return;
-    const skirt = [TEX.tdTuft, TEX.tdFern, TEX.tdBush, TEX.tdRock];
+    const skirt = biome.skirt;
     for (const p of floor) {
       if (!p.edge) continue;
       const n = 2 + Math.floor(this.rng() * 3);
@@ -357,7 +397,7 @@ export class TdTerrain {
           .setScale(TD_VISUALS.artScale * (0.7 + this.rng() * 0.5))
           .setAlpha(0.9);
         if (this.rng() < 0.5) img.setFlipX(true);
-        img.setTint(0xc4d6d4);
+        img.setTint(biome.tints.skirt);
         if (this.rng() < 0.45) this.contactAO(x, y - 1, img.displayWidth);
         this.props.push(img);
       }
@@ -377,9 +417,9 @@ export class TdTerrain {
   }
 
   private scatterProps(): void {
-    const { tile: T, floor, markers, art } = this.input;
+    const { tile: T, floor, markers, art, biome } = this.input;
     if (!art.hd) return;
-    const pool = [TEX.tdRock, TEX.tdLog, TEX.tdBush, TEX.tdDebris, TEX.tdScrap, TEX.tdFern];
+    const pool = biome.scatter;
     const clearOf = (tx: number, ty: number, d: number) =>
       !markers.some((m) => Math.abs(tx - m.tx) + Math.abs(ty - m.ty) < d);
 
@@ -406,7 +446,7 @@ export class TdTerrain {
         .setScale(sc);
       if (this.rng() < 0.5) img.setFlipX(true);
       // nearer/bigger props catch a touch more light; distant ones sink to haze
-      img.setTint(big ? 0xffffff : 0xcfe0dc);
+      img.setTint(big ? biome.tints.propNear : biome.tints.propFar);
       this.contactAO(x, y - 2, img.displayWidth);
       this.props.push(img);
     }
@@ -421,23 +461,24 @@ export class TdTerrain {
    * belongs to threat.
    */
   private scatterAccents(): void {
-    const { tile: T, floor, art } = this.input;
+    const { tile: T, floor, art, biome } = this.input;
     if (!art.hd || !this.accentLights) return;
+    const acc = biome.accents;
     const spots = floor.filter((p) => p.edge);
     for (let i = spots.length - 1; i > 0; i--) {
       const j = Math.floor(this.rng() * (i + 1));
       [spots[i], spots[j]] = [spots[j], spots[i]];
     }
-    const picks = Math.min(14, spots.length);
+    const picks = Math.min(acc.count, spots.length);
     for (let i = 0; i < picks; i++) {
       const p = spots[i];
       const x = (p.tx + 0.5) * T + (this.rng() - 0.5) * T;
       const y = (p.ty + 0.5) * T + (this.rng() - 0.5) * T;
-      const warm = this.rng() < 0.3;
+      const warm = this.rng() < acc.warmChance;
       this.accentLights({
         x, y,
         radius: warm ? 34 + this.rng() * 22 : 26 + this.rng() * 20,
-        color: warm ? C.emberWarm : this.rng() < 0.75 ? C.bioTeal : C.bioBlue,
+        color: warm ? acc.warm : this.rng() < 0.75 ? acc.coolA : acc.coolB,
         intensity: warm ? 0.2 + this.rng() * 0.12 : 0.16 + this.rng() * 0.14,
       });
     }
@@ -449,14 +490,9 @@ export class TdTerrain {
    * intrude on the traversal route or a combat space.
    */
   private placeLandmarks(): void {
-    const { tile: T, floor, markers, art } = this.input;
+    const { tile: T, floor, markers, art, biome } = this.input;
     if (!art.hd) return;
-    const set: Array<[string, string | null, number]> = [
-      [TEX.tdLmPod, TEX.tdLmPodEmis, 0.34],
-      [TEX.tdLmRelay, TEX.tdLmRelayEmis, 0.38],
-      [TEX.tdLmRoots, null, 0.34],
-      [TEX.tdLmPool, TEX.tdLmPoolEmis, 0.36],
-    ];
+    const set = biome.landmarks;
     const open = floor.filter(
       (p) => !p.edge && !markers.some((m) => Math.abs(p.tx - m.tx) + Math.abs(p.ty - m.ty) < 7)
     );
@@ -476,7 +512,7 @@ export class TdTerrain {
       const x = (spot.tx + 0.5) * T;
       const y = (spot.ty + 1) * T;
       placed.push({ x, y });
-      const isPool = key === TEX.tdLmPool;
+      const isPool = key === biome.flatLandmark;
       const img = this.scene.add
         .image(x, y, key)
         .setOrigin(0.5, isPool ? 0.5 : 1)
@@ -498,7 +534,9 @@ export class TdTerrain {
       this.accentLights?.({
         x, y: y - 8,
         radius: isPool ? 96 : 72,
-        color: key === TEX.tdLmRelay ? C.emberWarm : isPool ? C.bioTeal : C.signal,
+        // second landmark in the set is the biome's warm/powered one (z1: the
+        // relay); the flat one glows cool; the rest carry signal green.
+        color: key === set[1]?.[0] ? biome.accents.warm : isPool ? biome.accents.coolA : C.signal,
         intensity: 0.3,
       });
       idx++;
@@ -510,8 +548,10 @@ export class TdTerrain {
   /** Dark out-of-focus foliage the player passes beneath. Frames the arena and
    *  hides the hard world-bounds edge without ever covering combat. */
   private buildCanopy(AW: number, AH: number): void {
-    const { art, tile: T, markers } = this.input;
-    if (!art.hd) return;
+    const { art, tile: T, markers, biome } = this.input;
+    // A biome with no overhead cover (an open lot, a stadium bowl) declares
+    // canopy: null and simply skips the frame — it must not fake one.
+    if (!art.hd || !biome.canopy) return;
     // A FRAME, not a ceiling. Canopy sits only in a thin band hugging the arena
     // bounds, so it hides the hard world edge and adds depth without ever
     // covering combat. An earlier version scattered it across the arena at 2.4x
@@ -526,9 +566,9 @@ export class TdTerrain {
       const y = onX ? (this.rng() < 0.5 ? this.rng() * BAND : AH - this.rng() * BAND) : this.rng() * AH;
       if (!clearOfMarkers(x, y)) continue; // never obscure spawn / node / breach
       this.scene.add
-        .image(x, y, TEX.tdCanopy)
+        .image(x, y, biome.canopy)
         .setDepth(DEPTH.foreground)
-        .setTint(C.foliageNear)
+        .setTint(biome.tints.canopy)
         .setAlpha(0.55)
         .setScale(TD_VISUALS.artScale * (0.55 + this.rng() * 0.35))
         .setAngle(this.rng() * 360);

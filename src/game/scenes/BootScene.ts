@@ -6,6 +6,7 @@ import { SCENES, PALETTE as P, RENDER_ZOOM, VIEW_W, VIEW_H, css } from '../confi
 import { generateAllTextures } from '../systems/ProceduralArt';
 import { restoreBase } from '../render/RenderScale';
 import { loadTopDown } from '../topdown/TdAssets';
+import { TD_BIOMES } from '../topdown/TdBiomes';
 import { loadSave } from '../systems/SaveSystem';
 
 export class BootScene extends Phaser.Scene {
@@ -26,10 +27,17 @@ export class BootScene extends Phaser.Scene {
       .setResolution(2);
 
     generateAllTextures(this);
-    // The HD top-down art set — the game's only file-loaded assets. Kicked off
+    // The HD top-down art sets — the game's only file-loaded assets. Kicked off
     // here (not in SweepScene, which would re-fetch on every arena entry) and
-    // deliberately NOT awaited: boot must never wait on art.
-    void loadTopDown(this);
+    // deliberately NOT awaited: boot must never wait on art. One set per biome
+    // that has HD art; a biome whose atlas is absent falls back on its own.
+    // SEQUENTIALLY, not in parallel: every biome shares this scene's single
+    // Phaser loader, so two concurrent loads would both attach once(COMPLETE)
+    // to it and the first completion would resolve both — the second biome
+    // reporting ready before its files had actually arrived.
+    void (async () => {
+      for (const biome of Object.values(TD_BIOMES)) await loadTopDown(this, biome);
+    })();
     loadSave(); // hydrate + migrate legacy key early
 
     this.time.delayedCall(80, () => {

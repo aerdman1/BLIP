@@ -10,12 +10,24 @@
  * procedural pixel art instead of crashing or showing green __MISSING boxes.
  */
 import Phaser from 'phaser';
-import { TD_ATLAS_FRAMES, TD_TILE_KEYS, TEX } from '../config';
+import { TD_ATLAS_FRAMES } from '../config';
+import type { TdBiomeDef } from './TdBiomes';
 
 const BASE = 'assets/topdown';
-const ATLAS = 'td-atlas';
 
-let loadFailed = false;
+/** Phaser texture key for a biome's atlas. Namespaced per atlas so two biomes'
+ *  art can be resident at once without clobbering each other. */
+const atlasKey = (atlas: string) => `td-atlas:${atlas}`;
+
+/**
+ * Per-atlas failure state.
+ *
+ * This was a single module-level boolean, which meant ONE missing atlas
+ * permanently disabled HD art for every biome for the life of the session —
+ * including biomes whose art had loaded fine. Keyed per atlas, a zone with
+ * missing art falls back alone.
+ */
+const loadFailed = new Map<string, boolean>();
 
 /**
  * Load the top-down art in the BACKGROUND. Never blocks boot.
@@ -31,13 +43,15 @@ let loadFailed = false;
  *     absent the menu still appears and the Sweep falls back to procedural art;
  *     the player is never stranded on a loading screen by an art problem.
  */
-export async function loadTopDown(scene: Phaser.Scene): Promise<boolean> {
-  if (scene.textures.exists(ATLAS)) return true;
+export async function loadTopDown(scene: Phaser.Scene, biome: TdBiomeDef): Promise<boolean> {
+  const KEY = atlasKey(biome.atlas);
+  if (scene.textures.exists(KEY)) return true;
+  if (loadFailed.get(biome.atlas)) return false; // already known bad — don't refetch
   try {
     // Default caching on purpose: `force-cache` can pin a stale *bad* response
     // (e.g. a dev server's HTML 404 page) and keep the art disabled for the
     // life of the cache entry. Let normal HTTP caching apply.
-    const res = await fetch(`${BASE}/topdown-z1.json`);
+    const res = await fetch(`${BASE}/${biome.atlas}.json`);
     if (!res.ok) throw new Error(`manifest ${res.status}`);
     const ct = res.headers.get('content-type') ?? '';
     if (!ct.includes('json')) throw new Error(`manifest is ${ct || 'untyped'}, not JSON`);
@@ -47,19 +61,27 @@ export async function loadTopDown(scene: Phaser.Scene): Promise<boolean> {
     await new Promise<void>((resolve) => {
       scene.load.once(Phaser.Loader.Events.COMPLETE, () => resolve());
       scene.load.once(Phaser.Loader.Events.FILE_LOAD_ERROR, (file: Phaser.Loader.File) => {
-        loadFailed = true;
+        loadFailed.set(biome.atlas, true);
         console.warn(`[TdAssets] "${file?.key}" failed — falling back to procedural art.`);
       });
-      scene.load.atlas(ATLAS, `${BASE}/topdown-z1.webp`, manifest);
-      for (const key of TD_TILE_KEYS) scene.load.image(key, `${BASE}/${key}.webp`);
+      scene.load.atlas(KEY, `${BASE}/${biome.atlas}.webp`, manifest);
+      // Tile files are per-biome and named by their texture key, so two biomes
+      // never contend for the same key (see TdBiomes tile naming).
+      for (const key of tileKeysOf(biome)) scene.load.image(key, `${BASE}/${key}.webp`);
       scene.load.start();
     });
-    return !loadFailed;
+    return !loadFailed.get(biome.atlas);
   } catch (err) {
-    loadFailed = true;
-    console.warn(`[TdAssets] top-down art unavailable (${String(err)}) — using procedural art.`);
+    loadFailed.set(biome.atlas, true);
+    console.warn(`[TdAssets] ${biome.atlas} unavailable (${String(err)}) — using procedural art.`);
     return false;
   }
+}
+
+/** The six tileSprite keys a biome needs as individual files. */
+function tileKeysOf(biome: TdBiomeDef): string[] {
+  const t = biome.tiles;
+  return [t.ground, t.groundLit, t.groundDark, t.path, t.wallTop, t.wallFace];
 }
 
 /**
@@ -67,19 +89,20 @@ export async function loadTopDown(scene: Phaser.Scene): Promise<boolean> {
  * __MISSING placeholder, and not a frame name that drifted out of the atlas.
  * This is the guard that turns a silent art failure into a clean fallback.
  */
-export function tdArtReady(scene: Phaser.Scene): boolean {
-  if (loadFailed) return false;
-  if (!scene.textures.exists(ATLAS)) return false;
+export function tdArtReady(scene: Phaser.Scene, biome: TdBiomeDef): boolean {
+  if (loadFailed.get(biome.atlas)) return false;
+  const KEY = atlasKey(biome.atlas);
+  if (!scene.textures.exists(KEY)) return false;
 
-  const atlas = scene.textures.get(ATLAS);
+  const atlas = scene.textures.get(KEY);
   if (!atlas || atlas.key === '__MISSING') return false;
-  for (const frame of TD_ATLAS_FRAMES) {
+  for (const frame of framesOf(biome)) {
     if (!atlas.has(frame)) {
-      console.warn(`[TdAssets] atlas frame "${frame}" missing — falling back.`);
+      console.warn(`[TdAssets] ${biome.atlas} frame "${frame}" missing — falling back.`);
       return false;
     }
   }
-  for (const key of TD_TILE_KEYS) {
+  for (const key of tileKeysOf(biome)) {
     const t = scene.textures.get(key);
     if (!t || t.key === '__MISSING') {
       console.warn(`[TdAssets] tile "${key}" missing — falling back.`);
@@ -90,19 +113,36 @@ export function tdArtReady(scene: Phaser.Scene): boolean {
 }
 
 /**
+ * Every atlas frame this biome needs: the SHARED actor set (player, drones,
+ * elite, node — identical across zones, since the cast does not change when the
+ * scenery does) plus the biome's own props and landmarks.
+ */
+function framesOf(biome: TdBiomeDef): string[] {
+  const own = [
+    ...biome.skirt,
+    ...biome.scatter,
+    ...biome.bank,
+    ...biome.landmarks.flatMap(([body, emis]) => (emis ? [body, emis] : [body])),
+  ];
+  if (biome.canopy) own.push(biome.canopy);
+  return [...new Set([...TD_ATLAS_FRAMES, ...own])];
+}
+
+/**
  * Add an atlas frame as a standalone texture key so the rest of the code can
  * treat HD art and procedural art identically — `scene.add.image(x, y, key)`
  * works either way, and no call site needs to know about the atlas.
  */
-export function bindAtlasFrames(scene: Phaser.Scene): void {
-  if (!scene.textures.exists(ATLAS)) return;
-  const atlas = scene.textures.get(ATLAS);
+export function bindAtlasFrames(scene: Phaser.Scene, biome: TdBiomeDef): void {
+  const KEY = atlasKey(biome.atlas);
+  if (!scene.textures.exists(KEY)) return;
+  const atlas = scene.textures.get(KEY);
   const source = atlas.getSourceImage() as CanvasImageSource;
 
-  for (const frameName of TD_ATLAS_FRAMES) {
+  for (const frameName of framesOf(biome)) {
     if (scene.textures.exists(frameName)) continue;
     if (!atlas.has(frameName)) continue;
-    const f = scene.textures.getFrame(ATLAS, frameName);
+    const f = scene.textures.getFrame(KEY, frameName);
     if (!f) continue;
 
     // Blit the frame into its own canvas texture.
@@ -137,25 +177,7 @@ export interface TdArt {
   wallFace: string;
 }
 
-export function resolveTdArt(scene: Phaser.Scene): TdArt {
-  const hd = tdArtReady(scene);
-  return hd
-    ? {
-        hd,
-        ground: TEX.tdGround,
-        groundLit: TEX.tdGroundLit,
-        groundDark: TEX.tdGroundDark,
-        path: TEX.tdPath,
-        wallTop: TEX.tdWallTop,
-        wallFace: TEX.tdWallFace,
-      }
-    : {
-        hd,
-        ground: TEX.sweepGrass,
-        groundLit: TEX.sweepGrass2,
-        groundDark: TEX.sweepGrassDk,
-        path: TEX.sweepPath,
-        wallTop: TEX.sweepHedge,
-        wallFace: TEX.sweepHedge,
-      };
+export function resolveTdArt(scene: Phaser.Scene, biome: TdBiomeDef): TdArt {
+  const hd = tdArtReady(scene, biome);
+  return { hd, ...(hd ? biome.tiles : biome.fallback) };
 }
