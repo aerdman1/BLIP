@@ -5,8 +5,20 @@
  * sections when running a dev build, standalone dashboard, ?test, or god mode.
  */
 import './commandCenter.css';
-import { BOSS, BUILD_VERSION, CLASSIFY, DRONE, EVT, PLAYER, PULSE, SCAN, SCANRIG, TILE } from '../game/config';
+import type Phaser from 'phaser';
+import { BOSS, BUILD_VERSION, EVT, PLAYER, PULSE, SCAN, TILE } from '../game/config';
 import { GAME_BIBLE } from '../game/data/gameBible';
+import {
+  BESTIARY_ALL_ENEMIES,
+  BESTIARY_HAZARDS,
+  BESTIARY_SYSTEMS,
+  CONTACT47_SCALE_REF,
+  type BestiaryEnemyEntry,
+  type BestiaryHazardEntry,
+  type BestiarySystemEntry,
+} from '../game/data/bestiaryData';
+// bestiaryExport pulls in JSZip — loaded on demand (see runExportButton) so it
+// never ships in the base game bundle for players who never open dev exports.
 import { MILLER_FIELD, MOTEL_NOWHERE, NODE_A, PATTERSONS_ORCHARD, POOL_MIRROR, TIGER_STADIUM, cellAt, type LevelDef } from '../game/data/levels';
 import { SWEEP_ARENAS, type SweepArena } from '../game/data/sweepArenas';
 import { SCOUTS, SCOUT_LOGS } from '../game/data/scouts';
@@ -69,11 +81,13 @@ export class CommandCenter {
   private refreshTimer: number | null = null;
   private qa: QaStatus | null = null;
   private readonly standalone: boolean;
+  private readonly game?: Phaser.Game;
   private atlasesDrawn = false;
 
-  constructor(root: HTMLElement, opts?: { standalone?: boolean }) {
+  constructor(root: HTMLElement, opts?: { standalone?: boolean; game?: Phaser.Game }) {
     this.root = root;
     this.standalone = opts?.standalone === true;
+    this.game = opts?.game;
     this.buildStatic();
     bus.on(EVT.sceneChanged, (d) => {
       const s = d as { scene: string; zone?: string };
@@ -195,6 +209,11 @@ export class CommandCenter {
       </div>`;
     this.applyDevMode();
 
+    const commitEl = this.root.querySelector('#cc-bestiary-commit');
+    if (commitEl) commitEl.textContent = this.buildCommit().slice(0, 12);
+    const generatedEl = this.root.querySelector('#cc-bestiary-generated');
+    if (generatedEl) generatedEl.textContent = this.buildGeneratedAt();
+
     (this.root.querySelector('#cc-close') as HTMLButtonElement | null)?.addEventListener('click', () => {
       bus.emit(EVT.ccClose, {});
     });
@@ -230,6 +249,54 @@ export class CommandCenter {
       bus.emit(EVT.skinSelected, { id: skin.id, name: skin.name, color: skin.color, live: true });
       this.refresh();
     });
+    // bestiary export actions — delegated (buttons live inside a static-rendered panel)
+    this.root.addEventListener('click', (ev) => {
+      const exportBtn = (ev.target as HTMLElement).closest('.cc-export-enemy') as HTMLButtonElement | null;
+      if (exportBtn) {
+        void this.runExportButton(exportBtn, async () => {
+          const entry = BESTIARY_ALL_ENEMIES.find((e) => e.id === exportBtn.dataset.exportEnemy);
+          if (!entry) return;
+          const { exportEnemyAsset } = await import('./bestiaryExport');
+          await exportEnemyAsset(entry, this.game);
+        });
+        return;
+      }
+      const briefBtn = (ev.target as HTMLElement).closest('#cc-export-brief') as HTMLButtonElement | null;
+      if (briefBtn) {
+        void this.runExportButton(briefBtn, async () => {
+          const { exportEnemyArtBrief } = await import('./bestiaryExport');
+          await exportEnemyArtBrief(BESTIARY_ALL_ENEMIES, BESTIARY_HAZARDS, this.buildCommit(), this.buildGeneratedAt(), this.game);
+        });
+      }
+    });
+  }
+
+  private async runExportButton(btn: HTMLButtonElement, run: () => Promise<void>): Promise<void> {
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⬇ EXPORTING…';
+    try {
+      await run();
+    } catch (err) {
+      console.error('[BLIP] Bestiary export failed', err);
+      btn.textContent = '✕ EXPORT FAILED — SEE CONSOLE';
+      window.setTimeout(() => {
+        btn.textContent = original;
+        btn.disabled = false;
+      }, 2200);
+      return;
+    }
+    btn.textContent = original;
+    btn.disabled = false;
+  }
+
+  private buildCommit(): string {
+    return (document.querySelector('meta[name="blip-deploy-commit"]') as HTMLMetaElement | null)?.content || 'unknown (dev build — not stamped)';
+  }
+
+  private buildGeneratedAt(): string {
+    const stamped = (document.querySelector('meta[name="blip-deploy-built-at"]') as HTMLMetaElement | null)?.content;
+    return stamped ? new Date(stamped).toLocaleString() : new Date().toLocaleString() + ' (dev build — export time, not build time)';
   }
 
   private zoneOf(scoutId: string): string {
@@ -595,98 +662,92 @@ export class CommandCenter {
       .join('')}</div>`;
   }
 
+  private kv(label: string, value: string): string {
+    return `<p class="cc-kv"><label>${esc(label)}</label> ${esc(value)}</p>`;
+  }
+
+  private enemyCard(e: BestiaryEnemyEntry): string {
+    const statusCls = /shipped — (fully|100%)|shipped — dual/i.test(e.implementationStatus)
+      ? 'ok'
+      : /stub|unbuilt|placeholder/i.test(e.implementationStatus)
+        ? 'bad'
+        : 'warn';
+    return `<article class="cc-card cc-bestiary-card" data-enemy="${esc(e.id)}">
+      <header><b>${esc(e.name)}</b><span class="cc-chip ${e.chipCls}">${esc(e.chip)}</span></header>
+      <p class="cc-zone-tag">${esc(e.zones.join(' · '))} — <span class="key">${esc(e.internalId)}</span></p>
+      <p>${esc(e.behavior)}</p>
+      ${this.kv('MOVEMENT', e.movement)}
+      ${this.kv('ATTACK TYPE', e.attackType)}
+      ${this.statChips(e.tuning)}
+      <h4>ASSET</h4>
+      ${this.kv('KIND', e.asset.kind)}
+      <p class="cc-kv"><label>TEXTURE KEYS</label> <span class="key">${esc(e.asset.textureKeys.join(', '))}</span></p>
+      ${this.kv('SOURCE', e.asset.sourceFile)}
+      ${e.asset.atlasImage ? this.kv('ATLAS', `${e.asset.atlasImage} + ${e.asset.atlasJson}`) : ''}
+      ${e.asset.originSource ? this.kv('ORIGIN SOURCE FILES', e.asset.originSource.join(', ')) : ''}
+      <h4>RENDER</h4>
+      ${this.kv('DIMS', `${e.dims.nativeW || '—'}×${e.dims.nativeH || '—'}px — ${e.dims.renderedNote}`)}
+      ${this.kv('ORIGIN', e.origin)}
+      ${this.kv('HITBOX', `${e.hitbox.w}×${e.hitbox.h}px — ${e.hitbox.note}`)}
+      ${this.kv('PERSPECTIVE', e.perspective)}
+      ${this.kv('FACING', e.facing)}
+      ${this.kv('ROTATION', e.rotation)}
+      ${this.kv('ANIMATION', e.animation)}
+      ${this.kv('SHADOW', e.shadow)}
+      ${this.kv('PLAYER OVERLAP / DEPTH', e.playerOverlap)}
+      <h4>REPLACEMENT ART SPEC</h4>
+      ${this.kv('DIMENSIONS', e.replacement.dims)}
+      ${this.kv('PADDING', e.replacement.padding)}
+      ${this.kv('DIRECTIONAL VARIANTS', e.replacement.directionalVariants)}
+      ${this.kv('EFFECT LAYERS', e.replacement.effectLayers)}
+      ${this.kv('SILHOUETTE INTENT', e.silhouetteIntent)}
+      <p class="cc-kv"><label>STATUS</label> <span class="cc-chip ${statusCls}">${esc(e.implementationStatus)}</span></p>
+      ${e.knownIssues.length ? `<h4>KNOWN VISUAL ISSUES</h4><ul class="cc-list cc-issues">${e.knownIssues.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>` : '<h4>KNOWN VISUAL ISSUES</h4><p class="cc-note">None flagged.</p>'}
+      <p class="cc-note">SOURCE: ${e.sourceRefs.map((r) => esc(r)).join(' · ')}</p>
+      <button class="cc-btn cc-export-enemy cc-dev-only" data-export-enemy="${esc(e.id)}">⬇ ASSET EXPORT</button>
+    </article>`;
+  }
+
+  private hazardCard(h: BestiaryHazardEntry): string {
+    return `<article class="cc-card">
+      <header><b>${esc(h.name)}</b><span class="cc-chip bad">${esc(h.chip)}</span></header>
+      <p class="cc-zone-tag">${esc(h.zones.join(' · '))}</p>
+      <p>${esc(h.desc)}</p>
+      ${this.statChips(h.tuning)}
+      ${this.kv('BEHAVIOR', h.behavior)}
+      ${this.kv('ASSET SOURCE', h.asset.sourceFile)}
+      ${this.kv('DIMS', `${h.dims.nativeW || '—'}×${h.dims.nativeH || '—'}px — ${h.dims.renderedNote}`)}
+      ${h.knownIssues.length ? `<h4>FLAGS</h4><ul class="cc-list cc-issues">${h.knownIssues.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>` : ''}
+      <p class="cc-note">SOURCE: ${h.sourceRefs.map((r) => esc(r)).join(' · ')}</p>
+    </article>`;
+  }
+
+  private systemCard(s: BestiarySystemEntry): string {
+    return `<article class="cc-card">
+      <header><b>${esc(s.name)}</b><span class="cc-chip">SYSTEM</span></header>
+      <p>${esc(s.desc)}</p>
+      ${this.statChips(s.tuning)}
+      ${this.kv('USED BY', s.usedBy.join(' · '))}
+      <p class="cc-note">SOURCE: ${s.sourceRefs.map((r) => esc(r)).join(' · ')}</p>
+    </article>`;
+  }
+
   private sectionBestiary(): string {
-    const entries: Array<{
-      name: string;
-      chip: string;
-      chipCls: string;
-      desc: string;
-      stats: Record<string, string | number>;
-    }> = [
-      {
-        name: 'SCANNER DRONE',
-        chip: 'COMMON',
-        chipCls: 'warn',
-        desc:
-          'A flying opinion of the Interpretation Engine. Patrols with a red cone; when you are close (or labeled THREAT) it chases, aligns to your height — which also puts it on your gun line — and fires static bolts.',
-        stats: {
-          HP: DRONE.hp,
-          PATROL: `${DRONE.patrolSpeed}px/s`,
-          CHASE: `${DRONE.chaseSpeed}px/s`,
-          'AGGRO RANGE': `${DRONE.aggroRange}px`,
-          'FIRE CD': `${DRONE.fireCooldownMs}ms (${DRONE.threatFireCooldownMs}ms @ THREAT)`,
-          BOLT: `${DRONE.boltSpeed}px/s`,
-          CONE: `${DRONE.coneLength}px · ±${DRONE.coneHalfAngleDeg}°`,
-          'TOUCH DMG': DRONE.touchDamage,
-        },
-      },
-      {
-        name: 'SCANNER RIG',
-        chip: 'FIXED HAZARD',
-        chipCls: 'warn',
-        desc:
-          'Abandoned government scan equipment on a tripod. Deals no damage — its cone feeds the classification meter, and the drones believe whatever it decides you are.',
-        stats: {
-          CONE: `${SCANRIG.coneLength}px · ±${SCANRIG.coneHalfAngleDeg}°`,
-          SWEEP: `±${SCANRIG.sweepDeg / 2}° over ${SCANRIG.sweepPeriodMs}ms`,
-          DAMAGE: 'none — classification only',
-        },
-      },
-      {
-        name: 'THE SCARECROW ANTENNA',
-        chip: 'BOSS — MILLER FIELD',
-        chipCls: 'bad',
-        desc:
-          'A pole-and-wire idol the Engine planted to listen. Its signal core is caged mid-pole and shielded — scan to expose it, then land jump-shots. Staggers briefly on every core hit.',
-        stats: {
-          HP: BOSS.hp,
-          'CORE WINDOW': `${BOSS.coreExposeMs}ms after scan`,
-          'RADIAL BURST': `${BOSS.radialCount} bolts @ ${BOSS.radialSpeed}px/s every ${BOSS.radialPeriodMs}ms`,
-          BEAMS: `2 × ${BOSS.beamLength}px @ ${BOSS.beamSpinDegPerSec}°/s`,
-          SUMMONS: '2 drones @ 66% + 33% hp',
-          'TOUCH/BEAM DMG': BOSS.touchDamage,
-          STAGGER: `${BOSS.staggerMs}ms per core hit`,
-        },
-      },
-      {
-        name: 'CLASSIFICATION (the real enemy)',
-        chip: 'SYSTEM',
-        chipCls: '',
-        desc:
-          'Standing in any red cone fills the meter; the label changes what the world does to you. UNKNOWN → nothing. ANOMALY → drones get nervous. THREAT → all drones aggro and fire faster until the label decays.',
-        stats: {
-          FILL: `${CLASSIFY.fillPerSec}/s in cones`,
-          DECAY: `${CLASSIFY.decayPerSec}/s outside`,
-          ANOMALY: `≥ ${CLASSIFY.anomalyAt}`,
-          THREAT: `≥ ${CLASSIFY.threatAt}`,
-        },
-      },
-      {
-        name: 'BLIPSTREAM HAZARDS',
-        chip: 'NODE ROOMS',
-        chipCls: 'bad',
-        desc:
-          'Red static bars sit on the waveform platforms (jump or hover over them); a sweeping scan line patrols the corridor. Falling out of the waveform costs 1 hp and resets you to the room entry.',
-        stats: {
-          'STATIC BAR': '1 dmg + knockback',
-          'SCAN LINE': `1 dmg · sweep ${NODE_A.meta.scanLine?.periodMs ?? 3400}ms`,
-          'VOID FALL': '1 dmg + respawn at entry',
-        },
-      },
-    ];
     return this.panel(
       'bestiary',
       'BESTIARY',
-      `<p class="cc-note">Numbers read live from <span class="key">src/game/config.ts</span> — tune there, this page follows.</p>
-      <div class="cc-cards">${entries
-        .map(
-          (e) => `<article class="cc-card">
-            <header><b>${esc(e.name)}</b><span class="cc-chip ${e.chipCls}">${esc(e.chip)}</span></header>
-            <p>${esc(e.desc)}</p>
-            ${this.statChips(e.stats)}
-          </article>`
-        )
-        .join('')}</div>`
+      `<p class="cc-note">GENERATED <b id="cc-bestiary-generated">—</b> · COMMIT <b class="key" id="cc-bestiary-commit">—</b> — this page is the source of truth for enemy gameplay data and replacement-art requirements.
+      Numbers read live from <span class="key">src/game/config.ts</span> (see <span class="key">src/game/data/bestiaryData.ts</span>) — tune in config, this page follows on next build.</p>
+      <p class="cc-kv"><label>CONTACT-47 SCALE REFERENCE</label> ${esc(CONTACT47_SCALE_REF.note)}</p>
+      <div class="cc-actions cc-dev-only" style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 18px">
+        <button id="cc-export-brief" class="cc-btn">⬇ EXPORT ENEMY ART BRIEF</button>
+      </div>
+      <h3>1 · ENEMIES — REQUIRE VISUAL ASSETS (${BESTIARY_ALL_ENEMIES.length})</h3>
+      <div class="cc-cards cc-bestiary-grid">${BESTIARY_ALL_ENEMIES.map((e) => this.enemyCard(e)).join('')}</div>
+      <h3>2 · FIXED HAZARDS / ENVIRONMENTAL THREATS (${BESTIARY_HAZARDS.length})</h3>
+      <div class="cc-cards">${BESTIARY_HAZARDS.map((h) => this.hazardCard(h)).join('')}</div>
+      <h3>3 · GAMEPLAY SYSTEMS (${BESTIARY_SYSTEMS.length})</h3>
+      <div class="cc-cards">${BESTIARY_SYSTEMS.map((s) => this.systemCard(s)).join('')}</div>`
     );
   }
 

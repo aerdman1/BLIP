@@ -192,6 +192,23 @@
   flex-wrap: wrap;
 }
 .cc-card p { margin: 4px 0; color: var(--text); }
+.cc-card h4 {
+  margin: 12px 0 4px;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--signal-dim);
+  border-top: 1px dashed var(--line);
+  padding-top: 8px;
+}
+.cc-card h4:first-of-type { border-top: none; padding-top: 0; }
+.cc-bestiary-grid { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+.cc-issues { color: var(--warning); }
+.cc-export-enemy {
+  margin-top: 12px;
+  width: 100%;
+  text-align: center;
+}
+.cc-export-enemy:disabled { opacity: 0.55; cursor: default; }
 .cc-card.locked { opacity: 0.65; }
 .cc-card.locked .cc-bible-body { color: var(--text-dim); letter-spacing: 1px; }
 .cc-card.zone .cc-zone-tag, .cc-zone-tag { color: var(--text-dim); font-style: italic; }

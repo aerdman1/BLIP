@@ -29,7 +29,7 @@ registerServiceWorker();
 installTestAPI(game);
 if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__BLIP_GAME__ = game;
 
-const commandCenter = new CommandCenter(document.getElementById('command-center') as HTMLElement);
+const commandCenter = new CommandCenter(document.getElementById('command-center') as HTMLElement, { game });
 new ShellUI(game, {
   open: (section) => {
     updateSave(() => {}); // autosave on open (flushes pending stat bumps)
