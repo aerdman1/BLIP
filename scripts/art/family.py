@@ -948,11 +948,257 @@ def motel_landmarks() -> None:
         "td-z2-lm-lamp-emis")
 
 
+# ============================================================================
+#  PATTERSON'S ORCHARD — zone 4. "The Living Maze."
+#
+#  Again the pixel art is the brief. sweepTextures.ts builds this arena's ground
+#  as TILLED SOIL with corn-row furrows and its walls as packed CORN STALKS with
+#  silk tassels — the corn maze seen from above, at harvest dusk. This raises
+#  that to HD; the palette is lifted from PALETTE (dirt / cornStalk / cornSilk /
+#  cropGlow / orchardLightPurple) so the two resolutions are one world.
+#
+#  What makes orchard its own problem, distinct from forest and lot:
+#
+#  * The ground is PLANTED — it has DIRECTION. Furrows run in parallel rows, so
+#    unlike Miller Field's undirected erosion the soil carries a grain. Kept
+#    low-contrast so it describes the surface without fighting the corridors.
+#  * The walls are CORN, not rock and not steel — organic like zone 1's mask,
+#    but the face is vertical STALKS with bright silk tassels at the top edge,
+#    gold not green.
+#  * The light is HARVEST DUSK: warm amber and burnt orange, with Cameron's
+#    purple (the ECHO scout) and the crop-circle's signal-green as the accents.
+# ============================================================================
+OM = {
+    # tilled soil — PALETTE.dirt / dirtDark + warm harvest tones
+    "soil_dk":   (0x2B, 0x20, 0x15),
+    "soil":      (0x4A, 0x3A, 0x2B),
+    "soil_lt":   (0x6B, 0x53, 0x3A),
+    "soil_warm": (0x86, 0x66, 0x40),   # sun-caught ridge
+    "furrow":    (0x22, 0x19, 0x10),
+    "dust":      (0x7A, 0x66, 0x48),
+    # corn — PALETTE.cornStalk / cornStalkDark / cornSilk
+    "corn_dk":   (0x5A, 0x4C, 0x22),
+    "corn":      (0xB8, 0x9A, 0x4A),
+    "corn_lt":   (0xCF, 0xB0, 0x5E),
+    "silk":      (0xE4, 0xCF, 0x7A),
+    "husk_dk":   (0x5E, 0x53, 0x30),
+    "leaf":      (0x3A, 0x5A, 0x2E),   # stalk leaf green (sparse)
+    # harvest structures
+    "wood_dk":   (0x33, 0x24, 0x18),
+    "wood":      (0x5A, 0x40, 0x28),
+    "wood_lt":   (0x7E, 0x5C, 0x3A),
+    "pumpkin":   (0xC8, 0x6A, 0x24),
+    "pumpkin_lt":(0xE0, 0x86, 0x30),
+    "apple":     (0xC2, 0x3A, 0x34),   # PALETTE.appleRed
+    "burlap":    (0x8A, 0x76, 0x4E),
+    # glows
+    "crop":      (0xA8, 0xFF, 0x3E),   # PALETTE.cropGlow (== signal green)
+    "amber":     (0xFF, 0xB0, 0x3B),   # harvest lamp
+    "purple":    (0xB0, 0x6B, 0xFF),   # PALETTE.orchardLightPurple (Cameron/ECHO)
+}
+
+
+def orchard_tiles() -> None:
+    """Tilled soil with corn-row furrows + corn-stalk walls."""
+    print("orchard ground / walls")
+    P.update(OM)
+    base = warped(S, S, base=2, strength=0.36)
+    mid = fbm(S, S, base=7, octaves=4)
+    fine = fbm(S, S, base=30, octaves=3)
+
+    # FURROWS: parallel planted rows. A soft sine along one axis, jittered by
+    # low-freq noise so the rows wander like real tilled earth rather than a
+    # ruler grid. This is the grain that says "planted", the orchard's signature.
+    yy = np.linspace(0, 1, S)[:, None]
+    wobble = (fbm(S, S, base=3, octaves=3) - 0.5) * 0.06
+    rows = np.sin((yy + wobble) * math.pi * 2 * 14)          # 14 rows down the tile
+    furrow = np.clip(-rows, 0, 1)                            # troughs only
+
+    height = base * 0.5 + mid * 0.3 + fine * 0.1 - furrow * 0.4
+    lam = shade(height, ambient=0.62, strength=0.4)[:, :, None]
+
+    def compose(stops, dryness: float, grain: float) -> np.ndarray:
+        t = np.clip(base * 0.6 + mid * 0.28 + fine * grain, 0, 1)
+        rgb = ramp(t, stops)
+        # furrow troughs are darker damp soil; ridges catch warm light
+        rgb = rgb * (1 - furrow[:, :, None] * 0.5)
+        ridge = np.clip(rows, 0, 1)[:, :, None]
+        rgb = rgb + (np.array(P["soil_warm"], dtype=float) - rgb) * ridge * 0.22 * dryness
+        return rgb * lam
+
+    save_tile(compose([(0.0, "soil_dk"), (0.4, "soil"), (0.78, "soil_lt"), (1.0, "soil_warm")],
+                      dryness=0.8, grain=0.10), "td-z4-ground")
+    save_tile(compose([(0.0, "soil"), (0.4, "soil_lt"), (0.75, "soil_warm"), (1.0, "dust")],
+                      dryness=1.0, grain=0.08), "td-z4-ground-lit")
+    save_tile(compose([(0.0, "furrow"), (0.45, "soil_dk"), (0.85, "soil"), (1.0, "soil_lt")],
+                      dryness=0.3, grain=0.06), "td-z4-ground-dark")
+    # worn track: trampled flat dirt down the corridors, furrows smoothed away
+    track = ramp(np.clip(base * 0.6 + fine * 0.12, 0, 1),
+                 [(0.0, "soil"), (0.5, "soil_lt"), (1.0, "dust")]) * lam
+    save_tile(track * (1 - furrow[:, :, None] * 0.15), "td-z4-path")
+
+    # --- corn-stalk walls: organic like zone 1's mask, but the FACE is stalks ---
+    cb = warped(S, S, base=6, strength=0.3)
+    cm = fbm(S, S, base=12, octaves=4)
+    ch = np.clip(cb * 0.6 + cm * 0.4, 0, 1)
+    clam = shade(ch, ambient=0.44, strength=0.45)[:, :, None]
+    # canopy tops: dense corn seen from overhead — tan-gold with green flecks.
+    # Kept DARKER than the gold might suggest: corn tops are bright by nature,
+    # but a wall brighter than its floor inverts the depth read (walls advance
+    # instead of receding). The ramp tops out at corn, not silk, and only the
+    # rare highlight reaches corn_lt, so the wall sits near the floor value.
+    cap = ramp(ch, [(0.0, "corn_dk"), (0.6, "corn_dk"), (0.85, "corn"), (1.0, "corn_lt")]) * clam
+    leaf = (np.clip(cm - 0.62, 0, 1) * 3)[:, :, None]
+    cap = cap * (1 - leaf * 0.4) + np.array(P["leaf"], dtype=float) * leaf * 0.4
+    save_tile(cap, "td-z4-wall-top")
+
+    # Vertical face: STALKS. Bright vertical striations, tassels catching light
+    # at the top edge, darkening to the base — unmistakably a wall of corn.
+    H = 200
+    xx = np.arange(S)[None, :]
+    stalks = np.sin(xx * math.pi * 2 / 9.0)                  # vertical stalk pitch
+    fb = fbm(H, S, base=6, octaves=4)
+    fh = np.clip(fb * 0.5 + np.abs(stalks) * 0.3 + 0.2, 0, 1)
+    flam = shade(fh, ambient=0.5, strength=0.45)[:, :, None]
+    face = ramp(fh, [(0.0, "corn_dk"), (0.5, "corn"), (1.0, "corn_lt")]) * flam
+    # silk tassels along the very top
+    top = np.clip(1 - np.arange(H)[:, None] / (H * 0.18), 0, 1)
+    tassel = top * np.clip(np.sin(xx * math.pi * 2 / 6.0) * 3 - 1.5, 0, 1)
+    face = face + np.array(P["silk"], dtype=float) * tassel[:, :, None] * 0.5
+    depth = np.linspace(1.06, 0.4, H)[:, None, None]
+    save_tile(face * depth, "td-z4-wall-face")
+
+
+def orchard_props() -> None:
+    print("orchard props")
+    P.update(OM)
+    # kind: 'shard' (built: bales, crates, baskets) / 'blob' (organic: gourds)
+    specs = [
+        ("td-z4-hay",     140, 100, "shard", 3, [(0.0, "corn_dk"), (0.55, "corn"), (1.0, "silk")], 0.9),
+        ("td-z4-crate",   126, 104, "shard", 3, [(0.0, "wood_dk"), (0.55, "wood"), (1.0, "wood_lt")], 1.0),
+        ("td-z4-basket",  110,  96, "shard", 3, [(0.0, "wood_dk"), (0.5, "burlap"), (1.0, "silk")], 0.85),
+        ("td-z4-pumpkin", 118,  92, "blob",  4, [(0.0, "wood_dk"), (0.5, "pumpkin"), (1.0, "pumpkin_lt")], 1.1),
+        ("td-z4-gourd",    92,  74, "blob",  4, [(0.0, "corn_dk"), (0.55, "corn"), (1.0, "corn_lt")], 0.9),
+        ("td-z4-tuft",     96,  86, "blob",  4, [(0.0, "husk_dk"), (0.6, "corn_dk"), (1.0, "corn")], 0.5),
+    ]
+    for name, w, h, kind, n, stops, relief in specs:
+        if kind == "shard":
+            m = shard_mask(w, h, n)
+            img = lit_angular(w, h, m, stops, relief)
+        else:
+            m = blob_mask(w, h, n)
+            img = lit_sprite(w, h, m, stops, relief)
+        d = ImageDraw.Draw(img)
+        if name == "td-z4-hay":
+            # baling twine + straw-end striations read the block as a bale
+            for ty in (0.30, 0.68):
+                d.line([(w * 0.14, h * ty), (w * 0.86, h * ty)], fill=(*P["husk_dk"], 200), width=3)
+            for _ in range(10):
+                x0 = w * (0.15 + RNG.random() * 0.7)
+                d.line([(x0, h * 0.2), (x0, h * 0.8)], fill=(*P["silk"], 90), width=1)
+        if name == "td-z4-crate":
+            d.line([(w * 0.5, h * 0.18), (w * 0.5, h * 0.82)], fill=(*P["wood_dk"], 200), width=3)
+            d.line([(w * 0.16, h * 0.5), (w * 0.84, h * 0.5)], fill=(*P["wood_dk"], 200), width=3)
+            # a couple of red apples spilling over the top edge
+            for cx in (0.36, 0.6):
+                d.ellipse((w * (cx - 0.09), h * 0.10, w * (cx + 0.09), h * 0.28), fill=(*P["apple"], 255))
+        if name == "td-z4-pumpkin":
+            # ribs + stem, so the gourd reads as a pumpkin not a ball
+            for rx in (0.36, 0.5, 0.64):
+                d.line([(w * rx, h * 0.34), (w * rx, h * 0.82)], fill=(*P["wood_dk"], 150), width=2)
+            d.rectangle((w * 0.46, h * 0.24, w * 0.54, h * 0.36), fill=(*P["leaf"], 255))
+        if name == "td-z4-tuft":
+            # dry corn-husk blades
+            for _ in range(8):
+                bx = w * (0.28 + RNG.random() * 0.44)
+                by = h * (0.68 + RNG.random() * 0.24)
+                ln = h * (0.24 + RNG.random() * 0.26)
+                lean = (RNG.random() - 0.5) * w * 0.3
+                col = P["corn"] if RNG.random() < 0.4 else P["husk_dk"]
+                d.line([(bx, by), (bx + lean, by - ln)], fill=(*col, 190), width=2)
+        save_sprite(img, name)
+
+
+def orchard_landmarks() -> None:
+    """Harvest-dusk anchors: things that glow (crop circle, lamp) and big farm
+    objects you route around (cart, hay stack)."""
+    print("orchard landmarks")
+    P.update(OM)
+
+    def emis(w, h, draw_fn, blur=6.0):
+        e = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        draw_fn(ImageDraw.Draw(e))
+        return e.filter(ImageFilter.GaussianBlur(blur))
+
+    # harvest cart — wooden flatbed, big sightline-breaker (landmark index 0)
+    w, h = 300, 200
+    im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    for cx in (0.22, 0.78):
+        d.ellipse((w * (cx - 0.10), h * 0.70, w * (cx + 0.10), h * 0.96), fill=(*P["wood_dk"], 255))
+        d.ellipse((w * (cx - 0.055), h * 0.76, w * (cx + 0.055), h * 0.90), fill=(*P["soil_dk"], 255))
+    d.rounded_rectangle((w * 0.10, h * 0.26, w * 0.90, h * 0.72), radius=10, fill=(*P["wood_dk"], 255))
+    d.rounded_rectangle((w * 0.12, h * 0.22, w * 0.88, h * 0.66), radius=8, fill=(*P["wood"], 255))
+    for px in (0.24, 0.4, 0.56, 0.72):     # plank seams
+        d.line([(w * px, h * 0.24), (w * px, h * 0.64)], fill=(*P["wood_dk"], 200), width=2)
+    # a few pumpkins loaded on the bed
+    for cx, cy in [(0.3, 0.4), (0.52, 0.36), (0.7, 0.42)]:
+        d.ellipse((w * (cx - 0.08), h * (cy - 0.09), w * (cx + 0.08), h * (cy + 0.09)), fill=(*P["pumpkin"], 255))
+    save_sprite(side_shade(im), "td-z4-lm-cart")
+
+    # scarecrow — the warm/powered anchor (landmark index 1): a lantern glows
+    w, h = 170, 300
+    im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.ellipse((w * 0.34, h * 0.90, w * 0.66, h * 0.99), fill=(*P["soil_dk"], 255))
+    d.rectangle((w * 0.46, h * 0.30, w * 0.54, h * 0.92), fill=(*P["wood"], 255))     # post
+    d.rectangle((w * 0.18, h * 0.40, w * 0.82, h * 0.47), fill=(*P["wood"], 255))     # crossbar
+    d.polygon([(w * 0.30, h * 0.16), (w * 0.70, h * 0.16), (w * 0.62, h * 0.36),
+               (w * 0.38, h * 0.36)], fill=(*P["burlap"], 255))                       # shirt/torso
+    d.ellipse((w * 0.38, h * 0.06, w * 0.62, h * 0.24), fill=(*P["burlap"], 255))     # head sack
+    d.polygon([(w * 0.30, h * 0.10), (w * 0.70, h * 0.10), (w * 0.50, h * -0.02)], fill=(*P["corn_dk"], 255))  # hat
+    d.ellipse((w * 0.66, h * 0.44, w * 0.84, h * 0.60), fill=(*P["amber"], 255))      # hung lantern
+    save_sprite(side_shade(im), "td-z4-lm-scarecrow")
+    save_sprite(emis(w, h, lambda dd: dd.ellipse(
+        (w * 0.64, h * 0.42, w * 0.86, h * 0.62), fill=(*P["amber"], 255)), blur=8.0),
+        "td-z4-lm-scarecrow-emis")
+
+    # round hay-bale stack — big soft mass (landmark index 2)
+    w, h = 260, 190
+    m = blob_mask(w, h, 6, 1.1)
+    im = lit_sprite(w, h, m, [(0.0, "corn_dk"), (0.55, "corn"), (1.0, "corn_lt")], 1.0)
+    d = ImageDraw.Draw(im)
+    for _ in range(3):     # spiral bale bands
+        cy = h * (0.4 + RNG.random() * 0.4)
+        d.arc((w * 0.2, cy - h * 0.2, w * 0.8, cy + h * 0.2), 200, 340, fill=(*P["husk_dk"], 200), width=3)
+    save_sprite(im, "td-z4-lm-hay")
+
+    # crop-circle glyph — flat on the ground, glows signal-green (the flat
+    # landmark, like zone 1's pool). This is the maze heart made visible.
+    w, h = 300, 200
+    im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.ellipse((w * 0.10, h * 0.14, w * 0.90, h * 0.86), fill=(*P["soil_dk"], 220))
+    d.ellipse((w * 0.16, h * 0.22, w * 0.84, h * 0.78), outline=(*P["crop"], 255), width=4)
+    d.ellipse((w * 0.30, h * 0.38, w * 0.70, h * 0.62), outline=(*P["crop"], 255), width=3)
+    for a in range(0, 360, 45):     # radiating spokes
+        rad = math.radians(a)
+        d.line([(w * 0.5, h * 0.5),
+                (w * (0.5 + math.cos(rad) * 0.34), h * (0.5 + math.sin(rad) * 0.34))],
+               fill=(*P["crop"], 220), width=2)
+    save_sprite(im, "td-z4-lm-glyph")
+    e = emis(w, h, lambda dd: (
+        dd.ellipse((w * 0.16, h * 0.22, w * 0.84, h * 0.78), outline=(*P["crop"], 255), width=6),
+        dd.ellipse((w * 0.30, h * 0.38, w * 0.70, h * 0.62), outline=(*P["crop"], 255), width=4),
+    ), blur=6.0)
+    save_sprite(e, "td-z4-lm-glyph-emis")
+
+
 if __name__ == "__main__":
     import argparse
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("--biome", default="miller", choices=["miller", "motel"])
+    ap.add_argument("--biome", default="miller", choices=["miller", "motel", "orchard"])
     args = ap.parse_args()
 
     print("BLIP top-down asset family — one light, one palette, one noise basis\n")
@@ -969,7 +1215,12 @@ if __name__ == "__main__":
         OUT_SPRITES = os.path.join(ROOT, "art-src", f"sprites-{args.biome}")
         os.makedirs(OUT_SPRITES, exist_ok=True)
         globals()["OUT_SPRITES"] = OUT_SPRITES
-        motel_tiles()
-        motel_props()
-        motel_landmarks()
+        if args.biome == "motel":
+            motel_tiles()
+            motel_props()
+            motel_landmarks()
+        else:
+            orchard_tiles()
+            orchard_props()
+            orchard_landmarks()
     print(f"\ntiles  -> {OUT_TILES}\nsprites-> {OUT_SPRITES}")

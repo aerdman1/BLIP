@@ -239,6 +239,78 @@ const MOTEL: TdBiomeDef = {
   },
 };
 
+/* --------------------------------------------------------------------------
+ * ORCHARD — Patterson's Orchard, "The Living Maze" (zone 4 / maze-z4).
+ *
+ * The corn maze from above at harvest dusk. Organic like Miller Field — corn
+ * is grown, not built — so wallStyle is 'rock' (the same irregular erosion mask
+ * reads as a hedgerow of stalks). What makes it its own place:
+ *   * WARM, not cool. Tilled soil and gold corn under a burnt-orange dusk,
+ *     versus Miller Field's cold night green.
+ *   * A CANOPY of overhanging leaves — an orchard has cover, unlike the lot.
+ *   * The crop-circle glyph is the flat, green-glowing landmark (the maze
+ *     heart), mirroring how zone 1's contaminated pool lies flat and glows.
+ *   * Accents are harvest amber + Cameron's ECHO purple + the crop's green.
+ * -------------------------------------------------------------------------- */
+const ORCHARD: TdBiomeDef = {
+  id: 'orchard',
+  atlas: 'topdown-z4',
+  tiles: {
+    ground: 'td-z4-ground',
+    groundLit: 'td-z4-ground-lit',
+    groundDark: 'td-z4-ground-dark',
+    path: 'td-z4-path',
+    wallTop: 'td-z4-wall-top',
+    wallFace: 'td-z4-wall-face',
+  },
+  fallback: {
+    ground: TEX.sweepCornGround,
+    groundLit: TEX.sweepGrass2,
+    groundDark: TEX.sweepGrassDk,
+    path: TEX.sweepPath,
+    wallTop: TEX.sweepCornWall,
+    wallFace: TEX.sweepCornWall,
+  },
+  wallStyle: 'rock', // corn hedgerows are irregular/organic, not built
+  skirt: ['td-z4-tuft', 'td-z4-gourd', 'td-z4-tuft', 'td-z4-basket'],
+  scatter: ['td-z4-hay', 'td-z4-crate', 'td-z4-pumpkin', 'td-z4-gourd', 'td-z4-tuft', 'td-z4-basket'],
+  bank: ['td-z4-tuft', 'td-z4-gourd'],
+  canopy: 'td-z4-tuft', // overhanging husk/leaf as the framing band
+  landmarks: [
+    ['td-z4-lm-cart', null, 0.36],
+    // index 1 is the warm/powered anchor — the scarecrow's hung lantern
+    ['td-z4-lm-scarecrow', 'td-z4-lm-scarecrow-emis', 0.40],
+    ['td-z4-lm-hay', null, 0.34],
+    ['td-z4-lm-glyph', 'td-z4-lm-glyph-emis', 0.40],
+  ],
+  flatLandmark: 'td-z4-lm-glyph', // the crop circle lies flat and glows green
+  accents: {
+    warm: 0xffb03b, // harvest lamp amber
+    coolA: 0xa8ff3e, // crop-circle green (== signal) — the glyph's glow
+    coolB: 0xb06bff, // Cameron / ECHO purple
+    warmChance: 0.6, // dusk is warm; green stays scarce and near the crop tech
+    count: 16,
+  },
+  tints: {
+    skirt: 0xd8c08a,
+    propNear: 0xffffff,
+    propFar: 0xc8b088,
+    wallFace: 0xffffff, // corn face already gold in the albedo; don't crush it
+    cloudLit: 0xffd88a, // warm harvest light pools
+    cloudDark: 0x4a3c58, // dusk purple shadow, at a usable luminance
+    canopy: 0x2a3320, // dark husk/leaf overhead
+  },
+  // Harvest dusk sits between Miller Field's deep night and the lit motel lot:
+  // a warm-graded soil albedo under a purple-orange sky. Slightly lifted from
+  // zone 1's night curve so the warmth reads, but darker than the lot.
+  light: {
+    darkness: 0.2,
+    darknessLow: 0.12,
+    ambientFloor: 0.55,
+    vignette: 0.46,
+  },
+};
+
 /**
  * Registry. A biome absent from here simply never gets the HD treatment and
  * renders with the existing procedural pixel art — which is the correct,
@@ -247,6 +319,7 @@ const MOTEL: TdBiomeDef = {
 export const TD_BIOMES: Partial<Record<SweepBiome, TdBiomeDef>> = {
   miller: MILLER,
   motel: MOTEL,
+  orchard: ORCHARD,
 };
 
 /** The HD descriptor for an arena, or null if that arena stays procedural. */

@@ -89,6 +89,17 @@ const BIOMES = {
     tiles: ['ground', 'ground-lit', 'ground-dark', 'path', 'wall-top', 'wall-face']
       .map((t) => `td-z2-${t}.webp`),
   },
+  orchard: {
+    name: 'topdown-z4',
+    prefix: 'td-z4',
+    scenery: [
+      'td-z4-hay', 'td-z4-crate', 'td-z4-basket', 'td-z4-pumpkin', 'td-z4-gourd', 'td-z4-tuft',
+      'td-z4-lm-cart', 'td-z4-lm-scarecrow', 'td-z4-lm-scarecrow-emis',
+      'td-z4-lm-hay', 'td-z4-lm-glyph', 'td-z4-lm-glyph-emis',
+    ],
+    tiles: ['ground', 'ground-lit', 'ground-dark', 'path', 'wall-top', 'wall-face']
+      .map((t) => `td-z4-${t}.webp`),
+  },
 };
 
 const CFG = BIOMES[BIOME];
