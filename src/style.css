@@ -514,6 +514,85 @@ body.crt-off #crt-overlay, body.crt-off #vignette-overlay { display: none; }
 #menu-items * {
   pointer-events: auto;
 }
+
+/* ── peek: hide the menu to view the full background, tap to bring it back ──
+   Shown only where the menu fills the screen (mobile portrait + short landscape);
+   on desktop the title art already frames the centered menu, so it's hidden. */
+#menu-peek {
+  position: absolute;
+  top: max(8px, env(safe-area-inset-top));
+  right: max(8px, env(safe-area-inset-right));
+  z-index: 5;
+  display: none;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  font: 600 10px/1 var(--mono, monospace);
+  letter-spacing: 1px;
+  color: var(--lime);
+  background: linear-gradient(180deg, rgba(17, 23, 36, 0.82), rgba(8, 12, 20, 0.88));
+  border: 1px solid rgba(168, 255, 62, 0.4);
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(4, 8, 18, 0.5);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: opacity 0.2s ease, transform 0.12s ease;
+}
+#menu-peek:active { transform: scale(0.94); }
+#menu-peek .peek-icon { font-size: 11px; line-height: 1; }
+
+/* restore pill — only present while peeking */
+#menu-restore {
+  position: absolute;
+  left: 50%;
+  bottom: max(20px, calc(env(safe-area-inset-bottom) + 16px));
+  transform: translateX(-50%);
+  z-index: 5;
+  display: none;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 18px;
+  font: 700 11px/1 var(--mono, monospace);
+  letter-spacing: 1.4px;
+  color: var(--lime);
+  background: linear-gradient(180deg, rgba(17, 23, 36, 0.9), rgba(8, 12, 20, 0.94));
+  border: 1px solid rgba(168, 255, 62, 0.5);
+  border-radius: 999px;
+  box-shadow: 0 4px 16px rgba(4, 8, 18, 0.6), 0 0 0 4px rgba(168, 255, 62, 0.06);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  animation: menu-restore-pulse 2.4s ease-in-out infinite;
+}
+#menu-restore .peek-icon { font-size: 12px; }
+@keyframes menu-restore-pulse {
+  0%, 100% { box-shadow: 0 4px 16px rgba(4, 8, 18, 0.6), 0 0 0 3px rgba(168, 255, 62, 0.05); }
+  50% { box-shadow: 0 4px 20px rgba(4, 8, 18, 0.6), 0 0 0 6px rgba(168, 255, 62, 0.16); }
+}
+
+/* the peeking state: fade every menu element out and let the town show through */
+#menu-overlay.peeking {
+  background: none;
+  pointer-events: auto; /* still catches a tap-anywhere-to-restore */
+}
+#menu-overlay.peeking > #menu-hero,
+#menu-overlay.peeking > #menu-logo,
+#menu-overlay.peeking > #menu-tagline,
+#menu-overlay.peeking > #menu-subtitle,
+#menu-overlay.peeking > #menu-items,
+#menu-overlay.peeking > #menu-footer,
+#menu-overlay.peeking > #menu-peek {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.28s ease;
+}
+#menu-overlay.peeking .menu-scout-hit { pointer-events: none; }
+#menu-overlay.peeking > #menu-restore { display: inline-flex; }
+/* smooth the fade back in too */
+#menu-hero, #menu-logo, #menu-tagline, #menu-subtitle, #menu-items, #menu-footer, #menu-peek {
+  transition: opacity 0.28s ease;
+}
 .menu-scout-hit {
   position: absolute;
   z-index: 2;
@@ -1470,6 +1549,7 @@ body.compact-gameplay.sweep-active .sweep-hud-banner {
       radial-gradient(circle at 50% 20%, rgba(168, 255, 62, 0.12), transparent 28%),
       linear-gradient(180deg, rgba(4, 8, 18, 0.2), rgba(7, 17, 38, 0.04) 42%, rgba(4, 8, 18, 0.34));
   }
+  #menu-peek { display: inline-flex; }
   .hero-radar { width: clamp(76px, 24vw, 104px); }
   #menu-logo svg { width: min(210px, 58vw, 18vh); }
   #menu-tagline {
@@ -1528,6 +1608,7 @@ body.compact-gameplay.sweep-active .sweep-hud-banner {
     padding: max(5px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(7px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
     background: linear-gradient(180deg, rgba(4, 8, 18, 0.9), rgba(7, 17, 38, 0.76));
   }
+  #menu-peek { display: inline-flex; }
   #menu-hero { display: none; }
   #menu-logo svg { width: min(150px, 24vw); }
   #menu-logo {

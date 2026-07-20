@@ -184,6 +184,7 @@ export class ShellUI {
     this.wireTransmissionModal();
     this.wirePortraitModal();
     this.wireMenuScroll();
+    this.wireMenuPeek();
     this.wireBus();
     this.buildPauseEntries();
     this.buildSettings();
@@ -668,6 +669,7 @@ export class ShellUI {
     $('game-frame').classList.toggle('menu-open', v);
     this.refreshGameplayChrome();
     $('menu-overlay').classList.toggle('hidden', !v);
+    $('menu-overlay').classList.remove('peeking'); // never reopen already-hidden
     this.refreshDevChrome();
     if (v) {
       this.buildHero();
@@ -677,6 +679,39 @@ export class ShellUI {
     }
     this.refreshTouch();
     this.refreshOrientationNudge();
+  }
+
+  /** Peek: collapse the menu so the Chagrin Falls title art shows in full, and
+   *  tap anywhere (or the restore pill) to bring the menu back. Mobile keeps the
+   *  whole homepage from being a wall of buttons; harmless on desktop. */
+  private wireMenuPeek(): void {
+    const overlay = $('menu-overlay');
+    const setPeek = (on: boolean) => {
+      overlay.classList.toggle('peeking', on);
+      // move focus to whichever affordance is now interactive, so keyboard and
+      // screen-reader users are never stranded on a hidden control
+      if (on) ($('menu-restore') as HTMLButtonElement).focus?.();
+      else ($('menu-peek') as HTMLButtonElement).focus?.();
+    };
+    $('menu-peek').addEventListener('click', (e) => {
+      e.stopPropagation();
+      setPeek(true);
+    });
+    $('menu-restore').addEventListener('click', (e) => {
+      e.stopPropagation();
+      setPeek(false);
+    });
+    // while peeking, a tap anywhere on the (now transparent) overlay restores
+    overlay.addEventListener('click', () => {
+      if (overlay.classList.contains('peeking')) setPeek(false);
+    });
+    // Esc restores too, for keyboard users
+    overlay.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && overlay.classList.contains('peeking')) {
+        e.stopPropagation();
+        setPeek(false);
+      }
+    });
   }
 
   private wireMenuScroll(): void {
