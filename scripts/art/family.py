@@ -569,40 +569,57 @@ def landmark_family() -> None:
 # ============================================================================
 #  MOTEL NOWHERE — zone 2. "Inside the Circuit."
 #
-#  A different WORLD, not a recolour of the forest. Miller Field is organic,
-#  unlit and cool; the motel lot is BUILT, sodium-lit and warm-on-cold. What
-#  carries over untouched is the machinery that makes both read as one game:
-#  the same LIGHT vector, the same noise basis, the same relief/AO conventions.
+#  THIS IS A HYBRID, and the existing pixel art is the brief. sweepTextures.ts
+#  builds zone 2's ground as "wet asphalt with neon-spill puddles" and its
+#  walls as FUSE-BOX STEEL PANELS with neon cyan trim — the motel lot as seen
+#  THROUGH the circuit you jacked into. Not a parking lot, not an abstract
+#  circuit board: both at once. This pass raises that exact world to HD; it
+#  does not redesign it.
 #
-#  The single biggest read here is asphalt vs earth. Asphalt is flat, hard and
-#  specular where it has worn smooth; it cracks in long straight-ish seams
-#  rather than eroding in blobs, and weeds come up THROUGH those cracks. That
-#  crack structure is what stops it looking like grey mud.
+#  Two consequences for the art:
+#
+#  * The ground is WET blacktop, so its light is REFLECTED — neon spill lies
+#    in the puddles rather than the surface being lit from above. Reflection,
+#    not illumination, is what makes wet asphalt read as wet.
+#  * The walls are MANUFACTURED. Zone 1's rule is "no rectangle is ever
+#    visible", but a breaker panel is supposed to be rectangular — so the fix
+#    is not to erode it, it is to make the rectangle read as ENGINEERED:
+#    panel seams, bolt rows, vent louvres, a neon trim line. A blank grey
+#    rectangle looks like a mistake; a bolted steel panel looks intentional.
+#
+#  Palette values are lifted from PALETTE in src/game/config.ts so the HD set
+#  and the pixel set are the same world at two resolutions.
 # ============================================================================
 PM = {
-    "tar_dk":    (0x3E, 0x41, 0x4A),
-    "tar":       (0x56, 0x5B, 0x66),
-    "tar_lt":    (0x71, 0x77, 0x84),
-    "tar_worn":  (0x8C, 0x93, 0xA1),
-    "kerb":      (0x50, 0x4E, 0x48),
-    "kerb_lt":   (0x6E, 0x6B, 0x62),
-    "stucco_dk": (0x24, 0x21, 0x1C),
-    "stucco":    (0x38, 0x33, 0x2A),
-    "stucco_lt": (0x4E, 0x47, 0x3A),
-    "block":     (0x2A, 0x2A, 0x28),
-    "block_lt":  (0x3C, 0x3C, 0x38),
+    # wet blacktop — from PALETTE.asphalt / asphaltLit / asphaltPuddle
+    "tar_dk":    (0x33, 0x2C, 0x3E),
+    "tar":       (0x4A, 0x41, 0x59),
+    "tar_lt":    (0x63, 0x58, 0x73),
+    "tar_worn":  (0x7E, 0x72, 0x8E),
+    "puddle":    (0x3A, 0x30, 0x50),
+    "kerb":      (0x3C, 0x43, 0x56),   # PALETTE.slate
+    "kerb_lt":   (0x5A, 0x62, 0x78),
+    # breaker housing — PALETTE.fuseSteel / fuseSteelDark / slateDark
+    "steel_dk":  (0x1E, 0x22, 0x2B),
+    "steel":     (0x31, 0x36, 0x43),
+    "steel_lt":  (0x4C, 0x53, 0x64),
+    "block":     (0x26, 0x2D, 0x3D),
+    "block_lt":  (0x3C, 0x43, 0x56),
     "paint":     (0x6B, 0x60, 0x34),   # faded lot line
     "rust":      (0x5A, 0x3A, 0x24),
     "weed":      (0x33, 0x3D, 0x28),
     "weed_lt":   (0x4A, 0x55, 0x33),
-    "neon_pink": (0xFF, 0x4D, 0x9E),
-    "neon_cyan": (0x35, 0xE0, 0xD0),
-    "sodium":    (0xFF, 0xB1, 0x4A),
+    # neon — PALETTE.neonPink / neonCyan / neonAmber / their dim variants
+    "neon_pink": (0xFF, 0x4D, 0x8D),
+    "neon_pink_dim": (0x6E, 0x24, 0x40),
+    "neon_cyan": (0x3D, 0xF0, 0xFF),
+    "neon_cyan_dim": (0x1A, 0x5A, 0x63),
+    "sodium":    (0xFF, 0xB0, 0x3B),
 }
 
 
 def motel_tiles() -> None:
-    """Asphalt lot + built walls. The crack field is the whole trick."""
+    """Wet asphalt lot + engineered breaker-panel walls."""
     print("motel ground / walls")
     P.update(PM)
     base = warped(S, S, base=2, strength=0.30)
@@ -616,70 +633,110 @@ def motel_tiles() -> None:
     cracks = np.clip((ridge - 0.72) * 9.0, 0, 1)
     cracks = np.clip(cracks + np.clip((1.0 - np.abs(fbm(S, S, base=11, octaves=4) * 2 - 1) - 0.80) * 8, 0, 1), 0, 1)
 
+    # WHERE THE WATER LIES. Standing water is the defining feature of this
+    # ground, so it gets its own broad field rather than being derived from the
+    # crack noise — puddles pool in shallow depressions, not along splits.
+    pool = np.clip((0.46 - warped(S, S, base=3, strength=0.35)) * 3.4, 0, 1)
+
     height = base * 0.5 + mid * 0.34 + fine * 0.16 - cracks * 0.55
     lam = shade(height, ambient=0.66, strength=0.34)[:, :, None]
 
-    def compose(stops, wear: float, weeds: float, wet: float) -> np.ndarray:
+    def compose(stops, wear: float, wet: float, spill: float) -> np.ndarray:
         t = np.clip(base * 0.55 + mid * 0.32 + fine * 0.13, 0, 1)
         rgb = ramp(t, stops)
-        # tyre-polished patches: where the lot is driven, aggregate wears smooth
         if wear > 0:
             w_ = np.clip((base - 0.52) * 2.6, 0, 1)[:, :, None] * wear
             rgb = rgb * (1 - w_) + ramp(t, [(0.0, "tar"), (1.0, "tar_worn")]) * w_
-        # cracks are DARK and sit under everything else
-        rgb = rgb * (1 - cracks[:, :, None] * 0.82)
-        # growth only in the cracks — the one place it can get light and water
-        if weeds > 0:
-            g = (cracks * np.clip(mid * 1.5, 0, 1) * weeds)[:, :, None]
-            rgb = rgb * (1 - g) + ramp(np.clip(fine, 0, 1),
-                                       [(0.0, "weed"), (1.0, "weed_lt")]) * g
-        # standing water: asphalt does not absorb, so puddles are SPECULAR
+        rgb = rgb * (1 - cracks[:, :, None] * 0.72)
+
         if wet > 0:
-            pw = np.clip((0.36 - base) * 3.6, 0, 1)[:, :, None] * wet
-            rgb = rgb * (1 - pw * 0.75)
-            spec = np.clip((normals(height) @ LIGHT) ** 22, 0, 1)[:, :, None]
-            rgb = rgb + spec * pw * 210
+            pw = (pool * wet)[:, :, None]
+            # A puddle is DARKER than dry tar (it absorbs) but carries a hard
+            # specular glint (it reflects). Doing only one of the two is what
+            # makes CG water read as flat paint.
+            rgb = rgb * (1 - pw * 0.45) + ramp(np.clip(fine, 0, 1),
+                                               [(0.0, "puddle"), (1.0, "tar")]) * pw * 0.45
+            spec = np.clip((normals(height) @ LIGHT) ** 26, 0, 1)[:, :, None]
+            rgb = rgb + spec * pw * 260
+
+        # NEON SPILL — the zone's signature. Colour arrives by REFLECTION in
+        # the standing water, so it appears only where the puddles are and is
+        # strongest where they are smoothest. This is the single cue that says
+        # "motel sign overhead" without drawing the sign.
+        if spill > 0:
+            s_lo = np.clip(fbm(S, S, base=4, octaves=3) * 1.5 - 0.35, 0, 1)
+            cyan = (pool * s_lo * spill)[:, :, None]
+            pink = (pool * np.clip(1 - s_lo, 0, 1) * spill * 0.75)[:, :, None]
+            rgb = rgb + np.array(P["neon_cyan"], dtype=float) * cyan * 0.5
+            rgb = rgb + np.array(P["neon_pink"], dtype=float) * pink * 0.42
         return rgb * lam
 
     save_tile(compose([(0.0, "tar_dk"), (0.45, "tar"), (0.8, "tar_lt"), (1.0, "tar_worn")],
-                      wear=0.55, weeds=0.5, wet=0.0), "td-z2-ground")
-    # "lit" = under a sodium lamp: the whole ramp shifts warm, not just brighter
+                      wear=0.55, wet=0.7, spill=0.55), "td-z2-ground")
+    # "lit": nearer a sign or a lamp — more spill, more reflection, not just brighter
     save_tile(compose([(0.0, "tar"), (0.4, "tar_lt"), (0.75, "tar_worn"), (1.0, "kerb_lt")],
-                      wear=0.7, weeds=0.35, wet=0.0) * np.array([1.10, 1.00, 0.86]),
-              "td-z2-ground-lit")
+                      wear=0.7, wet=0.85, spill=1.0), "td-z2-ground-lit")
     save_tile(compose([(0.0, "tar_dk"), (0.5, "tar_dk"), (0.85, "tar"), (1.0, "tar_lt")],
-                      wear=0.2, weeds=0.6, wet=0.8), "td-z2-ground-dark")
-    # the "path" is the worn driving lane — smoother, faded paint ghost
+                      wear=0.2, wet=0.95, spill=0.25), "td-z2-ground-dark")
     lane = compose([(0.0, "tar"), (0.4, "tar_lt"), (0.8, "tar_worn"), (1.0, "kerb")],
-                   wear=0.95, weeds=0.12, wet=0.0)
+                   wear=0.95, wet=0.35, spill=0.3)
     stripe = np.clip(np.sin(np.linspace(0, 2 * math.pi, S))[None, :] * 6 - 5.2, 0, 1)[:, :, None]
     lane = lane * (1 - stripe * 0.5) + np.array(P["paint"], dtype=float) * stripe * 0.5
     save_tile(lane, "td-z2-path")
 
-    # --- walls: BUILT. Stucco courses over a block base, not eroded rock. ---
-    wb = fbm(S, S, base=8, octaves=4)
-    course = np.abs(np.sin(np.linspace(0, 16 * math.pi, S)))[:, None] * 0.10
-    wh = np.clip(wb * 0.7 + course, 0, 1)
-    wlam = shade(wh, ambient=0.58, strength=0.40)[:, :, None]
-    cap = ramp(wh, [(0.0, "block"), (0.5, "stucco"), (1.0, "stucco_lt")]) * wlam
+    # ---------------------------------------------------------------------
+    # WALLS: breaker panels, not masonry.
+    #
+    # Zone 1 forbids visible rectangles because a rock bank has none. Here the
+    # rectangle IS the subject — so it is drawn as a MANUFACTURED one. Panel
+    # seams on a regular pitch, bolt rows at the corners, vent louvres, and a
+    # neon trim line picking out each panel edge. That reads as equipment; an
+    # unarticulated grey rectangle reads as an unfinished asset.
+    # ---------------------------------------------------------------------
+    wb = fbm(S, S, base=10, octaves=4)
+    wh = np.clip(wb * 0.42 + 0.34, 0, 1)
+    wlam = shade(wh, ambient=0.60, strength=0.34)[:, :, None]
+    cap = ramp(wh, [(0.0, "steel_dk"), (0.5, "steel"), (1.0, "steel_lt")]) * wlam
+
+    idx = np.arange(S)
+    PITCH = 44                       # panel width in texels — reads as equipment
+                                     # at the ~272px ground cell, not as a grid
+    seam = ((idx % PITCH) < 2)
+    seam_f = seam[None, :] | seam[:, None]
+    cap = cap * (1 - seam_f[:, :, None] * 0.55)
+    # neon trim: a thin bright line just inside every seam
+    trim = (((idx % PITCH) >= 3) & ((idx % PITCH) < 4))
+    trim_f = trim[None, :] | trim[:, None]
+    # Trim is a HINT of powered edge, not a light source. At 0.85 it dominated
+    # the frame and the arena read as a lattice overlay rather than a place.
+    cap = cap + np.array(P["neon_cyan_dim"], dtype=float) * trim_f[:, :, None] * 0.30
+    # bolt rows: a dot at each panel corner region
+    bolt = (((idx % PITCH) > 6) & ((idx % PITCH) < 9))
+    bolt_f = bolt[None, :] & bolt[:, None]
+    cap = cap + np.array(P["steel_lt"], dtype=float) * bolt_f[:, :, None] * 0.55
     save_tile(cap, "td-z2-wall-top")
 
+    # Vertical face: the panel seen edge-on. Louvred vents run horizontally —
+    # regular, hard-edged, and unmistakably manufactured, which is exactly the
+    # cue that separates this surface from zone 1's stratified rock.
     H = 192
-    fb = fbm(H, S, base=6, octaves=4)
-    # MORTAR COURSES: hard horizontal lines. A motel wall is laid, and those
-    # regular lines are most of why the eye reads "building" instead of "cliff".
-    rows = np.abs(np.sin(np.linspace(0, 11 * math.pi, H)))[:, None]
-    mortar = np.clip((rows - 0.93) * 14, 0, 1)
-    fh = np.clip(fb * 0.55 + 0.3, 0, 1)
-    flam = shade(fh, ambient=0.52, strength=0.42)[:, :, None]
-    face = ramp(fh, [(0.0, "block"), (0.45, "stucco"), (1.0, "stucco_lt")]) * flam
-    face = face * (1 - mortar[:, :, None] * 0.45)
-    # water staining runs DOWN from the top edge — the cheapest, most legible
-    # cue that this surface is vertical and has stood outside for years.
-    streak = np.clip(fbm(H, S, base=3, octaves=3) * 1.4 - 0.55, 0, 1)
-    streak = streak * np.linspace(1.0, 0.15, H)[:, None]
-    face = face * (1 - streak[:, :, None] * 0.42)
-    depth = np.linspace(1.06, 0.40, H)[:, None, None]
+    fb = fbm(H, S, base=8, octaves=4)
+    fh = np.clip(fb * 0.4 + 0.36, 0, 1)
+    flam = shade(fh, ambient=0.56, strength=0.34)[:, :, None]
+    face = ramp(fh, [(0.0, "steel_dk"), (0.45, "steel"), (1.0, "steel_lt")]) * flam
+
+    rows = np.arange(H)
+    louvre = ((rows % 22) < 9)[:, None]
+    # each louvre is dark at its top lip and catches light at its bottom edge
+    lip = ((rows % 22) < 3)[:, None]
+    face = face * (1 - louvre[:, :, None] * 0.30)
+    face = face * (1 - lip[:, :, None] * 0.45)
+    catch = ((rows % 22) >= 7) & ((rows % 22) < 9)
+    face = face + np.array(P["steel_lt"], dtype=float) * catch[:, None][:, :, None] * 0.40
+    # vertical panel seams carry through onto the face so cap and face align
+    face = face * (1 - seam[None, :][:, :, None] * 0.5)
+    face = face + np.array(P["neon_cyan_dim"], dtype=float) * trim[None, :][:, :, None] * 0.28
+    depth = np.linspace(1.06, 0.44, H)[:, None, None]
     save_tile(face * depth, "td-z2-wall-face")
 
 
@@ -689,10 +746,10 @@ def motel_props() -> None:
     specs = [
         ("td-z2-rubble",  120,  88, 5, [(0.0, "block"), (0.55, "kerb"), (1.0, "kerb_lt")], 0.9),
         ("td-z2-tire",    116,  96, 4, [(0.0, "tar_dk"), (0.6, "tar"), (1.0, "tar_lt")], 1.05),
-        ("td-z2-crate",   130, 108, 4, [(0.0, "stucco_dk"), (0.55, "stucco"), (1.0, "stucco_lt")], 1.0),
+        ("td-z2-crate",   130, 108, 4, [(0.0, "steel_dk"), (0.55, "steel"), (1.0, "steel_lt")], 1.0),
         ("td-z2-scrap",    96,  72, 5, [(0.0, "hull_dk"), (0.6, "hull"), (1.0, "hull_lt")], 0.85),
         ("td-z2-weed",     98,  90, 5, [(0.0, "weed"), (0.6, "weed"), (1.0, "weed_lt")], 0.5),
-        ("td-z2-planter", 140,  96, 4, [(0.0, "kerb"), (0.5, "kerb_lt"), (1.0, "stucco_lt")], 0.95),
+        ("td-z2-planter", 140,  96, 4, [(0.0, "kerb"), (0.5, "kerb_lt"), (1.0, "steel_lt")], 0.95),
     ]
     for name, w, h, lobes, stops, relief in specs:
         m = blob_mask(w, h, lobes)

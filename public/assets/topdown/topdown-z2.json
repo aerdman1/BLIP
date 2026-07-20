@@ -22,7 +22,7 @@
   },
   "td-blip-emis": {
    "frame": {
-    "x": 258,
+    "x": 579,
     "y": 837,
     "w": 54,
     "h": 72
@@ -42,8 +42,8 @@
   },
   "td-drifter": {
    "frame": {
-    "x": 144,
-    "y": 982,
+    "x": 249,
+    "y": 983,
     "w": 99,
     "h": 58
    },
@@ -62,7 +62,7 @@
   },
   "td-tagger": {
    "frame": {
-    "x": 130,
+    "x": 264,
     "y": 837,
     "w": 126,
     "h": 73
@@ -82,7 +82,7 @@
   },
   "td-diver": {
    "frame": {
-    "x": 109,
+    "x": 337,
     "y": 913,
     "w": 85,
     "h": 65
@@ -102,7 +102,7 @@
   },
   "td-warden": {
    "frame": {
-    "x": 224,
+    "x": 215,
     "y": 757,
     "w": 131,
     "h": 75
@@ -122,7 +122,7 @@
   },
   "td-sniper": {
    "frame": {
-    "x": 196,
+    "x": 424,
     "y": 913,
     "w": 137,
     "h": 63
@@ -142,7 +142,7 @@
   },
   "td-splitter": {
    "frame": {
-    "x": 2,
+    "x": 136,
     "y": 837,
     "w": 126,
     "h": 74
@@ -162,8 +162,8 @@
   },
   "td-weaver": {
    "frame": {
-    "x": 317,
-    "y": 982,
+    "x": 422,
+    "y": 983,
     "w": 138,
     "h": 55
    },
@@ -202,8 +202,8 @@
   },
   "td-drifter-emis": {
    "frame": {
-    "x": 412,
-    "y": 913,
+    "x": 2,
+    "y": 983,
     "w": 103,
     "h": 62
    },
@@ -222,8 +222,8 @@
   },
   "td-tagger-emis": {
    "frame": {
-    "x": 495,
-    "y": 757,
+    "x": 2,
+    "y": 837,
     "w": 132,
     "h": 74
    },
@@ -242,8 +242,8 @@
   },
   "td-diver-emis": {
    "frame": {
-    "x": 314,
-    "y": 837,
+    "x": 2,
+    "y": 913,
     "w": 87,
     "h": 68
    },
@@ -262,7 +262,7 @@
   },
   "td-warden-emis": {
    "frame": {
-    "x": 357,
+    "x": 449,
     "y": 757,
     "w": 136,
     "h": 74
@@ -282,8 +282,8 @@
   },
   "td-sniper-emis": {
    "frame": {
-    "x": 403,
-    "y": 837,
+    "x": 91,
+    "y": 913,
     "w": 131,
     "h": 67
    },
@@ -322,8 +322,8 @@
   },
   "td-weaver-emis": {
    "frame": {
-    "x": 2,
-    "y": 982,
+    "x": 107,
+    "y": 983,
     "w": 140,
     "h": 59
    },
@@ -442,18 +442,18 @@
   },
   "td-z2-rubble": {
    "frame": {
-    "x": 335,
+    "x": 224,
     "y": 913,
-    "w": 75,
-    "h": 63
+    "w": 111,
+    "h": 67
    },
    "rotated": false,
    "trimmed": true,
    "spriteSourceSize": {
-    "x": 23,
-    "y": 23,
-    "w": 75,
-    "h": 63
+    "x": 1,
+    "y": 15,
+    "w": 111,
+    "h": 67
    },
    "sourceSize": {
     "w": 120,
@@ -462,18 +462,18 @@
   },
   "td-z2-tire": {
    "frame": {
-    "x": 245,
-    "y": 982,
-    "w": 70,
-    "h": 58
+    "x": 499,
+    "y": 837,
+    "w": 78,
+    "h": 73
    },
    "rotated": false,
    "trimmed": true,
    "spriteSourceSize": {
-    "x": 24,
-    "y": 26,
-    "w": 70,
-    "h": 58
+    "x": 11,
+    "y": 23,
+    "w": 78,
+    "h": 73
    },
    "sourceSize": {
     "w": 116,
@@ -504,15 +504,15 @@
    "frame": {
     "x": 132,
     "y": 757,
-    "w": 90,
+    "w": 81,
     "h": 76
    },
    "rotated": false,
    "trimmed": true,
    "spriteSourceSize": {
-    "x": 3,
-    "y": 8,
-    "w": 90,
+    "x": 11,
+    "y": 6,
+    "w": 81,
     "h": 76
    },
    "sourceSize": {
@@ -522,18 +522,18 @@
   },
   "td-z2-crate": {
    "frame": {
-    "x": 2,
-    "y": 913,
-    "w": 105,
-    "h": 67
+    "x": 348,
+    "y": 757,
+    "w": 99,
+    "h": 75
    },
    "rotated": false,
    "trimmed": true,
    "spriteSourceSize": {
-    "x": 17,
-    "y": 16,
-    "w": 105,
-    "h": 67
+    "x": 12,
+    "y": 33,
+    "w": 99,
+    "h": 75
    },
    "sourceSize": {
     "w": 130,
@@ -542,18 +542,18 @@
   },
   "td-z2-scrap": {
    "frame": {
-    "x": 557,
-    "y": 982,
-    "w": 77,
-    "h": 49
+    "x": 350,
+    "y": 983,
+    "w": 70,
+    "h": 56
    },
    "rotated": false,
    "trimmed": true,
    "spriteSourceSize": {
-    "x": 19,
-    "y": 17,
-    "w": 77,
-    "h": 49
+    "x": 14,
+    "y": 11,
+    "w": 70,
+    "h": 56
    },
    "sourceSize": {
     "w": 96,
@@ -562,18 +562,18 @@
   },
   "td-z2-planter": {
    "frame": {
-    "x": 457,
-    "y": 982,
-    "w": 98,
-    "h": 51
+    "x": 392,
+    "y": 837,
+    "w": 105,
+    "h": 73
    },
    "rotated": false,
    "trimmed": true,
    "spriteSourceSize": {
-    "x": 13,
-    "y": 30,
-    "w": 98,
-    "h": 51
+    "x": 10,
+    "y": 11,
+    "w": 105,
+    "h": 73
    },
    "sourceSize": {
     "w": 140,
@@ -728,7 +728,7 @@
   "format": "RGBA8888",
   "size": {
    "w": 640,
-   "h": 1043
+   "h": 1047
   },
   "scale": "1",
   "note": "Authored at ~2x intended on-screen size. Apply LINEAR filtering to td* keys ONLY - never to the shared TEX.glow8/px/spark/ring textures."

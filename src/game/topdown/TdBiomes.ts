@@ -211,22 +211,30 @@ const MOTEL: TdBiomeDef = {
     count: 20,
   },
   tints: {
-    skirt: 0xb9bec9,
+    skirt: 0x9fb0c4,
     propNear: 0xffffff,
-    propFar: 0xb6bcc9,
-    wallFace: 0x9aa0ac,
-    cloudLit: 0xffc987, // lamp spill pools warm
-    cloudDark: 0x2b3444, // shadow goes blue, not green
+    propFar: 0xa8b6c8,
+    // The panel face is already dark steel in the albedo; tinting it down
+    // again crushes the louvre detail that makes it read as equipment.
+    wallFace: 0xdfe6f0,
+    cloudLit: 0x8fe4f0, // spill on wet blacktop reads cyan, not warm
+    // NOTE: cloudDark is a NORMAL-blend tint at 0.55 alpha, not a multiply —
+    // its own luminance sets the scene's floor. Seeding it with the literal
+    // asphaltPuddle value (0x241d33, luma ~38) halved the whole arena before
+    // any lighting ran. It has to sit near zone 1's 0x38505c to behave.
+    cloudDark: 0x4a4266, // violet-shifted, but at a usable luminance
     canopy: 0xffffff, // unused (canopy: null)
   },
-  // A lot under working sodium lamps is simply not as dark as a wood at night,
-  // and asphalt is a far darker albedo than earth to begin with — inheriting
-  // Miller Field's curve stacked both and rendered the arena near-black.
+  // Wet blacktop is a very dark albedo (0x1a1620) AND the neon spill is baked
+  // into the tiles as reflection. Stacking Miller Field's darkness curve on
+  // top of that rendered the arena near-black, so this biome carries far less
+  // multiply and a much higher ambient floor — the light here is already in
+  // the ground, and the runtime layer only needs to shape it.
   light: {
-    darkness: 0.14,
-    darknessLow: 0.08,
-    ambientFloor: 0.72,
-    vignette: 0.38,
+    darkness: 0.1,
+    darknessLow: 0.06,
+    ambientFloor: 0.85,
+    vignette: 0.34,
   },
 };
 
