@@ -96,15 +96,33 @@ export function tdArtReady(scene: Phaser.Scene): boolean {
  */
 export function bindAtlasFrames(scene: Phaser.Scene): void {
   if (!scene.textures.exists(ATLAS)) return;
-  for (const frame of TD_ATLAS_FRAMES) {
-    if (scene.textures.exists(frame)) continue;
-    if (!scene.textures.get(ATLAS).has(frame)) continue;
-    scene.textures.addSpriteSheetFromAtlas(frame, {
-      atlas: ATLAS,
-      frame,
-      frameWidth: scene.textures.getFrame(ATLAS, frame).width,
-      frameHeight: scene.textures.getFrame(ATLAS, frame).height,
-    });
+  const atlas = scene.textures.get(ATLAS);
+  const source = atlas.getSourceImage() as CanvasImageSource;
+
+  for (const frameName of TD_ATLAS_FRAMES) {
+    if (scene.textures.exists(frameName)) continue;
+    if (!atlas.has(frameName)) continue;
+    const f = scene.textures.getFrame(ATLAS, frameName);
+    if (!f) continue;
+
+    // Blit the frame into its own canvas texture.
+    //
+    // NOT addSpriteSheetFromAtlas: that ignores TRIM metadata, so a packed
+    // (trimmed) frame resolves to a raw rectangle of the atlas — you get the
+    // sprite plus slabs of whatever was packed next to it, rendered as an
+    // opaque block. Blitting by the frame's cut rect is exact, handles trim,
+    // and costs one canvas per sprite once at boot.
+    const w = Math.max(1, Math.round(f.realWidth || f.cutWidth));
+    const h = Math.max(1, Math.round(f.realHeight || f.cutHeight));
+    const ct = scene.textures.createCanvas(frameName, w, h);
+    if (!ct) continue;
+    ct.context.clearRect(0, 0, w, h);
+    ct.context.drawImage(
+      source,
+      f.cutX, f.cutY, f.cutWidth, f.cutHeight,
+      f.x, f.y, f.cutWidth, f.cutHeight // f.x/f.y restore the trimmed offset
+    );
+    ct.refresh();
   }
 }
 

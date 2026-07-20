@@ -9,7 +9,7 @@
  * fire yourself. Tuning in config.SWEEP.
  */
 import Phaser from 'phaser';
-import { EVT, PALETTE as P, RENDER_ZOOM, SCENES, SWEEP, SWEEP_BOSS, SWEEP_ELITE, TD_ENEMY_TEX, TD_PALETTE, TEX, VIEW_W, css, useTdVisuals, type SweepEnemyKind } from '../config';
+import { EVT, PALETTE as P, RENDER_ZOOM, SCENES, SWEEP, SWEEP_BOSS, SWEEP_ELITE, TD_ENEMY_TEX, TD_PALETTE, TD_VISUALS, TEX, VIEW_W, css, useTdVisuals, type SweepEnemyKind } from '../config';
 import { buildSweepTextures } from '../art/sweepTextures';
 import { BlipCraft } from '../entities/sweep/BlipCraft';
 import { SweepEnemy } from '../entities/sweep/SweepEnemy';
@@ -233,6 +233,7 @@ export class SweepScene extends Phaser.Scene {
           body: TEX.tdBlip,
           emissive: TEX.tdBlipEmis,
           emissiveColor: TD_PALETTE.signal,
+          px: TD_VISUALS.actorPx.player,
           lighting: this.tdLight,
           lightRadius: 92,
           lightColor: TD_PALETTE.rim,
@@ -548,6 +549,7 @@ export class SweepScene extends Phaser.Scene {
           body: art.body,
           emissive: art.emis,
           emissiveColor: TD_PALETTE.danger,
+          px: TD_VISUALS.actorPx.drone,
           lift: 10, // drones hover — their shadow detaches and softens
           lighting: this.tdLight,
           lightRadius: 54,

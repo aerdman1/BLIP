@@ -1232,17 +1232,21 @@ export const TD_VISUALS = {
    * this scale, or a 230px canopy lands in a 585px-wide viewport and blacks out
    * the arena — which is exactly what happened before this existed.
    */
-  artScale: 0.5,
+  artScale: 0.32,
   /** Ground material repeat in px. The albedos are 512² photoscans; repeating
    *  them at 256 means only 2x minification, which stays crisp. Smaller values
    *  (64) minify 8x and turn the grass into aliased static. */
-  groundCell: 256,
+  groundCell: 272,
+  /** Per-role on-screen heights in px. The family sprites are authored large
+   *  and at different sizes, so a single artScale cannot size them all — each
+   *  role declares the height it should READ at and the rig derives the scale. */
+  actorPx: { player: 46, drone: 34, elite: 58, node: 96 },
   /** foreshortening: a prop of render height H occupies H*k of ground depth */
   obliqueK: 0.55,
   /** subtle lens tilt — render-y offset per world-y away from camera centre */
   lensTilt: 0.02,
   /** wall extrusion height in px (the "face" strip above each wall tile) */
-  wallHeight: 22,
+  wallHeight: 34,
   /** global light direction for baked + dynamic shadows (radians, screen space) */
   lightAngle: 2.36, // ≈135° → light from upper-left, shadows fall lower-right
   shadowLen: 0.42, // shadow offset as a fraction of caster height
@@ -1253,14 +1257,14 @@ export const TD_VISUALS = {
    *  already night-graded offline (mean luminance ~0.12), so this layer only
    *  shapes contrast and falloff. Pushing it higher double-darkens the scene
    *  to near-black — measured, not guessed. */
-  darkness: 0.24,
+  darkness: 0.3,
   darknessLow: 0.18,
   /** Hard ceiling on any single additive light. Above ~0.55 the pools saturate
    *  to flat white and destroy all terrain detail near the Node — the exact
    *  blowout visible in the first pass. */
   lightMaxAlpha: 0.55,
   /** edge darkening, so the frame reads composed instead of uniformly bright */
-  vignette: 0.42,
+  vignette: 0.5,
   lightsHigh: 24,
   lightsLow: 12,
 } as const;
@@ -1273,9 +1277,9 @@ export function useTdVisuals(arenaId: string): boolean {
 /** Top-down palette — EXTENDS PALETTE, never replaces it. Night forest, one
  *  dominant hue (green), red reserved for threat, shadows cool not black. */
 export const TD_PALETTE = {
-  groundDeep: 0x08150e,
-  ground: 0x0f2418,
-  groundLit: 0x1a3a26,
+  groundDeep: 0x0b0d0c,
+  ground: 0x171712,
+  groundLit: 0x2a2a1f,
   wet: 0x0b1c16,
   path: 0x241a10,
   pathLit: 0x33260f,
@@ -1284,8 +1288,8 @@ export const TD_PALETTE = {
   foliageNear: 0x061009,
   foliageMid: 0x14301d,
   foliageFar: 0x1c3a3c, // haze-shifted toward blue
-  haze: 0x14303c,
-  shadow: 0x050c14, // cool, never pure black
+  haze: 0x1b2630,
+  shadow: 0x070809, // cool, never pure black
   signal: 0x7fe86a,
   /* accent hues — IDEAL2 gets its richness from COOL BIOLUMINESCENCE and WARM
      lamps read against a desaturated base, not from more green. Kept scarce:

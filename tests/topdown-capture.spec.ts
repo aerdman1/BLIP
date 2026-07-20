@@ -17,6 +17,22 @@ async function enterArena(page: import('@playwright/test').Page) {
   await page.waitForTimeout(1400); // let the fade-in finish and lights settle
 }
 
+test('survey: representative locations', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await enterArena(page);
+  await screenshotTo(page, `${OUT}/s0-spawn`);
+  // walk a route past open ground, a wall run, and the node
+  const legs: Array<[string, number]> = [['KeyD', 1500], ['KeyW', 1200], ['KeyD', 1400], ['KeyS', 900]];
+  let i = 1;
+  for (const [k, ms] of legs) {
+    await page.keyboard.down(k);
+    await page.waitForTimeout(ms);
+    await page.keyboard.up(k);
+    await page.waitForTimeout(250);
+    await screenshotTo(page, `${OUT}/s${i++}-leg`);
+  }
+});
+
 test.describe('top-down visual storyboard', () => {
   test('beats', async ({ page }) => {
     await enterArena(page);

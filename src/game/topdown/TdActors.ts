@@ -36,6 +36,8 @@ export class ActorRig {
       emissiveColor?: number;
       /** px of air under it — drones hover, the player does not */
       lift?: number;
+      /** target on-screen height in px — overrides the generic art scale */
+      px?: number;
       lighting?: TdLighting;
       lightRadius?: number;
       lightColor?: number;
@@ -50,7 +52,11 @@ export class ActorRig {
     // that actually matters for occlusion.
     if (scene.textures.exists(opts.body)) {
       host.setTexture(opts.body);
-      host.setScale(TD_VISUALS.artScale); // art is authored at 2x — see TD_VISUALS.artScale
+      // Size from the DECLARED on-screen height. The family sprites are authored
+      // large and at differing sizes, so one global scale cannot serve them all.
+      const src = scene.textures.getFrame(opts.body);
+      const s = opts.px && src?.height ? opts.px / src.height : TD_VISUALS.artScale;
+      host.setScale(s);
     }
 
     if (opts.emissive && scene.textures.exists(opts.emissive)) {
@@ -149,13 +155,15 @@ export class SignalNodeRig {
       .setBlendMode(Phaser.BlendModes.ADD);
 
     if (hasHd) {
-      this.core = scene.add.image(x, y, TEX.tdNode).setOrigin(0.5, 1).setDepth(sortedDepth(y)).setScale(TD_VISUALS.artScale);
+      const nf = scene.textures.getFrame(TEX.tdNode);
+      const ns = nf?.height ? TD_VISUALS.actorPx.node / nf.height : TD_VISUALS.artScale;
+      this.core = scene.add.image(x, y, TEX.tdNode).setOrigin(0.5, 1).setDepth(sortedDepth(y)).setScale(ns);
       if (scene.textures.exists(TEX.tdNodeEmis)) {
         this.emis = scene.add
           .image(x, y, TEX.tdNodeEmis)
           .setOrigin(0.5, 1)
           .setDepth(sortedDepth(y) + 1)
-          .setScale(TD_VISUALS.artScale)
+          .setScale(ns)
           .setBlendMode(Phaser.BlendModes.ADD);
       }
     }

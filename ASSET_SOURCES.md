@@ -1,5 +1,19 @@
 # ASSET_SOURCES — external originals
 
+> **UPDATE — art-direction pass 3.** Every tile and sprite currently shipped in
+> `public/assets/topdown/` is now produced by `scripts/art/family.py`, which
+> generates them from scratch (domain-warped fBm + one baked light direction +
+> one palette). The CC0 photoscan pipeline below is retained for reference and
+> is still runnable, but **its outputs are no longer what ships**: minified
+> outdoor photoscans had no macro material structure and read as uniform
+> speckle, which was the root cause of the "enlarged pixel noise" look.
+>
+> Practical consequence: the shipped art has **no third-party provenance at
+> all** — it is wholly generated, so there is nothing to attribute and no
+> license to honour beyond this project's own. The CC0 sources in
+> `ASSET_SOURCES.md` remain correctly documented for the retained pipeline.
+
+
 Every external asset used by the BLIP top-down (`surface-z1`) art pipeline.
 
 **All sources below are site-wide CC0 1.0 (public domain dedication). No attribution is

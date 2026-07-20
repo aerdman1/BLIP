@@ -50,6 +50,8 @@ export class TdTerrain {
   private layers: Phaser.GameObjects.TileSprite[] = [];
   private shadowBake?: Phaser.GameObjects.Graphics;
   private maskImg?: Phaser.GameObjects.Image;
+  private wallMaskImg?: Phaser.GameObjects.Image;
+  private faceMaskImg?: Phaser.GameObjects.Image;
   private overlays: Phaser.GameObjects.Image[] = [];
   private props: Phaser.GameObjects.Image[] = [];
   private rng = mulberry(0x5eed47);
@@ -215,44 +217,123 @@ export class TdTerrain {
   }
 
   /* ------------------------------ 2. wall extrusion -------------------------- */
+  /**
+   * Walls as ROCK FORMATIONS, not rectangles.
+   *
+   * The previous version drew each merged wall run as an opaque tileSprite —
+   * so every wall was literally a grey rectangle sitting on the ground, which
+   * was the single largest source of the "assembled from square chunks" read.
+   *
+   * Now the rock surface is revealed through an irregular blob mask built from
+   * the solid grid, and the silhouette is broken by rock/foliage sprites banked
+   * along the exposed south edge. Collision is untouched: the merged static
+   * bodies are still built from the same `solid` array in SweepScene.
+   */
   private buildWalls(): void {
     const { tile: T, w: W, h: H, solid, art } = this.input;
-    for (let y = 0; y < H; y++) {
-      let x = 0;
-      while (x < W) {
-        if (!solid[y][x]) { x++; continue; }
-        const x0 = x;
-        while (x < W && solid[y][x]) x++;
-        const ww = (x - x0) * T;
-        const baseY = (y + 1) * T; // the wall's contact line with the ground
+    const AW = W * T;
+    const AH = H * T;
 
-        // face strip rises from the base — only where the tile below is open,
-        // otherwise you would draw a facade inside a solid block.
-        const exposed = !solid[y + 1]?.slice(x0, x).every(Boolean);
-        if (exposed) {
-          const face = this.scene.add
-            .tileSprite(x0 * T, baseY - OBLIQUE.wallH, ww, OBLIQUE.wallH, art.wallFace)
-            .setOrigin(0, 0)
-            .setDepth(sortedDepth(baseY) - 1);
-          // Offset each run's texture and vary its tint. A shared origin made
-          // every wall repeat in lockstep, which read as vertical picket
-          // stripes across the arena rather than as foliage.
-          face.tilePositionX = this.rng() * 512;
-          face.setTint(0x9fb0aa);
-          // a darker band where the face meets the ground = contact occlusion
-          this.scene.add
-            .rectangle(x0 * T, baseY - 3, ww, 4, C.shadow, 0.42)
-            .setOrigin(0, 0)
-            .setDepth(sortedDepth(baseY) - 1);
+    // --- irregular mask over every solid cell -------------------------------
+    const key = 'td-wall-mask';
+    if (this.scene.textures.exists(key)) this.scene.textures.remove(key);
+    const mw = Math.ceil(AW / 2);
+    const mh = Math.ceil(AH / 2);
+    const ct = this.scene.textures.createCanvas(key, mw, mh);
+    if (!ct) return;
+    const ctx = ct.context;
+    ctx.clearRect(0, 0, mw, mh);
+    ctx.fillStyle = '#fff';
+    for (let ty = 0; ty < H; ty++)
+      for (let tx = 0; tx < W; tx++) {
+        if (!solid[ty][tx]) continue;
+        // three overlapping lobes per cell, jittered — the union across
+        // neighbouring cells reads as an eroded rock bank, not a grid
+        for (let k = 0; k < 3; k++) {
+          const cx = ((tx + 0.5) * T + (this.rng() - 0.5) * T * 0.7) / 2;
+          const cy = ((ty + 0.5) * T + (this.rng() - 0.5) * T * 0.7) / 2;
+          const r = (T * (0.42 + this.rng() * 0.3)) / 2;
+          ctx.beginPath();
+          ctx.arc(cx, cy, r, 0, Math.PI * 2);
+          ctx.fill();
         }
-        // top cap
-        const cap = this.scene.add
-          .tileSprite(x0 * T, y * T - OBLIQUE.wallH, ww, T, art.wallTop)
-          .setOrigin(0, 0)
-          .setDepth(sortedDepth(baseY));
-        cap.tilePositionX = this.rng() * 512;
       }
+    ct.refresh();
+    const maskImg = this.scene.add.image(0, 0, key).setOrigin(0).setScale(2).setVisible(false);
+    this.wallMaskImg = maskImg;
+
+    const scale = TD_VISUALS.groundCell / 512;
+    const cap = this.scene.add
+      .tileSprite(0, 0, AW, AH, art.wallTop)
+      .setOrigin(0)
+      .setDepth(DEPTH.sorted - 2);
+    cap.tileScaleX = scale;
+    cap.tileScaleY = scale;
+    cap.setMask(new Phaser.Display.Masks.BitmapMask(this.scene, maskImg));
+    this.layers.push(cap);
+
+    // --- vertical faces along exposed south edges ---------------------------
+    //
+    // ONE masked full-arena face layer, not a rect per tile. Per-tile rects
+    // butted together into continuous grey bands — the same rectangle problem
+    // one level down. The mask is blobbed along exposed edges only, so the
+    // face appears as an eroded vertical band of rock under the cap.
+    const fKey = 'td-face-mask';
+    if (this.scene.textures.exists(fKey)) this.scene.textures.remove(fKey);
+    const fct = this.scene.textures.createCanvas(fKey, mw, mh);
+    if (fct) {
+      const fx2 = fct.context;
+      fx2.clearRect(0, 0, mw, mh);
+      fx2.fillStyle = '#fff';
+      for (let ty = 0; ty < H; ty++)
+        for (let tx = 0; tx < W; tx++) {
+          if (!solid[ty][tx] || solid[ty + 1]?.[tx]) continue;
+          const baseY = (ty + 1) * T;
+          for (let k = 0; k < 3; k++) {
+            const cx = ((tx + 0.5) * T + (this.rng() - 0.5) * T * 0.8) / 2;
+            const cy = (baseY - OBLIQUE.wallH * (0.25 + this.rng() * 0.6)) / 2;
+            const rx = (T * (0.4 + this.rng() * 0.3)) / 2;
+            const ry = (OBLIQUE.wallH * (0.5 + this.rng() * 0.45)) / 2;
+            fx2.beginPath();
+            fx2.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+            fx2.fill();
+          }
+        }
+      fct.refresh();
+      const fMask = this.scene.add.image(0, 0, fKey).setOrigin(0).setScale(2).setVisible(false);
+      this.faceMaskImg = fMask;
+      const faces = this.scene.add
+        .tileSprite(0, 0, AW, AH, art.wallFace)
+        .setOrigin(0)
+        .setDepth(DEPTH.sorted - 3)
+        .setTint(0x8a9098);
+      faces.tileScaleX = scale;
+      faces.tileScaleY = scale;
+      faces.setMask(new Phaser.Display.Masks.BitmapMask(this.scene, fMask));
+      this.layers.push(faces);
     }
+
+    // rocks banked at the foot break the straight line of every base
+    for (let ty = 0; ty < H; ty++)
+      for (let tx = 0; tx < W; tx++) {
+        if (!solid[ty][tx] || solid[ty + 1]?.[tx]) continue;
+        const baseY = (ty + 1) * T;
+        const cx = (tx + 0.5) * T;
+        if (this.rng() < 0.8) {
+          const rk = this.scene.add
+            .image(cx + (this.rng() - 0.5) * T * 0.9, baseY + 2, this.rng() < 0.65 ? TEX.tdRock : TEX.tdBush)
+            .setOrigin(0.5, 1)
+            .setDepth(sortedDepth(baseY + 2))
+            .setScale(TD_VISUALS.artScale * (0.7 + this.rng() * 0.8));
+          if (this.rng() < 0.5) rk.setFlipX(true);
+          this.props.push(rk);
+          this.contactAO(rk.x, rk.y, rk.displayWidth);
+        }
+        this.scene.add
+          .rectangle(tx * T, baseY - 3, T, 5, C.shadow, 0.4)
+          .setOrigin(0, 0)
+          .setDepth(sortedDepth(baseY) - 1);
+      }
   }
 
   /* ------------------------------ 3. irregular edges ------------------------- */
@@ -394,6 +475,8 @@ export class TdTerrain {
     this.layers.forEach((l) => l.destroy());
     this.shadowBake?.destroy();
     this.maskImg?.destroy();
+    this.wallMaskImg?.destroy();
+    this.faceMaskImg?.destroy();
     this.overlays.forEach((o) => o.destroy());
     this.overlays = [];
     this.props.forEach((p) => p.destroy());

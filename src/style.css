@@ -1932,3 +1932,9 @@ body.td-hud-active #game-frame { border-radius: 0; }
 @media (prefers-reduced-motion: reduce) {
   #sweep-hud-dom.td-hud .td-hp i[data-state='crit'] { animation: none; }
 }
+
+/* Top-down: drop the permanent top frame. The unit badge and dev buttons are
+   chrome that competes with the world; the objective card already carries the
+   identity. Side-view keeps the bar. */
+body.td-hud-active #top-bar { display: none; }
+body.td-hud-active #game-frame { inset: 0; }

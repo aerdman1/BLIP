@@ -1,5 +1,19 @@
 # GENERATED_ASSETS — everything shipped under `public/assets/topdown/`
 
+> **UPDATE — art-direction pass 3.** Every tile and sprite currently shipped in
+> `public/assets/topdown/` is now produced by `scripts/art/family.py`, which
+> generates them from scratch (domain-warped fBm + one baked light direction +
+> one palette). The CC0 photoscan pipeline below is retained for reference and
+> is still runnable, but **its outputs are no longer what ships**: minified
+> outdoor photoscans had no macro material structure and read as uniform
+> speckle, which was the root cause of the "enlarged pixel noise" look.
+>
+> Practical consequence: the shipped art has **no third-party provenance at
+> all** — it is wholly generated, so there is nothing to attribute and no
+> license to honour beyond this project's own. The CC0 sources in
+> `ASSET_SOURCES.md` remain correctly documented for the retained pipeline.
+
+
 Produced by the committed `scripts/art/` toolchain. Nothing here is hand-painted and nothing is a
 placeholder. Every row names its producing script and its input assets, so each shipped byte
 traces back to a CC0 root declared in [`ASSET_SOURCES.md`](ASSET_SOURCES.md) or to explicitly
