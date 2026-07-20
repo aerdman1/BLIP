@@ -424,6 +424,9 @@ export function installTestAPI(game: Phaser.Game): void {
     /** Zone 2 debug: neon-circuit power + detection state (null outside Motel) */
     getMotelDebug: () => (driveable(scenes.motel) ? scenes.motel?.debugState ?? null : null),
 
+    /** Zone 3 debug: classification + threat-ladder stage / spotter / flood / cover */
+    getStadiumDebug: () => (driveable(scenes.stadium) ? scenes.stadium?.debugState ?? null : null),
+
     /** shortcut for CC tests: award a scout badge through the same save path as pickup */
     giveScoutBadge: (scoutId: string, logId: string): void => {
       updateSave((s) => {

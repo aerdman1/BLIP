@@ -8,6 +8,7 @@
  */
 import Phaser from 'phaser';
 import {
+  CLASSIFY,
   DRONE,
   EVT,
   FALL_DAMAGE_Y_PAD,
@@ -34,6 +35,7 @@ import { Player } from '../entities/Player';
 import { Projectile, chainToNextEnemy, clearBoltsInRadius, fireFrom, makeProjectileGroup, ricochetBolt } from '../entities/Projectile';
 import { ScannerDrone, type DroneDeps } from '../entities/ScannerDrone';
 import { ScoutEcho } from '../entities/ScoutEcho';
+import { Spotter } from '../entities/Spotter';
 import { WeatherBalloonBoss } from '../entities/WeatherBalloonBoss';
 import { audio } from '../systems/AudioSystem';
 import { ClassificationSystem } from '../systems/ClassificationSystem';
@@ -60,6 +62,18 @@ interface LightTower {
   phase: number;
   spot: Phaser.GameObjects.Image; // where the beam hits the track RIGHT NOW
   ghost: Phaser.GameObjects.Image; // where it will sweep to next (telegraph)
+  curAng: number; // the angle actually being rendered (lerps when locked/unlocking)
+  locked: boolean; // stage 1: stopped sweeping, tracking the player's x
+  unblendMs: number; // >0 while easing back onto the sweep after a release
+}
+/**
+ * A solid light-occluder. If the segment from a light head to the player crosses
+ * one of these, the player is NOT lit — hiding becomes positional instead of
+ * "stand on the green pad".
+ */
+interface CoverRect {
+  rect: Phaser.Geom.Rectangle;
+  label?: Phaser.GameObjects.Text;
 }
 interface SafeZone {
   x: number;
@@ -79,6 +93,20 @@ export class StadiumScene extends Phaser.Scene {
   private blipNode?: BlipSideNode;
   private lightTowers: LightTower[] = [];
   private safeZones: SafeZone[] = [];
+  private coverRects: CoverRect[] = [];
+
+  /* ---- threat ladder (SPOTTED → TRACKED → KNOWN) ---- */
+  private threatStage = 0;
+  private spotter?: Spotter;
+  private beamMs = 0; // continuous time lit, drives the LIGHT BURNS ramp
+  private lastLitAt = -99999; // for the post-exposure decay hold
+  private floodUntil = 0; // >now while the stage-3 stadium flood is live
+  private floodCooldownUntil = 0;
+  private caughtUntil = 0; // brief lockout after being classified
+  private lastUnseen = { x: 0, y: 0 }; // last grounded spot the lights could NOT read
+  private vignette?: Phaser.GameObjects.Image; // hot-white edge glow that closes in
+  private coverHintShown = false;
+  private spotterHintShown = false;
 
   // scoreboard readout (the KNOWN/UNKNOWN detection meter, made diegetic)
   private scoreValue?: Phaser.GameObjects.Text;
@@ -140,7 +168,16 @@ export class StadiumScene extends Phaser.Scene {
     this.sessionStart = this.time.now;
     this.lightTowers = [];
     this.safeZones = [];
+    this.coverRects = [];
     this.ventDrones = [];
+    this.threatStage = 0;
+    this.spotter = undefined;
+    this.beamMs = 0;
+    this.floodUntil = 0;
+    this.floodCooldownUntil = 0;
+    this.caughtUntil = 0;
+    this.coverHintShown = false;
+    this.spotterHintShown = false;
     this.arenaWalls = [];
     this.boss = undefined;
     this.bossDeathHandled = false;
@@ -153,6 +190,20 @@ export class StadiumScene extends Phaser.Scene {
     this.buildParallax();
     this.buildWorld();
     this.dressPool();
+    this.buildCover();
+    this.lastUnseen = { ...this.spawnPoint };
+
+    // LIGHT BURNS — a hot-white edge glow that physically closes in the longer
+    // the Engine holds a read on you. Purely a readout of `classify.value`.
+    this.vignette = this.add
+      .image(VIEW_W / 2, VIEW_H / 2, TEX.stadiumVignette)
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(12)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setTint(P.scoreboardKnown)
+      .setDisplaySize(VIEW_W, VIEW_H)
+      .setAlpha(0);
 
     // alert badge that rides above the player — the single clearest read of
     // "the lights SEE you" vs "you're HIDDEN" (shadow / anchor / dash)
@@ -314,7 +365,104 @@ export class StadiumScene extends Phaser.Scene {
       .setBlendMode(Phaser.BlendModes.ADD)
       .setDepth(8)
       .setAlpha(0.22);
-    this.lightTowers.push({ cone, headX: x, headY, phase: x * 0.7, spot, ghost });
+    this.lightTowers.push({
+      cone,
+      headX: x,
+      headY,
+      phase: x * 0.7,
+      spot,
+      ghost,
+      curAng: Math.PI / 2,
+      locked: false,
+      unblendMs: 0,
+    });
+  }
+
+  /* --------------------------------- COVER ---------------------------------- */
+
+  /**
+   * REAL COVER — promote the stadium's decorative geometry into functional
+   * light-occluders, plus two sideline props on the gauntlet. Each entry is a
+   * solid box; a light head can't read through one. Cheap segment-vs-rect only.
+   */
+  private buildCover(): void {
+    // dugout roof over the sunken bowl (cols 56–64), press-box overhang, the
+    // under-stand gap on the bleacher base, and two sideline props on the run.
+    const slabs: Array<{ x0: number; y0: number; x1: number; y1: number; label: string }> = [
+      { x0: 56 * TILE, y0: 484, x1: 65 * TILE, y1: 502, label: 'DUGOUT ROOF' },
+      { x0: 80 * TILE, y0: 446, x1: 96 * TILE, y1: 462, label: 'UNDER THE STANDS' },
+      { x0: 96 * TILE, y0: 166, x1: 107 * TILE, y1: 182, label: 'PRESS-BOX OVERHANG' },
+    ];
+    for (const s of slabs) {
+      const w = s.x1 - s.x0;
+      const h = s.y1 - s.y0;
+      this.add
+        .tileSprite(s.x0, s.y0, w, h, TEX.coverSlab)
+        .setOrigin(0, 0)
+        .setDepth(7);
+      this.pushCover(s.x0, s.y0, s.x1, s.y1, s.label, s.x0 + w / 2, s.y1 + 10);
+    }
+
+    // sideline props on the LIGHTS gauntlet — the two towers there (cols 40, 50)
+    // can be broken by putting one of these between you and the beam.
+    const props: Array<{ x: number; tex: string; w: number; h: number; label: string }> = [
+      { x: 35 * TILE + 8, tex: TEX.equipCart, w: 26, h: 26, label: 'EQUIPMENT CART' },
+      { x: 45 * TILE + 8, tex: TEX.blockSled, w: 26, h: 22, label: 'BLOCKING SLED' },
+    ];
+    for (const p of props) {
+      // stand it on the track surface; it is decor + occluder, never a collider
+      const bottom = TRACK_SURFACE_Y;
+      this.add.image(p.x, bottom, p.tex).setOrigin(0.5, 1).setDepth(8);
+      this.pushCover(p.x - p.w / 2, bottom - p.h, p.x + p.w / 2, bottom, p.label, p.x, bottom - p.h - 9);
+    }
+  }
+
+  private pushCover(x0: number, y0: number, x1: number, y1: number, label: string, lx: number, ly: number): void {
+    const text = this.add
+      .text(lx, ly, label, { fontFamily: 'monospace', fontSize: '6px', color: css(P.bleacher), fontStyle: 'bold' })
+      .setOrigin(0.5)
+      .setDepth(10)
+      .setResolution(2)
+      .setAlpha(0);
+    this.coverRects.push({ rect: new Phaser.Geom.Rectangle(x0, y0, x1 - x0, y1 - y0), label: text });
+  }
+
+  /** does any cover box sit on the segment from (ax,ay) to (bx,by)? */
+  private isOccluded(ax: number, ay: number, bx: number, by: number): boolean {
+    const line = new Phaser.Geom.Line(ax, ay, bx, by);
+    for (const c of this.coverRects) {
+      if (Phaser.Geom.Intersects.LineToRectangle(line, c.rect)) return true;
+    }
+    return false;
+  }
+
+  /** shared with the Spotter: is this sightline broken, or is the player anchored? */
+  private sightlineBroken(ax: number, ay: number, px: number, py: number): boolean {
+    return this.isOccluded(ax, ay, px, py) || this.isInSafeZone(px, py);
+  }
+
+  private isInSafeZone(px: number, py: number): boolean {
+    return this.safeZones.some((z) => Math.abs(px - z.x) < z.halfW && Math.abs(py - z.y) < z.halfH);
+  }
+
+  /** true while the player's body is tucked inside/behind a cover box */
+  private isUnderCover(): boolean {
+    const px = this.player.x;
+    const py = this.player.y;
+    return this.coverRects.some((c) => Phaser.Geom.Rectangle.Contains(c.rect, px, py - 10) || Phaser.Geom.Rectangle.Contains(c.rect, px, py));
+  }
+
+  /** subtle proximity labels — teach cover the same way ANCHOR zones teach themselves */
+  private updateCoverLabels(): void {
+    const px = this.player.x;
+    const py = this.player.y;
+    for (const c of this.coverRects) {
+      if (!c.label) continue;
+      const d = Phaser.Math.Distance.Between(px, py, c.rect.centerX, c.rect.centerY);
+      const want = d < STADIUM.coverLabelRange ? 0.55 : 0;
+      const cur = c.label.alpha;
+      if (Math.abs(cur - want) > 0.01) c.label.setAlpha(Phaser.Math.Linear(cur, want, 0.12));
+    }
   }
 
   /** angle of a tower's sweep at time t (mirrors the update() cone drive) */
@@ -548,34 +696,7 @@ export class StadiumScene extends Phaser.Scene {
       this.enterUnderwater(false);
     }
 
-    // Friday-night-lights detection — safe zones shelter you from the sweep
-    let inCone = false;
-    for (const l of this.lightTowers) {
-      const ang = this.sweepAngleAt(l, now);
-      l.cone.setAngle(ang);
-      if (l.cone.update(this.player.x, this.player.y)) inCone = true;
-      // telegraph: live spot where the beam bites the track now, ghost where it heads
-      const spotX = this.sweepGroundX(l, ang);
-      const ghostX = this.sweepGroundX(l, this.sweepAngleAt(l, now + SWEEP_LOOKAHEAD_MS));
-      l.spot.setX(spotX).setAlpha(0.42 + Math.sin(now * 0.012 + l.phase) * 0.12);
-      l.ghost.setX(ghostX);
-    }
-    const sheltered = this.updateSafeZones(dtSec, now);
-    const dashHidden = this.player.isDashing || this.player.ghostCloaked;
-    this.classify.update(dtSec, inCone && !sheltered && this.player.alive && !dashHidden, this.player.detectionMul);
-    this.updateAlertIcon(inCone, sheltered, dashHidden, now);
-    // caught in the light too long → the scoreboard flips to KNOWN, the phantom
-    // crowd roars, and the Engine flags you (dash i-frames slip the beams)
-    if (this.classify.isThreat && !sheltered && this.player.alive && !this.player.invulnerable) {
-      this.crowdSwellUntil = now + STADIUM.crowdSwellMs;
-      bus.emit(EVT.toast, { text: 'KNOWN — THE CROWD ROARS', color: 'orange' });
-      this.fx.flash(P.scoreboardKnown, 130);
-      this.fx.shake(0.004, 160);
-      audio.bossWarning();
-      this.hurtPlayer(1, this.player.x + (this.player.facing > 0 ? -6 : 6));
-      this.classify.reset();
-    }
-    this.updateScoreboard();
+    this.updateStealth(dtSec, now);
 
     // boss + vented drones
     this.boss?.update(dtSec);
@@ -615,20 +736,322 @@ export class StadiumScene extends Phaser.Scene {
     this.fog.tilePositionX = sx * 0.42 + this.fogDrift;
   }
 
-  /** the player-worn state read: SEEN (in a beam) vs SAFE (anchored) vs hidden */
-  private updateAlertIcon(inCone: boolean, sheltered: boolean, dashHidden: boolean, now: number): void {
+  /* ================= STEALTH: light burns · threat ladder · cover ============ */
+
+  /**
+   * One pass of the Friday-night-lights stealth loop:
+   *   towers (sweep / lock / flood) → is the player LIT → LIGHT BURNS fill ramp
+   *   → threat-ladder stage transitions → readouts.
+   * Everything the player can do about it lives here: shadow, cover, ANCHOR,
+   * dash i-frames, Ghost Protocol / Echo (via `detectionMul`), god mode.
+   */
+  private updateStealth(dtSec: number, now: number): void {
+    const px = this.player.x;
+    const py = this.player.y;
+    if (this.floodUntil > 0 && now >= this.floodUntil) this.resolveFlood();
+    const flooding = now < this.floodUntil;
+    const lookRange = Phaser.Math.DegToRad(STADIUM.lightSweepDeg / 2 + 16);
+
+    // ---- 1. drive every tower, and ask whether it actually has a clean read ----
+    let towerLit = false;
+    let occludedRead = false; // a tower is pointed AT you but something solid is in the way
+    for (const l of this.lightTowers) {
+      const sweepAng = this.sweepAngleAt(l, now);
+      const hunting = l.locked || flooding;
+      if (hunting) {
+        // STOP sweeping and track the player's x (clamped to the tower's arc, so
+        // you can still run out from under a lock)
+        const want = Phaser.Math.Clamp(
+          Math.atan2(TRACK_SURFACE_Y - l.headY, px - l.headX),
+          Math.PI / 2 - lookRange,
+          Math.PI / 2 + lookRange
+        );
+        l.curAng = Phaser.Math.Linear(l.curAng, want, flooding ? 0.22 : STADIUM.lockTrackLerp);
+      } else if (l.unblendMs > 0) {
+        l.unblendMs -= dtSec * 1000;
+        l.curAng = Phaser.Math.Linear(l.curAng, sweepAng, 0.14);
+      } else {
+        l.curAng = sweepAng;
+      }
+      l.cone.setAngle(l.curAng);
+      const inside = l.cone.update(px, py);
+      if (inside) {
+        if (this.isOccluded(l.headX, l.headY, px, py)) occludedRead = true;
+        else towerLit = true;
+      }
+      l.cone.boostAlpha = flooding ? 0.95 : l.locked ? 0.68 : 0;
+      // telegraph: the live ground spot, and (only while sweeping) the lookahead ghost
+      l.spot
+        .setX(this.sweepGroundX(l, l.curAng))
+        .setTint(hunting ? P.white : P.scoreboardKnown)
+        .setAlpha(hunting ? 0.8 : 0.42 + Math.sin(now * 0.012 + l.phase) * 0.12);
+      l.ghost.setVisible(!hunting).setX(this.sweepGroundX(l, this.sweepAngleAt(l, now + SWEEP_LOOKAHEAD_MS)));
+    }
+
+    // ---- 2. the Spotter (stage 2) gets its own read ----
+    let spotterLit = false;
+    if (this.spotter?.active) spotterLit = this.spotter.update(dtSec);
+    if (this.spotter && !this.spotter.active) this.spotter = undefined;
+
+    // ---- 3. resolve LIT, honouring every counter the player owns ----
+    const sheltered = this.updateSafeZones(dtSec, now);
+    const dashHidden = this.player.isDashing || this.player.ghostCloaked;
+    const immune = this.player.godMode || !this.player.alive || now < this.caughtUntil;
+    const lit = (towerLit || spotterLit) && !sheltered && !dashHidden && !immune;
+
+    // remember the last honest hiding place — that's where a stage-3 catch drops you
+    const body = this.player.body as Phaser.Physics.Arcade.Body;
+    if (body.blocked.down && this.player.alive && !lit) this.lastUnseen = { x: px, y: py - 4 };
+
+    // ---- 4. LIGHT BURNS: grace, then a hard ramp ----
+    if (lit) this.beamMs += dtSec * 1000;
+    else this.beamMs = Math.max(0, this.beamMs - dtSec * 1000 * STADIUM.burnGraceBleedMul);
+    const burning = lit && this.beamMs >= STADIUM.burnGraceMs;
+    const overMs = Math.max(0, this.beamMs - STADIUM.burnGraceMs);
+    const burnMul = burning ? Math.min(STADIUM.burnRampMax, 1 + (overMs / 1000) * STADIUM.burnRampPerSec) : 0;
+
+    // ---- 5. bleed-off is EARNED: cover or an ANCHOR, not just a gap in the sweep ----
+    // `trulyHidden` = the lights are looking for you and can't resolve you.
+    const trulyHidden = sheltered || occludedRead || this.isUnderCover() || dashHidden;
+    if (lit) this.lastLitAt = now;
+    const holding = !lit && !trulyHidden && now - this.lastLitAt < STADIUM.decayHoldMs;
+
+    if (flooding) {
+      this.classify.value = CLASSIFY.max; // the read is pinned while the stadium floods
+    } else if (holding) {
+      // the Engine keeps its read for a beat — standing in the next shadow over
+      // is NOT hiding. This is what stops "stand under a light forever".
+      this.classify.update(dtSec, false, 0);
+      this.classify.value = Math.min(CLASSIFY.max, this.classify.value + CLASSIFY.decayPerSec * dtSec);
+    } else {
+      // `burnMul` 0 during the grace window = brushing a beam is genuinely free
+      this.classify.update(dtSec, burning, this.player.detectionMul * burnMul);
+      if (!lit && trulyHidden) {
+        this.classify.value = Math.max(0, this.classify.value - STADIUM.hiddenDecayBonusPerSec * dtSec);
+      }
+    }
+
+    this.updateThreatLadder(now, sheltered);
+    this.updateAlertIcon(lit, sheltered, burning, now);
+    this.updateVignette(flooding, now);
+    this.updateCoverLabels();
+    this.updateScoreboard();
+  }
+
+  /** SPOTTED → TRACKED → KNOWN, with hysteresis so the stages don't chatter */
+  private updateThreatLadder(now: number, sheltered: boolean): void {
+    if (now < this.floodUntil) return; // the flood owns the ladder until it resolves
+    const v = this.classify.value;
+
+    // ---- stage 1: SPOTTED — a tower stops sweeping and locks on ----
+    if (this.threatStage < 1 && v >= STADIUM.lockOnAt) this.enterSpotted();
+    else if (this.threatStage >= 1 && v < STADIUM.lockReleaseAt) this.releaseToStage(0);
+
+    // ---- stage 2: TRACKED — the press box launches a Spotter ----
+    if (this.threatStage === 1 && v >= STADIUM.spotterAt) this.enterTracked();
+    else if (this.threatStage >= 2 && v < STADIUM.spotterReleaseAt) this.releaseToStage(1);
+
+    // ---- stage 3: KNOWN — the stadium floods ----
+    if (this.threatStage >= 2 && v >= CLASSIFY.max && now >= this.floodCooldownUntil && !sheltered) {
+      this.enterFlood(now);
+    }
+  }
+
+  private enterSpotted(): void {
+    this.threatStage = 1;
+    // the tower with the best angle on you takes the lock
+    let best: LightTower | undefined;
+    let bestD = Infinity;
+    for (const l of this.lightTowers) {
+      const d = Phaser.Math.Distance.Between(l.headX, l.headY, this.player.x, this.player.y);
+      if (d < bestD) { bestD = d; best = l; }
+    }
+    if (best) {
+      best.locked = true;
+      best.cone.setTintColor(P.scoreboardKnown);
+      best.cone.pulseVisible(900);
+    }
+    audio.hazardZap(); // the lock chirp
+    this.fx.floatText(this.player.x, this.player.y - 26, 'SPOTTED', P.scoreboardKnown);
+    this.fx.flash(P.scoreboardKnown, 90, 0.2);
+    bus.emit(EVT.toast, { text: 'SPOTTED — A TOWER STOPS SWEEPING', color: 'orange' });
+    if (!this.coverHintShown) {
+      this.coverHintShown = true;
+      this.time.delayedCall(1100, () => {
+        if (this.threatStage >= 1) {
+          bus.emit(EVT.toast, { text: 'PUT SOMETHING SOLID BETWEEN YOU AND THE LIGHT', color: 'orange' });
+        }
+      });
+    }
+  }
+
+  private enterTracked(): void {
+    this.threatStage = 2;
+    if (!this.spotter?.active) {
+      // launched from the press box — but never so far away it can't arrive
+      const pressBoxX = 101 * TILE;
+      const sx = Phaser.Math.Clamp(
+        pressBoxX,
+        this.player.x - STADIUM.spotterSpawnMaxOffset,
+        this.player.x + STADIUM.spotterSpawnMaxOffset
+      );
+      this.spotter = new Spotter(this, sx, STADIUM.spotterSpawnY, {
+        getPlayer: () => ({ x: this.player.x, y: this.player.y, alive: this.player.alive }),
+        isHidden: (ax, ay, px, py) => this.sightlineBroken(ax, ay, px, py) || this.player.isDashing || this.player.ghostCloaked || this.player.godMode,
+        onRetired: () => bus.emit(EVT.toast, { text: 'THE SPOTTER LOSES YOU', color: 'green' }),
+      });
+    }
+    audio.bossWarning();
+    this.fx.shake(0.003, 160);
+    bus.emit(EVT.toast, { text: 'TRACKED — THE PRESS BOX SENDS A SPOTTER', color: 'orange' });
+    if (!this.spotterHintShown) {
+      this.spotterHintShown = true;
+      this.fx.floatText(this.player.x, this.player.y - 30, 'break its line of sight', P.warning);
+    }
+  }
+
+  private enterFlood(now: number): void {
+    this.threatStage = 3;
+    this.floodUntil = now + STADIUM.floodWindowMs;
+    this.crowdSwellUntil = now + STADIUM.crowdSwellMs;
+    for (const l of this.lightTowers) {
+      l.cone.setTintColor(P.white);
+      l.cone.setLength(STADIUM.floodConeLength);
+    }
+    audio.bossWarning();
+    this.fx.flash(P.white, 220, 0.5);
+    this.fx.shake(0.005, 300);
+    bus.emit(EVT.toast, { text: 'KNOWN — THE STADIUM FLOODS. GET UNDER SOMETHING.', color: 'orange' });
+    this.fx.floatText(this.player.x, this.player.y - 30, 'HIDE', P.white);
+    // resolved from update() (not a timer) so a scene switch mid-flood can't strand it
+  }
+
+  /** the flood window closes: under cover / anchored = you stayed unknown */
+  private resolveFlood(): void {
+    const px = this.player.x;
+    const py = this.player.y;
+    const safe =
+      this.player.godMode ||
+      !this.player.alive ||
+      this.isInSafeZone(px, py) ||
+      this.isUnderCover() ||
+      !this.lightTowers.some(
+        (l) =>
+          l.cone.contains(px, py) && !this.isOccluded(l.headX, l.headY, px, py)
+      );
+
+    this.floodUntil = 0;
+    this.floodCooldownUntil = this.time.now + STADIUM.floodCooldownMs;
+    for (const l of this.lightTowers) {
+      l.cone.setLength(STADIUM.lightConeLength);
+      l.cone.setTintColor(P.nightBloom);
+      l.cone.boostAlpha = 0;
+    }
+    this.releaseToStage(0);
+
+    if (safe) {
+      this.classify.reset();
+      audio.doorUnlock();
+      this.fx.flash(P.anchorGreen, 160);
+      bus.emit(EVT.toast, { text: 'THE LIGHTS FIND NOTHING — STILL UNKNOWN', color: 'green' });
+      this.fx.floatText(px, py - 26, 'UNKNOWN', P.anchorGreen);
+    } else {
+      this.onClassified();
+    }
+  }
+
+  /**
+   * Caught in the flood. A SETBACK, never a death: the Engine logs a reading,
+   * the crowd roars, and you wake up at the last place the lights couldn't
+   * read you with a clean sheet.
+   */
+  private onClassified(): void {
+    this.crowdSwellUntil = this.time.now + STADIUM.crowdSwellMs;
+    this.caughtUntil = this.time.now + STADIUM.caughtStunMs;
+    audio.bossWarning();
+    audio.transitionWarp();
+    this.fx.flash(P.scoreboardKnown, 260, 0.7);
+    this.fx.staticBurst(520);
+    this.fx.shake(0.006, 320);
+    bus.emit(EVT.toast, { text: 'CLASSIFIED — THE CROWD ROARS. FALL BACK.', color: 'orange' });
+    const to = this.lastUnseen.x ? this.lastUnseen : this.lastSafe;
+    this.player.setPosition(to.x, to.y - 6);
+    (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
+    this.classify.reset();
+    this.beamMs = 0;
+  }
+
+  /** wipe the ladder back to a clean sheet (scene wake, dive-out, respawn) */
+  private resetStealth(): void {
+    this.floodUntil = 0;
+    this.floodCooldownUntil = 0;
+    this.beamMs = 0;
+    this.spotter?.destroy();
+    this.spotter = undefined;
+    for (const l of this.lightTowers) {
+      l.locked = false;
+      l.unblendMs = 0;
+      l.cone.setLength(STADIUM.lightConeLength);
+      l.cone.setTintColor(P.nightBloom);
+      l.cone.boostAlpha = 0;
+    }
+    this.threatStage = 0;
+    this.classify.reset();
+    this.vignette?.setAlpha(0);
+  }
+
+  /** de-escalate: towers ease back onto the sweep, the Spotter retires */
+  private releaseToStage(stage: number): void {
+    if (stage >= this.threatStage) return;
+    if (stage < 2 && this.spotter?.active) this.spotter.retire();
+    if (stage < 1) {
+      let released = false;
+      for (const l of this.lightTowers) {
+        if (!l.locked) continue;
+        l.locked = false;
+        l.unblendMs = STADIUM.lockUnblendMs;
+        l.cone.setTintColor(P.nightBloom);
+        l.cone.boostAlpha = 0;
+        released = true;
+      }
+      if (released && this.threatStage >= 1) {
+        bus.emit(EVT.toast, { text: 'LOST YOU — THE SWEEP RESUMES', color: 'green' });
+      }
+    }
+    this.threatStage = stage;
+  }
+
+  /** hot-white edge glow that closes in the longer the Engine holds a read */
+  private updateVignette(flooding: boolean, now: number): void {
+    const v = this.vignette;
+    if (!v) return;
+    const k = flooding ? 1 : Math.pow(Phaser.Math.Clamp(this.classify.value / CLASSIFY.max, 0, 1), 1.5);
+    const pulse = flooding ? 0.85 + Math.sin(now * 0.03) * 0.15 : 1;
+    v.setTint(flooding ? P.white : P.scoreboardKnown);
+    v.setAlpha(k * STADIUM.vignetteMaxAlpha * pulse);
+    const zoom = 1 + (STADIUM.vignetteMaxZoom - 1) * k;
+    v.setDisplaySize(VIEW_W * zoom, VIEW_H * zoom);
+  }
+
+  /** the player-worn state read: SEEN (burning in a beam) vs SAFE vs hidden */
+  private updateAlertIcon(lit: boolean, sheltered: boolean, burning: boolean, now: number): void {
     const icon = this.alertIcon;
     if (!icon) return;
     icon.setPosition(this.player.x, this.player.y - 18);
     if (!this.player.alive) { icon.setAlpha(0); return; }
     if (sheltered) {
-      // anchored: unmistakably safe
       icon.setText('SAFE').setColor(css(P.anchorGreen)).setAlpha(0.9);
-    } else if (inCone && !dashHidden) {
-      // the light is reading you — pulse a loud SEEN
-      icon.setText('! SEEN').setColor(css(P.scoreboardKnown)).setAlpha(0.7 + (Math.sin(now * 0.02) > 0 ? 0.3 : 0));
+    } else if (this.threatStage >= 3 || now < this.floodUntil) {
+      icon.setText('!! KNOWN').setColor(css(P.white)).setAlpha(0.8 + (Math.sin(now * 0.04) > 0 ? 0.2 : 0));
+    } else if (lit && burning) {
+      // past the grace window — you are actively cooking
+      icon.setText(this.threatStage >= 2 ? '!! TRACKED' : '! SEEN').setColor(css(P.scoreboardKnown)).setAlpha(0.7 + (Math.sin(now * 0.02) > 0 ? 0.3 : 0));
+    } else if (lit) {
+      // inside the grace window — a warning, not a penalty yet
+      icon.setText('· lit').setColor(css(P.warning)).setAlpha(0.55);
+    } else if (this.threatStage >= 1) {
+      icon.setText('HIDDEN').setColor(css(P.anchorGreen)).setAlpha(0.6);
     } else {
-      // in shadow / dashing through a beam — hidden, so no nag
       icon.setAlpha(0);
     }
   }
@@ -822,6 +1245,8 @@ export class StadiumScene extends Phaser.Scene {
   }
 
   private onWake(): void {
+    // you surfaced somewhere else entirely — the Engine's read does not carry over
+    this.resetStealth();
     this.blipNode?.applyIfSolved();
     audio.playMusic('stadium');
     bus.emit(EVT.sceneChanged, { scene: SCENES.stadium, zone: 'Chagrin Falls High' });
@@ -945,12 +1370,25 @@ export class StadiumScene extends Phaser.Scene {
 
   /* ------------------------------- TestAPI hooks ----------------------------- */
 
-  get debugState(): { classify: number; tier: string; poolSolved: boolean; drones: number } {
+  get debugState(): {
+    classify: number;
+    tier: string;
+    poolSolved: boolean;
+    drones: number;
+    threatStage: number;
+    spotter: boolean;
+    flooding: boolean;
+    underCover: boolean;
+  } {
     return {
       classify: Math.round(this.classify.value),
       tier: this.classify.tier,
       poolSolved: getSave().flags.poolNodeSolved,
       drones: this.ventDrones.filter((d) => d.active).length,
+      threatStage: this.threatStage,
+      spotter: !!this.spotter?.active,
+      flooding: this.time.now < this.floodUntil,
+      underCover: !!this.player && this.isUnderCover(),
     };
   }
 
@@ -1026,8 +1464,8 @@ export class StadiumScene extends Phaser.Scene {
       html: `
         <p class="tut-lead">The lights never cut. The <b>scoreboard</b> stopped counting points — now it reads <b>KNOWN / UNKNOWN</b>, and that’s <b>you</b>.</p>
         <div class="tut-hero">
-          <div class="tut-hero-key">HIDE<span>GREEN&nbsp;=&nbsp;SAFE</span></div>
-          <div class="tut-hero-desc">Watch the <b>red ground-spot</b> each tower casts — the amber ghost shows where it sweeps next, so cross in the shadow between beams. Stand in a beam and a <b>! SEEN</b> badge lights over you and the scoreboard flips to KNOWN. Duck into <b>Henry’s green ANCHOR zones</b> (end zone, dugout, concession) — they read <b>SAFE</b>, declassify you and heal. <b>DIVE [E]</b> into the rec pool to flip the world.</div>
+          <div class="tut-hero-key">HIDE<span>GET&nbsp;BEHIND&nbsp;SOMETHING</span></div>
+          <div class="tut-hero-desc">Crossing a beam is <b>free</b> — standing in one is not. Linger and the read <b>burns</b>: the edges go hot white and the Engine climbs the ladder — <b>SPOTTED</b> (a tower quits sweeping and locks onto you) → <b>TRACKED</b> (the press box launches a <b>SPOTTER</b>) → <b>KNOWN</b> (the whole stadium floods; you have four seconds). Break it with <b>solid cover</b> — the equipment cart, the blocking sled, the dugout roof, under the stands. A light can’t read through a thing. <b>Henry’s green ANCHOR zones</b> still shed the label and heal.</div>
         </div>
         <table class="tut-controls">
           <tr><td class="tut-k">A / D · SPACE</td><td>Move · jump (hold to hover)</td></tr>
@@ -1086,6 +1524,11 @@ export class StadiumScene extends Phaser.Scene {
     this.input.keyboard?.off('keydown-ESC', this.togglePause, this);
     this.events.off(Phaser.Scenes.Events.WAKE, this.onWake, this);
     this.lightTowers.forEach((l) => { l.cone.destroy(); l.spot.destroy(); l.ghost.destroy(); });
+    this.coverRects.forEach((c) => c.label?.destroy());
+    this.coverRects = [];
+    this.spotter?.destroy();
+    this.spotter = undefined;
+    this.vignette?.destroy();
     this.alertIcon?.destroy();
     this.ventDrones.forEach((d) => d.active && d.destroy());
     this.boss?.destroy();

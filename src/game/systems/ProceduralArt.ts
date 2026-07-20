@@ -1938,6 +1938,45 @@ function generateStadiumTextures(scene: Phaser.Scene): void {
     g.fillStyle(P.warning, 1); g.fillTriangle(3, 3, 2, 6, 4, 5); // spark decal
   });
 
+  /* ---- sideline EQUIPMENT CART — solid enough to kill a light beam ---- */
+  tex(scene, TEX.equipCart, 26, 26, (g) => {
+    rect(g, 0, 4, 26, 18, P.slateDark); // crate stack body
+    rect(g, 1, 5, 24, 6, P.slate); // lit upper crate
+    rect(g, 1, 12, 24, 9, 0x2a3145);
+    rect(g, 0, 2, 26, 3, P.bleacher); // pushed-back canopy lip (the bit that eats the beam)
+    rect(g, 0, 2, 26, 1, 0x565f70);
+    rect(g, 3, 13, 8, 5, P.tigerOrangeDark, 0.8); // helmet bin decal
+    rect(g, 14, 14, 8, 4, P.tigerOrange, 0.5);
+    for (let x = 2; x < 26; x += 6) px(g, x, 11, 0x1c2233, 0.8); // crate seams
+    rect(g, 2, 22, 4, 4, 0x141926); // wheels
+    rect(g, 20, 22, 4, 4, 0x141926);
+  });
+  linearize(scene, TEX.equipCart);
+
+  /* ---- tarp'd BLOCKING SLED — low, wide, opaque ---- */
+  tex(scene, TEX.blockSled, 26, 22, (g) => {
+    g.fillStyle(0x2a3145, 1); // draped tarp silhouette
+    g.beginPath(); g.moveTo(1, 21); g.lineTo(3, 4); g.lineTo(23, 2); g.lineTo(25, 21); g.closePath(); g.fillPath();
+    g.fillStyle(P.slate, 1);
+    g.beginPath(); g.moveTo(3, 12); g.lineTo(4, 5); g.lineTo(22, 3); g.lineTo(23, 12); g.closePath(); g.fillPath();
+    rect(g, 4, 6, 18, 1, 0x565f70, 0.7); // tarp fold highlight
+    rect(g, 2, 13, 22, 1, 0x1c2233);
+    rect(g, 6, 16, 4, 4, P.tigerOrangeDark, 0.7); // stencilled tiger mark
+    rect(g, 0, 20, 26, 2, 0x141926); // steel base rail
+  });
+  linearize(scene, TEX.blockSled);
+
+  /* ---- underside slab: dugout roof / press-box overhang / bleacher understand ---- */
+  tex(scene, TEX.coverSlab, 16, 16, (g) => {
+    rect(g, 0, 0, 16, 16, 0x1b2130); // shadowed underside
+    rect(g, 0, 0, 16, 4, P.bleacherDark); // structural top edge
+    rect(g, 0, 0, 16, 1, P.bleacher, 0.7);
+    rect(g, 0, 5, 16, 1, 0x11151f);
+    for (let x = 1; x < 16; x += 7) px(g, x, 2, P.white, 0.28); // rivets
+    px(g, 4, 10, 0x232a3c, 1); px(g, 11, 12, 0x232a3c, 1);
+  });
+  linearize(scene, TEX.coverSlab);
+
   /* ---- Henry / ANCHOR scout badge (green shield + anchor) ---- */
   tex(scene, TEX.badgeHenry, 11, 12, (g) => {
     g.fillStyle(0x0e2a19, 1); g.fillRoundedRect(0, 0, 11, 12, 2);

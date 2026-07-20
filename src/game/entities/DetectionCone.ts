@@ -50,6 +50,21 @@ export class DetectionCone {
     return Math.abs(diff) <= this.halfAngleRad;
   }
 
+  /** recolour the beam (SPOTTED lock → hot red, KNOWN flood → white) */
+  setTintColor(color: number): void {
+    this.image.setTint(color);
+  }
+
+  /** stretch/reset the reach (the stage-3 flood throws the beams the length of the field) */
+  setLength(lengthPx: number): void {
+    this.lengthPx = lengthPx;
+    const spread = 2 * lengthPx * Math.tan(this.halfAngleRad);
+    this.image.setScale(lengthPx / 96, spread / 64);
+  }
+
+  /** floor the beam's opacity — used to hold a locked/flooded cone visibly hot */
+  boostAlpha = 0;
+
   private forcedUntil = 0;
 
   /** WILLOW recon ping — hold the cone bright for a moment so it's readable. */
@@ -61,7 +76,7 @@ export class DetectionCone {
   update(playerX: number, playerY: number): boolean {
     this.playerInside = this.contains(playerX, playerY);
     const forced = this.image.scene.time.now < this.forcedUntil;
-    this.image.setAlpha(this.playerInside ? 0.75 : forced ? 0.7 : 0.4);
+    this.image.setAlpha(Math.max(this.boostAlpha, this.playerInside ? 0.75 : forced ? 0.7 : 0.4));
     return this.playerInside;
   }
 

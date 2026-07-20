@@ -51,6 +51,7 @@ import { activeSkin, skinAbilities } from '../systems/SkinState';
 import { applyCameraLook } from '../systems/CameraLook';
 import { registerScene, unregisterScene } from '../systems/TestAPI';
 import { uiOverlayActive } from '../systems/UIState';
+import { createVisualFX, vfxEnabled, type VisualFXRig } from '../systems/VisualFX';
 
 /** x of the glowing signal-gate at the east edge — the travel point to Zone 2 */
 const FIELD_EXIT_X = 170 * TILE;
@@ -103,6 +104,9 @@ export class FieldScene extends Phaser.Scene {
   private exitArrow?: Phaser.GameObjects.Image;
   private exitCurtain?: Phaser.GameObjects.Image;
   private exitLit = false;
+  /** HD-2D visual spike — undefined when VISUAL_FX.enabled is false (original look) */
+  private vfx?: VisualFXRig;
+  private portalPos = { x: 0, y: 0 };
 
   constructor() {
     super(SCENES.field);
@@ -132,6 +136,7 @@ export class FieldScene extends Phaser.Scene {
     this.dressPit();
     this.scatterMist();
     this.scatterFireflies();
+    this.buildVisualFX();
 
     this.physics.world.setBounds(0, -VIEW_H, def.meta.widthPx, def.meta.heightPx + VIEW_H);
     this.physics.world.setBoundsCollision(true, true, false, false);
@@ -205,8 +210,31 @@ export class FieldScene extends Phaser.Scene {
     // drifting low field-fog — merges the hazy distance into the play space
     this.fog = this.add.tileSprite(0, VIEW_H - 118, VIEW_W, 62, TEX.millerFog).setOrigin(0, 0).setScrollFactor(0).setDepth(5).setAlpha(0.42);
     // cinematic vignette (frames the edges; the foreground stays bright)
-    this.add.image(0, 0, TEX.vignette).setOrigin(0).setScrollFactor(0).setDepth(11).setDisplaySize(VIEW_W, VIEW_H).setAlpha(0.38);
+    // (the HD-2D spike replaces this with a real camera vignette — keep a trace
+    //  of the old one so turning VISUAL_FX off restores the shipped framing)
+    this.add
+      .image(0, 0, TEX.vignette)
+      .setOrigin(0)
+      .setScrollFactor(0)
+      .setDepth(11)
+      .setDisplaySize(VIEW_W, VIEW_H)
+      .setAlpha(vfxEnabled(this) ? 0.1 : 0.38);
     void worldW;
+  }
+
+  /** HD-2D VISUAL SPIKE (Miller Field only). Purely render + perspective — it
+   *  adds no bodies and touches no collider, so where you can stand and jump is
+   *  identical with it on or off. Set VISUAL_FX.enabled=false to A/B it away. */
+  private buildVisualFX(): void {
+    this.vfx = createVisualFX(this, MILLER_FIELD);
+    if (!this.vfx) return;
+    this.vfx.trackActors(this.player, this.droneGroup);
+    // practical lights on the scene's own emissive props
+    if (this.portal) this.vfx.trackLight(this.portalPos, P.signal, 1.8, 0.26);
+    if (this.door) this.vfx.trackLight(this.door.sprite, P.signalGreen, 1.6, 0.2);
+    if (this.exitGlow) this.vfx.trackLight(this.exitGlow, P.signal, 2.2, 0.16);
+    if (this.towerLight) this.vfx.trackLight(this.towerLight, P.danger, 1.6, 0.22);
+    if (this.signalBox) this.vfx.trackLight(this.signalBox, P.scoutChip, 1.1, 0.24);
   }
 
   /** THE PIT: visual depth inside the ravine — fog pooling below, dark rocks,
@@ -406,6 +434,7 @@ export class FieldScene extends Phaser.Scene {
         }
         case 'n':
           this.portal = new BlipstreamNodePortal(this, x, y + TILE / 2);
+          this.portalPos = { x, y: y + TILE / 2 };
           break;
         case 'g':
           this.door = new CropCircleDoor(this, x + TILE / 2, y + TILE * 1.5, this.fx);
@@ -586,6 +615,7 @@ export class FieldScene extends Phaser.Scene {
     this.player.updatePlayer(this.input2);
     this.updateCameraLook(dtSec);
     this.updateParallax(dtSec);
+    this.vfx?.update(dtSec);
 
     // track last safe ground for pit respawns
     const body = this.player.body as Phaser.Physics.Arcade.Body;
@@ -1357,6 +1387,8 @@ export class FieldScene extends Phaser.Scene {
     this.events.off(Phaser.Scenes.Events.WAKE, this.onWake, this);
     this.rig?.destroy();
     this.boss?.destroy();
+    this.vfx?.destroy();
+    this.vfx = undefined;
     unregisterScene('field');
   }
 }

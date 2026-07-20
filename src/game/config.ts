@@ -631,14 +631,56 @@ export const MOTEL = {
 // Friday-night-lights stealth: rotating light-tower cones you time like rhythm.
 // Henry ANCHOR safe zones bleed classification + heal between sweeps.
 export const STADIUM = {
-  lightConeLength: 140,
-  lightConeHalfAngleDeg: 24, // volumetric light-tower pool over the track
+  lightConeLength: 150,
+  // a NARROW shaft, not a floodlight pool: at 24° the cone covered nearly the whole
+  // track regardless of sweep angle (being seen was unavoidable AND meaningless).
+  // 19° paints a band that genuinely sweeps (real moving shadows to time and real
+  // sightlines to break) while still dwelling on you long enough that standing in
+  // the open under a tower cooks you in a few seconds.
+  lightConeHalfAngleDeg: 19,
+  floodConeLength: 420, // stage 3: the beams are thrown the length of the field
   lightSweepDeg: 52, // a wide rotating Friday-night sweep — time your crossings
   lightSweepPeriodMs: 5200,
   poleHeight: 46, // the light head sits high above the field
   safeZoneDeclassifyPerSec: 44, // ANCHOR zone bleeds classification fast
   safeZoneHealEveryMs: 1400, // slow heal tick while sheltered + roughly still
   crowdSwellMs: 1600, // phantom-crowd stub swell after a THREAT flag
+
+  /* ---- STEALTH OVERHAUL (phase 1): light burns · threat ladder · cover ---- */
+  // LIGHT BURNS — brushing a beam is free; standing in one cooks you fast.
+  burnGraceMs: 600, // in-beam time that costs NOTHING (a clean dash-through is free)
+  burnGraceBleedMul: 1.5, // how fast the grace timer refunds once you're back in shadow
+  burnRampPerSec: 0.32, // fill-rate multiplier gained per second of continuous exposure
+  burnRampMax: 2.2, // cap. ~1.2s lit → SPOTTED · ~2.2s → TRACKED · ~3.2s → KNOWN
+  // Bleed-off is EARNED, not automatic. Merely standing in the gap between two
+  // sweeps holds the Engine's read (that's why you could stand under a light
+  // forever before); getting behind cover or into an ANCHOR dumps it fast.
+  decayHoldMs: 700, // the read persists this long after the beam leaves you
+  hiddenDecayBonusPerSec: 15, // extra bleed-off, ONLY while genuinely hidden (cover / anchor)
+  vignetteMaxAlpha: 0.62, // hot-white edge glow at full classification
+  vignetteMaxZoom: 1.4, // the glow physically closes in as the read tightens
+
+  // THREAT LADDER — three escalating stages, each with hysteresis so it doesn't chatter.
+  lockOnAt: 34, // stage 1 SPOTTED (mirrors CLASSIFY.anomalyAt)
+  lockReleaseAt: 21, // ...towers resume sweeping below this
+  lockTrackLerp: 0.09, // how hard a locked tower chases the player's x (leave room to juke)
+  lockUnblendMs: 420, // ease back onto the sweep instead of snapping
+  spotterAt: 70, // stage 2 TRACKED (mirrors CLASSIFY.threatAt)
+  spotterReleaseAt: 55,
+  spotterSpeed: 64, // slower than the player's run — always outrunnable
+  spotterHoverAbove: 38, // it hangs this far above its target
+  spotterConeLength: 84,
+  spotterConeHalfAngleDeg: 30,
+  spotterLoseSightMs: 1700, // hidden this long and it gives up the read
+  spotterRetireMs: 900, // then it climbs back toward the press box and is gone
+  spotterSpawnY: 200, // press-box launch height
+  spotterSpawnMaxOffset: 150, // never launches further than this horizontally (it must arrive)
+  floodWindowMs: 4000, // stage 3 KNOWN: reach cover/anchor inside this window
+  floodCooldownMs: 6000, // grace after a flood resolves either way
+  caughtStunMs: 700,
+
+  // REAL COVER — solid occluders between a light head and you
+  coverLabelRange: 78, // the subtle COVER tag fades in this close
 } as const;
 
 /* -------------------------- Zone 4: Patterson's Orchard ------------------- */
@@ -999,6 +1041,9 @@ export const TEX = {
   safeZoneGlow: 'safe-zone-glow', // ANCHOR green field
   anchorMarker: 'anchor-marker', // green ANCHOR icon
   lockerCache: 'locker-cache', // hidden salvage cache
+  equipCart: 'equip-cart', // sideline equipment cart — a solid light-occluder to hide behind
+  blockSled: 'block-sled', // tarp'd blocking sled — solid light-occluder
+  coverSlab: 'cover-slab', // tileable underside slab (dugout roof / press-box overhang)
   badgeHenry: 'badge-henry',
   badgeCameron: 'badge-cameron',
   badgeDanny: 'badge-danny',
