@@ -58,7 +58,7 @@ The standard loop for shipping a change:
 2. `git commit -am "…"` — commit the change (deliberate message).
 3. `npm run deploy` — runs `scripts/deploy.sh`: build → `vercel --prod` →
    alias `blip-chagrin.vercel.app` → verify the live site returns **HTTP 200** →
-   verify `/deploy-version.json` on production matches the current Git HEAD
+   verify the production homepage's `blip-deploy-commit` meta tag matches the current Git HEAD
    (the script exits non-zero if it doesn't).
 4. `git push origin main` — publish to GitHub.
 
@@ -72,8 +72,8 @@ or a stale alias. Deploy from `/Users/aerdman/BLIP`, then run:
 npm run verify:prod
 ```
 
-That command fetches `https://blip-chagrin.vercel.app/deploy-version.json` and fails unless
-the live commit equals the local Git HEAD.
+That command fetches `https://blip-chagrin.vercel.app/` and fails unless the embedded
+`blip-deploy-commit` meta tag equals the local Git HEAD.
 
 ## Verifying a Deploy
 

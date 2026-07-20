@@ -11,8 +11,8 @@
 - Before deploy, make sure the checkout being deployed is clean and at `origin/main`: `git fetch origin`, `git status -sb`, `git rev-parse HEAD`, and compare to `origin/main`.
 - Deploy only from `/Users/aerdman/BLIP` unless `.vercel/project.json` in another checkout is confirmed to point to project `blip` with project id `prj_NSl22sZuspAp8SitcT6Nv0P7154n`.
 - Standard production flow: `git pull --ff-only`, `npm run typecheck`, `npm run build`, `npm run deploy`, then `npm run verify:prod`.
-- `npm run deploy` must alias the ready deployment to `blip-chagrin.vercel.app` and `npm run verify:prod` must confirm `/deploy-version.json` on production matches the current Git HEAD. HTTP 200 alone is not enough.
-- If GitHub Actions, GitHub API, Vercel, or account connection status is degraded, do not trust automatic deployments. Use the canonical local Vercel deploy flow and verify `/deploy-version.json`.
+- `npm run deploy` must alias the ready deployment to `blip-chagrin.vercel.app` and `npm run verify:prod` must confirm the production homepage's `blip-deploy-commit` meta tag matches the current Git HEAD. HTTP 200 alone is not enough.
+- If GitHub Actions, GitHub API, Vercel, or account connection status is degraded, do not trust automatic deployments. Use the canonical local Vercel deploy flow and verify the homepage deploy commit.
 - If a Vercel deployment sits in `Initializing` and serves Vercel's placeholder page, do not alias `blip-chagrin` to it. Wait for `Ready` or remove the stuck deployment, then keep the alias pointed at the newest verified ready deployment.
 
 ## Local Project Skills (read before working on the relevant area)

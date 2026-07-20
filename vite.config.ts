@@ -15,6 +15,20 @@ function gitValue(args: string[], fallback: string): string {
   }
 }
 
+const BUILD_INFO = {
+  app: 'BLIP',
+  commit:
+    process.env.VERCEL_GIT_COMMIT_SHA ||
+    gitValue(['rev-parse', 'HEAD'], 'unknown'),
+  branch:
+    process.env.VERCEL_GIT_COMMIT_REF ||
+    gitValue(['branch', '--show-current'], 'unknown'),
+  message:
+    process.env.VERCEL_GIT_COMMIT_MESSAGE ||
+    gitValue(['log', '-1', '--pretty=%s'], 'unknown'),
+  builtAt: new Date().toISOString(),
+};
+
 // Rewrites the __SW_VERSION__ token inside the emitted public/sw.js so the
 // service worker's CACHE_NAME is unique per build (public/ files aren't touched
 // by Vite's `define`, hence this small post-build stamp).
@@ -22,6 +36,13 @@ function stampDeployArtifacts(): Plugin {
   return {
     name: 'blip-stamp-deploy-artifacts',
     apply: 'build',
+    transformIndexHtml() {
+      return [
+        { tag: 'meta', attrs: { name: 'blip-deploy-commit', content: BUILD_INFO.commit }, injectTo: 'head' },
+        { tag: 'meta', attrs: { name: 'blip-deploy-branch', content: BUILD_INFO.branch }, injectTo: 'head' },
+        { tag: 'meta', attrs: { name: 'blip-deploy-built-at', content: BUILD_INFO.builtAt }, injectTo: 'head' },
+      ];
+    },
     closeBundle() {
       const swPath = resolve(__dirname, 'dist', 'sw.js');
       try {
@@ -31,26 +52,12 @@ function stampDeployArtifacts(): Plugin {
         /* sw.js may be absent in unusual build configs — don't fail the build. */
       }
 
-      const commit =
-        process.env.VERCEL_GIT_COMMIT_SHA ||
-        gitValue(['rev-parse', 'HEAD'], 'unknown');
-      const branch =
-        process.env.VERCEL_GIT_COMMIT_REF ||
-        gitValue(['branch', '--show-current'], 'unknown');
-      const message =
-        process.env.VERCEL_GIT_COMMIT_MESSAGE ||
-        gitValue(['log', '-1', '--pretty=%s'], 'unknown');
-
       writeFileSync(
         resolve(__dirname, 'dist', 'deploy-version.json'),
         `${JSON.stringify(
           {
-            app: 'BLIP',
-            commit,
-            shortCommit: commit.slice(0, 7),
-            branch,
-            message,
-            builtAt: new Date().toISOString(),
+            ...BUILD_INFO,
+            shortCommit: BUILD_INFO.commit.slice(0, 7),
           },
           null,
           2,
