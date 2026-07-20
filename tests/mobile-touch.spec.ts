@@ -96,9 +96,11 @@ test.describe('mobile title and touch controls', () => {
     await bootToMenu(page);
 
     await expect(page.locator('#rotate-overlay')).toBeHidden();
+    // Progressive disclosure: a fresh boot offers only the first empty slot
+    // (ShellUI.buildMenuEntries). What matters on a phone is that the offered
+    // slot and the rest of the menu are reachable, not that three slots exist.
     await expect(page.locator('#menu-slot-0')).toBeVisible();
-    await expect(page.locator('#menu-slot-1')).toBeVisible();
-    await expect(page.locator('#menu-slot-2')).toBeVisible();
+    await expect(page.locator('#menu-settings')).toBeVisible();
     await expect(page.locator('#game-frame')).toHaveCSS('touch-action', 'pan-y');
     await expect(page.locator('#menu-overlay')).toHaveCSS('touch-action', 'pan-y');
 
@@ -116,7 +118,7 @@ test.describe('mobile title and touch controls', () => {
 
     await expect(page.locator('#rotate-overlay')).toBeHidden();
     await expect(page.locator('#menu-overlay')).toHaveCSS('position', 'fixed');
-    for (const id of ['#menu-slot-0', '#menu-slot-1', '#menu-slot-2']) {
+    for (const id of ['#menu-slot-0', '#menu-command-center', '#menu-settings']) {
       const box = await page.locator(id).boundingBox();
       expect(box, `${id} should be on screen`).not.toBeNull();
       expect(box!.y).toBeGreaterThanOrEqual(0);

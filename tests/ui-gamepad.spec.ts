@@ -37,13 +37,14 @@ async function padTap(page: import('@playwright/test').Page, button: number, hol
 
 /* ---------- crisp UI shell ---------- */
 
-test('HTML menu renders with logo + 3 save slots and starts a slot via click', async ({ page }) => {
+test('HTML menu renders with logo + the offered save slot and starts it via click', async ({ page }) => {
   await bootToMenu(page);
   await expect(page.locator('#menu-overlay')).toBeVisible();
   await expect(page.locator('#menu-logo svg')).toHaveCount(1);
   await expect(page.locator('#menu-tagline')).toContainText('YOU ARE THE THING ON THE RADAR');
-  // three save slots, all empty on a fresh boot
-  await expect(page.locator('.menu-item.slot')).toHaveCount(3);
+  // Progressive disclosure (ShellUI.buildMenuEntries): a fresh boot offers only
+  // the first empty slot; further slots appear as earlier ones fill up.
+  await expect(page.locator('.menu-item.slot')).toHaveCount(1);
   await expect(page.locator('#menu-slot-0')).toContainText('NEW GAME');
   await page.click('#menu-slot-0');
   await page.waitForFunction(
@@ -190,10 +191,9 @@ test('gamepad: START pauses, navigates the pause menu, A resumes', async ({ page
 
 test('gamepad: menu navigation + BACK opens command center in-game', async ({ page }) => {
   await bootToMenu(page);
-  // menu is: SLOT 1/2/3 → COMMAND CENTER → FIELD MANUAL → SETTINGS.
-  // dpad-down three times to focus COMMAND CENTER, A activates the focused entry.
-  await padTap(page, 13);
-  await padTap(page, 13);
+  // On a fresh boot the menu is: SLOT 1 → COMMAND CENTER → … (only the first
+  // empty slot is offered, see ShellUI.buildMenuEntries). One dpad-down focuses
+  // COMMAND CENTER; A activates the focused entry.
   await padTap(page, 13);
   const focused = await page.locator('#menu-items .menu-item.focused').textContent();
   expect(focused).toContain('COMMAND CENTER');

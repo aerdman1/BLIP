@@ -1,5 +1,10 @@
 /**
  * SAVE SLOTS — 3 independent slots, slot-picker menu, per-slot erase.
+ *
+ * The picker uses PROGRESSIVE DISCLOSURE (ShellUI.buildMenuEntries, b1d7ef9):
+ * it lists every OCCUPIED slot plus the NEXT empty one — so a fresh boot shows
+ * exactly one "NEW GAME" entry, not three. The underlying slot system is still
+ * 3 independent slots; only the menu presentation is progressive.
  * (RESET SAVE now lives in the pause menu, not a contextual top-bar button.)
  */
 import { expect, test } from '@playwright/test';
@@ -13,15 +18,25 @@ async function waitScene(page: import('@playwright/test').Page, name: string) {
   );
 }
 
-test('fresh boot shows three empty slots', async ({ page }) => {
+test('fresh boot shows a single empty slot (progressive disclosure)', async ({ page }) => {
   await bootToMenu(page);
-  await expect(page.locator('.menu-item.slot')).toHaveCount(3);
-  await expect(page.locator('.menu-item.slot.empty')).toHaveCount(3);
+  await expect(page.locator('.menu-item.slot')).toHaveCount(1);
+  await expect(page.locator('.menu-item.slot.empty')).toHaveCount(1);
   await expect(page.locator('#menu-slot-0')).toContainText('NEW GAME');
+  // slots 1 and 2 are not offered until slot 0 is in use
+  await expect(page.locator('#menu-slot-1')).toHaveCount(0);
 });
 
 test('slots are independent; playing one leaves the others empty', async ({ page }) => {
   await bootToMenu(page);
+  // Only slot 0 is offered on a fresh boot, so occupy it first; slot 1 then
+  // becomes the next-empty entry and can be played independently.
+  await page.click('#menu-slot-0');
+  await waitScene(page, 'SweepScene');
+  await page.keyboard.press('Escape');
+  await page.click('#pause-main-menu');
+  await waitScene(page, 'MainMenuScene');
+  await expect(page.locator('#menu-slot-1')).toBeVisible();
   // play slot 2 (index 1)
   await page.click('#menu-slot-1');
   await waitScene(page, 'SweepScene');
@@ -39,13 +54,13 @@ test('slots are independent; playing one leaves the others empty', async ({ page
   await waitScene(page, 'MainMenuScene');
   await expect(page.locator('#menu-slot-1')).toContainText('CONTINUE');
   await expect(page.locator('#menu-slot-1')).toContainText('MILLER FIELD');
-  await expect(page.locator('#menu-slot-0')).toContainText('NEW GAME');
+  // slot 2 is now the next-empty entry
   await expect(page.locator('#menu-slot-2')).toContainText('NEW GAME');
-  // the occupied slot's save is real
+  // the occupied slot's save is real and separate from slot 0's
   const s = await page.evaluate(() => JSON.parse(localStorage.getItem('blip_save_v1_slot1') ?? '{}'));
   expect(s.signalFragments).toBe(1);
-  // slot 0's key was never created
-  expect(await page.evaluate(() => localStorage.getItem('blip_save_v1'))).toBeNull();
+  const s0 = await page.evaluate(() => JSON.parse(localStorage.getItem('blip_save_v1') ?? '{}'));
+  expect(s0.signalFragments ?? 0).toBe(0);
 });
 
 test('erasing an occupied slot returns it to empty', async ({ page }) => {
