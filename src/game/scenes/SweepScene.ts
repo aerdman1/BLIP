@@ -560,9 +560,13 @@ export class SweepScene extends Phaser.Scene {
           px: TD_VISUALS.actorPx.drone,
           lift: 10, // drones hover — their shadow detaches and softens
           lighting: this.tdLight,
-          lightRadius: 54,
+          // trimmed from 54/0.22 alongside the 2026-07 HD enemy art replacement —
+          // the new sprites' own emissive layer already reads brighter, and
+          // several drones' point-lights stacking at combat range was blowing
+          // out into the player's sprite. Enemy-only knob (player/node untouched).
+          lightRadius: 42,
           lightColor: TD_PALETTE.danger,
-          lightIntensity: 0.22,
+          lightIntensity: 0.16,
         })
       );
     }

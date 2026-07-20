@@ -1256,7 +1256,12 @@ export const TD_VISUALS = {
   /** Per-role on-screen heights in px. The family sprites are authored large
    *  and at different sizes, so a single artScale cannot size them all — each
    *  role declares the height it should READ at and the rig derives the scale. */
-  actorPx: { player: 34, drone: 30, elite: 50, node: 84 },
+  // drone trimmed 30→26px: the replacement HD enemy set (2026-07 art pass) reads
+  // visually larger/brighter than the old placeholder art at the same target
+  // height, and at real combat standoff range (~36px) drones were competing
+  // with — sometimes visually burying — the player's own 34px sprite. Player/
+  // elite/node are untouched.
+  actorPx: { player: 34, drone: 26, elite: 50, node: 84 },
   /** foreshortening: a prop of render height H occupies H*k of ground depth */
   obliqueK: 0.55,
   /** subtle lens tilt — render-y offset per world-y away from camera centre */
