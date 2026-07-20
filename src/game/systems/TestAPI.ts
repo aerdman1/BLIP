@@ -697,6 +697,38 @@ export function installTestAPI(game: Phaser.Game): void {
       return { ...r, player: api.getPlayerState() ?? api.getSweepState() };
     },
 
+    /** Stage N enemies at `radius` around the player, spread over all angles.
+     *  Exists to force the worst-case close-combat framing for visual review;
+     *  it moves existing enemies, it does not spawn or buff anything. */
+    stageSweepEnemies: (count: number, radius: number): boolean => {
+      if (!gameRef || !gameRef.scene.isActive(SCENES.sweep)) return false;
+      const sc = gameRef.scene.getScene(SCENES.sweep) as unknown as {
+        player?: { x: number; y: number };
+        enemies?: { getChildren: () => Array<{ active: boolean; setPosition: (x: number, y: number) => void }> };
+      };
+      const p = sc.player;
+      const list = sc.enemies?.getChildren().filter((e) => e.active) ?? [];
+      if (!p) return false;
+      const n = Math.min(count, list.length);
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        list[i].setPosition(p.x + Math.cos(a) * radius, p.y + Math.sin(a) * radius);
+      }
+      return true;
+    },
+
+    /** Put the player next to the Signal Node — scale/composition reference. */
+    warpToNode: (): boolean => {
+      if (!gameRef || !gameRef.scene.isActive(SCENES.sweep)) return false;
+      const sc = gameRef.scene.getScene(SCENES.sweep) as unknown as {
+        player?: { setPosition: (x: number, y: number) => void };
+        nodePos?: { x: number; y: number };
+      };
+      if (!sc.player || !sc.nodePos) return false;
+      sc.player.setPosition(sc.nodePos.x - 54, sc.nodePos.y + 46);
+      return true;
+    },
+
     /** Top-down HD visual state — asserts the render contract the visual
      *  overhaul depends on (backbuffer density, framing, texture integrity).
      *  Read-only; exists so e2e can verify what a screenshot cannot. */

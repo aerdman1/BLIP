@@ -120,6 +120,7 @@ export class SweepScene extends Phaser.Scene {
   private tdShadows?: TopDownShadows;
   private tdNodeRig?: SignalNodeRig;
   private tdRigs = new Map<Phaser.GameObjects.GameObject, ActorRig>();
+  private tdPlayerRim?: Phaser.GameObjects.Image;
 
   private exiting = false;
   private gameOverShown = false;
@@ -227,6 +228,13 @@ export class SweepScene extends Phaser.Scene {
     (this.player.body as Phaser.Physics.Arcade.Body).setCollideWorldBounds(true);
     this.cameras.main.startFollow(this.player, true, 0.16, 0.16);
     if (this.td) {
+      // sits just behind the player, invisible until a drone overlaps him
+      this.tdPlayerRim = this.add
+        .image(spawnX, spawnY, TEX.tdLight)
+        .setBlendMode(Phaser.BlendModes.ADD)
+        .setTint(TD_PALETTE.signal)
+        .setScale(0.72)
+        .setAlpha(0);
       this.tdRigs.set(
         this.player,
         new ActorRig(this, this.player, {
@@ -1410,6 +1418,32 @@ export class SweepScene extends Phaser.Scene {
       if (e.active) casters.push({ x: e.x, y: e.y + 8, active: true, tdShadowW: 22, tdLift: 10 });
     });
     this.tdShadows?.update(casters);
+
+    // ---- close-combat readability -----------------------------------------
+    // Pairwise separation so no two drones occupy the same visual position,
+    // and a hard push-off ring around the player so a drone can never sit on
+    // top of CONTACT-47. This runs AFTER the AI drives, as a position
+    // correction only — velocities, damage and aggression are untouched.
+    const live = (this.enemies.getChildren() as SweepEnemy[]).filter((e) => e.active);
+    for (let i = 0; i < live.length; i++) {
+      for (let j = i + 1; j < live.length; j++) {
+        live[j].separate(live[i].x, live[i].y, SWEEP.droneSpacing);
+      }
+      live[i].separate(this.player.x, this.player.y, SWEEP.closeStandoff * 0.82);
+    }
+
+    // Readability fallback: a subtle rim behind the player, faded in ONLY while
+    // something overlaps his bounds. Not a permanent outline, and not a depth
+    // override — he keeps sorting honestly against the world.
+    if (this.tdPlayerRim) {
+      const near = live.some(
+        (e) => Phaser.Math.Distance.Between(e.x, e.y, this.player.x, this.player.y) < 30
+      );
+      const target = near ? 0.55 : 0;
+      this.tdPlayerRim.setAlpha(Phaser.Math.Linear(this.tdPlayerRim.alpha, target, 0.18));
+      this.tdPlayerRim.setPosition(this.player.x, this.player.y + 2);
+      this.tdPlayerRim.setDepth(this.player.depth - 1);
+    }
     this.tdNodeRig?.update(dt, this.chargeTarget > 0 ? this.nodeCharge / this.chargeTarget : 0);
     this.tdLight?.update(dt);
   }
@@ -1419,6 +1453,8 @@ export class SweepScene extends Phaser.Scene {
     // hook that covers every exit path (breach, death, quit-to-menu, dev warp).
     // Miss it and the next scene lays out 480-coord content in a 1440x810 buffer.
     restoreBase(this);
+    this.tdPlayerRim?.destroy();
+    this.tdPlayerRim = undefined;
     this.tdRigs.forEach((r) => r.destroy());
     this.tdRigs.clear();
     this.tdNodeRig?.destroy();

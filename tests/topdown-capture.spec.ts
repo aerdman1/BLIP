@@ -33,6 +33,43 @@ test('survey: representative locations', async ({ page }) => {
   }
 });
 
+/**
+ * Close-combat readability proof. The brief's non-negotiable is that drones can
+ * never visually hide CONTACT-47, so these captures FORCE the worst cases:
+ * enemies teleported adjacent, from several directions, in numbers.
+ */
+test('close combat: enemies cannot hide the player', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await enterArena(page);
+  await screenshotTo(page, `${OUT}/c0-alone`);
+
+  const stage = (n: number, radius: number) =>
+    page.evaluate(([count, r]) => {
+      const api = (window as any).__BLIP_TEST_API__;
+      api.stageSweepEnemies(count, r);
+    }, [n, radius] as const);
+
+  await stage(1, 26);
+  await page.waitForTimeout(900);
+  await screenshotTo(page, `${OUT}/c1-one-beside`);
+
+  await stage(4, 18);
+  await page.waitForTimeout(1100);
+  await screenshotTo(page, `${OUT}/c2-four-close`);
+
+  await stage(6, 40);
+  await page.waitForTimeout(1100);
+  await screenshotTo(page, `${OUT}/c3-multi-direction`);
+});
+
+test('scale reference: player, node, terrain', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await enterArena(page);
+  await page.evaluate(() => (window as any).__BLIP_TEST_API__.warpToNode());
+  await page.waitForTimeout(1000);
+  await screenshotTo(page, `${OUT}/c4-at-node`);
+});
+
 test.describe('top-down visual storyboard', () => {
   test('beats', async ({ page }) => {
     await enterArena(page);

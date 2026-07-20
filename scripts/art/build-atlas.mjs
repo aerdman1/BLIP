@@ -49,6 +49,9 @@ export const REQUIRED_FRAMES = [
   'td-node', 'td-node-emis',
   'td-rock', 'td-log', 'td-bush', 'td-fern', 'td-tuft', 'td-canopy',
   'td-debris', 'td-scrap',
+
+  'td-lm-pod', 'td-lm-pod-emis', 'td-lm-relay', 'td-lm-relay-emis',
+  'td-lm-roots', 'td-lm-pool', 'td-lm-pool-emis',
 ];
 
 /** Individual tile files (NOT atlas frames) that process.py must have written. */

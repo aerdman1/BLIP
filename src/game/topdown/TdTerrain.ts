@@ -76,6 +76,7 @@ export class TdTerrain {
     this.scatterProps();
     this.buildCanopy(AW, AH);
     this.scatterAccents();
+    this.placeLandmarks();
   }
 
   /* ------------------------------ 1. ground ---------------------------------- */
@@ -440,6 +441,69 @@ export class TdTerrain {
         intensity: warm ? 0.2 + this.rng() * 0.12 : 0.16 + this.rng() * 0.14,
       });
     }
+  }
+
+  /**
+   * A handful of real landmarks — navigation anchors and composition, NOT more
+   * scatter. Placed on open floor well clear of spawn/node/breach so they never
+   * intrude on the traversal route or a combat space.
+   */
+  private placeLandmarks(): void {
+    const { tile: T, floor, markers, art } = this.input;
+    if (!art.hd) return;
+    const set: Array<[string, string | null, number]> = [
+      [TEX.tdLmPod, TEX.tdLmPodEmis, 0.34],
+      [TEX.tdLmRelay, TEX.tdLmRelayEmis, 0.38],
+      [TEX.tdLmRoots, null, 0.34],
+      [TEX.tdLmPool, TEX.tdLmPoolEmis, 0.36],
+    ];
+    const open = floor.filter(
+      (p) => !p.edge && !markers.some((m) => Math.abs(p.tx - m.tx) + Math.abs(p.ty - m.ty) < 7)
+    );
+    for (let i = open.length - 1; i > 0; i--) {
+      const j = Math.floor(this.rng() * (i + 1));
+      [open[i], open[j]] = [open[j], open[i]];
+    }
+    const placed: Array<{ x: number; y: number }> = [];
+    let idx = 0;
+    for (const [key, emis, scale] of set) {
+      const spot = open.find((p) => {
+        const x = (p.tx + 0.5) * T;
+        const y = (p.ty + 0.5) * T;
+        return placed.every((q) => Math.hypot(q.x - x, q.y - y) > T * 7);
+      });
+      if (!spot) continue;
+      const x = (spot.tx + 0.5) * T;
+      const y = (spot.ty + 1) * T;
+      placed.push({ x, y });
+      const isPool = key === TEX.tdLmPool;
+      const img = this.scene.add
+        .image(x, y, key)
+        .setOrigin(0.5, isPool ? 0.5 : 1)
+        .setDepth(isPool ? DEPTH.decal + 5 : sortedDepth(y))
+        .setScale(scale);
+      this.props.push(img);
+      if (!isPool) this.contactAO(x, y - 2, img.displayWidth * 0.8);
+      if (emis) {
+        const e = this.scene.add
+          .image(x, y, emis)
+          .setOrigin(0.5, isPool ? 0.5 : 1)
+          .setDepth((isPool ? DEPTH.decal + 6 : sortedDepth(y)) + 1)
+          .setScale(scale)
+          .setBlendMode(Phaser.BlendModes.ADD)
+          .setAlpha(0.85);
+        this.props.push(e);
+      }
+      // landmarks carry their own light so they read from across the arena
+      this.accentLights?.({
+        x, y: y - 8,
+        radius: isPool ? 96 : 72,
+        color: key === TEX.tdLmRelay ? C.emberWarm : isPool ? C.bioTeal : C.signal,
+        intensity: 0.3,
+      });
+      idx++;
+    }
+    void idx;
   }
 
   /* ------------------------------ 5. canopy --------------------------------- */

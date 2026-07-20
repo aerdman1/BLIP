@@ -80,6 +80,24 @@ export class SweepEnemy extends Phaser.Physics.Arcade.Sprite {
   }
 
   /** redraw the little HP bar only when hp changed; reposition above the drone */
+  /** slot angles drift slowly so a held position never looks frozen */
+  private slotDrift(): void {
+    this.slot += this.wobPhase > Math.PI ? 0.006 : -0.006;
+    if (this.slot > Math.PI * 2) this.slot -= Math.PI * 2;
+    if (this.slot < 0) this.slot += Math.PI * 2;
+  }
+
+  /** Nudge away from a neighbour that is too close. Applied by the scene after
+   *  all drives, as a position correction — velocity is left to the AI. */
+  separate(ox: number, oy: number, minDist: number): void {
+    const dx = this.x - ox;
+    const dy = this.y - oy;
+    const d = Math.hypot(dx, dy);
+    if (d >= minDist || d < 0.001) return;
+    const push = (minDist - d) * 0.5;
+    this.setPosition(this.x + (dx / d) * push, this.y + (dy / d) * push);
+  }
+
   private drawHp(): void {
     const w = Math.max(12, this.displayWidth * 0.8);
     if (this.hp !== this.lastHp) {
@@ -95,6 +113,15 @@ export class SweepEnemy extends Phaser.Physics.Arcade.Sprite {
   }
 
   /** called each frame by the scene. aggro (1..1.35) ramps with Sweep heat. */
+  /**
+   * A per-drone orbit slot around the player. Chasers aim for the RING at
+   * `standoff`, offset to their slot angle, instead of all converging on the
+   * player's exact position — which is what made them stack into one blob and
+   * sit on top of CONTACT-47. Damage, speed and aggression are unchanged; only
+   * the point they steer toward moves.
+   */
+  private slot = Math.random() * Math.PI * 2;
+
   drive(px: number, py: number, now: number, fireBolt: FireBolt, aggro: number): void {
     if (!this.active) return;
     // don't clear the tint while a wind-up blink is driving it
@@ -110,11 +137,27 @@ export class SweepEnemy extends Phaser.Physics.Arcade.Sprite {
 
     const spd = this.cfg.speed * aggro;
     const dist = Phaser.Math.Distance.Between(this.x, this.y, px, py);
+    this.slotDrift();
 
     switch (this.cfg.behavior) {
-      case 'chase':
-        body.setVelocity(Math.cos(ang) * spd, Math.sin(ang) * spd);
+      case 'chase': {
+        // Close in, but stop BESIDE the player at the standoff ring rather than
+        // on top of them. Past the ring the drone slides tangentially into its
+        // slot, so a pack fans out around the player instead of piling up.
+        const stand = SWEEP.closeStandoff;
+        if (dist > stand) {
+          body.setVelocity(Math.cos(ang) * spd, Math.sin(ang) * spd);
+        } else {
+          const slotAng = this.slot;
+          const tx = px + Math.cos(slotAng) * stand;
+          const ty = py + Math.sin(slotAng) * stand;
+          const a2 = Math.atan2(ty - this.y, tx - this.x);
+          const d2 = Phaser.Math.Distance.Between(this.x, this.y, tx, ty);
+          const s2 = Math.min(spd, d2 * 3);
+          body.setVelocity(Math.cos(a2) * s2, Math.sin(a2) * s2);
+        }
         break;
+      }
 
       case 'weaver': {
         // fast rush with a lateral sine so aimed shots slide off — lead it or Scan it

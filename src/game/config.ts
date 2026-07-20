@@ -795,6 +795,12 @@ export const SWEEP = {
   nodeChargeRadius: 130, // within this of the node → double charge
   // dash-chain flow: a Phase-Strike kill refunds the dash cooldown (chain through packs)
   dashRefundOnPhaseKill: true,
+  /** Close-range staging. Chasers hold this ring around the player instead of
+   *  landing on them, and no two drones may sit closer than droneSpacing —
+   *  together these stop packs from stacking into one unreadable cluster or
+   *  covering CONTACT-47. Neither changes damage, speed or aggression. */
+  closeStandoff: 34,
+  droneSpacing: 26,
   hitStopMs: 45, // brief freeze on a phase-strike kill for punch
   // Scout Boons (the five scouts as pickups) + hidden Signal Caches revealed by Scan
   eliteCacheShards: 15,
@@ -1170,6 +1176,14 @@ export const TEX = {
   tdCanopy: 'td-canopy',
   tdDebris: 'td-debris',
   tdScrap: 'td-scrap',
+  // landmarks — a few navigation anchors, not more scatter
+  tdLmPod: 'td-lm-pod',
+  tdLmPodEmis: 'td-lm-pod-emis',
+  tdLmRelay: 'td-lm-relay',
+  tdLmRelayEmis: 'td-lm-relay-emis',
+  tdLmRoots: 'td-lm-roots',
+  tdLmPool: 'td-lm-pool',
+  tdLmPoolEmis: 'td-lm-pool-emis',
   // runtime-canvas (not loaded): sweep-only aliases so LINEAR never touches the
   // shared glow8/spark/px keys the side-view scenes depend on.
   tdGlow: 'td-glow',
@@ -1194,6 +1208,8 @@ export const TD_ATLAS_FRAMES = [
   TEX.tdElite, TEX.tdEliteEmis, TEX.tdNode, TEX.tdNodeEmis,
   TEX.tdRock, TEX.tdLog, TEX.tdBush, TEX.tdFern, TEX.tdTuft,
   TEX.tdCanopy, TEX.tdDebris, TEX.tdScrap,
+  TEX.tdLmPod, TEX.tdLmPodEmis, TEX.tdLmRelay, TEX.tdLmRelayEmis,
+  TEX.tdLmRoots, TEX.tdLmPool, TEX.tdLmPoolEmis,
 ] as const;
 
 /** Sprite key per enemy archetype (HD top-down). Body + emissive layer. */
@@ -1232,7 +1248,7 @@ export const TD_VISUALS = {
    * this scale, or a 230px canopy lands in a 585px-wide viewport and blacks out
    * the arena — which is exactly what happened before this existed.
    */
-  artScale: 0.32,
+  artScale: 0.26,
   /** Ground material repeat in px. The albedos are 512² photoscans; repeating
    *  them at 256 means only 2x minification, which stays crisp. Smaller values
    *  (64) minify 8x and turn the grass into aliased static. */
@@ -1240,7 +1256,7 @@ export const TD_VISUALS = {
   /** Per-role on-screen heights in px. The family sprites are authored large
    *  and at different sizes, so a single artScale cannot size them all — each
    *  role declares the height it should READ at and the rig derives the scale. */
-  actorPx: { player: 46, drone: 34, elite: 58, node: 96 },
+  actorPx: { player: 34, drone: 30, elite: 50, node: 84 },
   /** foreshortening: a prop of render height H occupies H*k of ground depth */
   obliqueK: 0.55,
   /** subtle lens tilt — render-y offset per world-y away from camera centre */
