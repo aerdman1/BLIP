@@ -9,7 +9,7 @@
  * HTML shell.
  */
 import Phaser from 'phaser';
-import { EVT, HUD_HEALTH, PALETTE as P, PLAYER, RENDER_ZOOM, SCENES, VIEW_H, VIEW_W, css } from '../config';
+import { EVT, PALETTE as P, PLAYER, RENDER_ZOOM, SCENES, VIEW_H, VIEW_W } from '../config';
 import { bus } from '../systems/EventBus';
 
 interface SweepStats {
@@ -39,13 +39,6 @@ export class UIScene extends Phaser.Scene {
   private sweepActive = false;
   private sweepG!: Phaser.GameObjects.Graphics;
   private sweepGlow!: Phaser.GameObjects.Graphics;
-  private txtWeapon!: Phaser.GameObjects.Text;
-  private txtObjective!: Phaser.GameObjects.Text;
-  private txtEnemies!: Phaser.GameObjects.Text;
-  private txtCombo!: Phaser.GameObjects.Text;
-  private txtOd!: Phaser.GameObjects.Text;
-  private txtPrompts!: Phaser.GameObjects.Text;
-  private banner!: Phaser.GameObjects.Text;
   private sweepHudEl: HTMLElement | null = null;
   private sweepObjectiveEl: HTMLElement | null = null;
   private sweepContactsEl: HTMLElement | null = null;
@@ -53,7 +46,7 @@ export class UIScene extends Phaser.Scene {
   private sweepWeaponEl: HTMLElement | null = null;
   private sweepOverdriveEl: HTMLElement | null = null;
   private sweepOverdriveFillEl: HTMLElement | null = null;
-  private sweepPromptsEl: HTMLElement | null = null;
+  private sweepHpFillEl: HTMLElement | null = null;
   private sweepBannerEl: HTMLElement | null = null;
   private sweepBannerTimer: number | null = null;
   private stats: SweepStats = {
@@ -66,8 +59,22 @@ export class UIScene extends Phaser.Scene {
     super(SCENES.ui);
   }
 
+  /** Map the fixed 480×270 HUD layout space onto whatever the backbuffer is.
+   *  SweepScene raises the buffer for HD top-down rendering; without this the
+   *  entire HUD would collapse into a corner of the larger canvas. Side-view
+   *  runs at 480×270, where this is exactly the old `setZoom(RENDER_ZOOM)`. */
+  private fitHudCamera = (): void => {
+    const cam = this.cameras?.main;
+    if (!cam) return;
+    cam.setZoom((this.scale.width / VIEW_W) * RENDER_ZOOM).centerOn(VIEW_W / 2, VIEW_H / 2);
+  };
+
   create(): void {
-    this.cameras.main.setZoom(RENDER_ZOOM).centerOn(VIEW_W / 2, VIEW_H / 2);
+    this.fitHudCamera();
+    this.scale.on(Phaser.Scale.Events.RESIZE, this.fitHudCamera);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () =>
+      this.scale.off(Phaser.Scale.Events.RESIZE, this.fitHudCamera)
+    );
     this.bars = this.add.graphics().setDepth(10);
     this.buildSweepHud();
     this.buildSweepDom();
@@ -102,88 +109,67 @@ export class UIScene extends Phaser.Scene {
 
   /* ------------------------------------------------------------------ sweep */
 
+  /** The Sweep HUD is 100% DOM (see buildSweepDom) — readable text rendered by
+   *  the browser, never block-scaled by Phaser, and unaffected by the HD
+   *  backbuffer. Nothing is drawn in-canvas here any more; the Phaser text
+   *  objects that used to live here were created and then permanently hidden. */
   private buildSweepHud(): void {
-    const mono = (size: number, color: number) => ({
-      fontFamily: 'monospace',
-      fontSize: `${size}px`,
-      fontStyle: 'bold' as const,
-      color: css(color),
-    });
     this.sweepG = this.add.graphics().setDepth(30).setVisible(false);
     this.sweepGlow = this.add.graphics().setDepth(29).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
-
-    // bottom-left: current weapon
-    this.txtWeapon = this.add.text(11, VIEW_H - 16, 'PULSE', mono(8, P.signal)).setDepth(32).setVisible(false);
-    // top-center: objective (node charge / wave)
-    this.txtObjective = this.add.text(VIEW_W / 2, 7, '', mono(7, P.white)).setOrigin(0.5, 0).setDepth(32).setVisible(false);
-    // top-center under objective: enemies remaining
-    this.txtEnemies = this.add.text(VIEW_W / 2, 18, '', mono(7, P.uiDim)).setOrigin(0.5, 0).setDepth(32).setVisible(false);
-    // top-right: combo
-    this.txtCombo = this.add.text(VIEW_W - 10, 8, '', mono(9, P.warning)).setOrigin(1, 0).setDepth(32).setVisible(false);
-    // bottom-center: overdrive label
-    this.txtOd = this.add.text(VIEW_W / 2, VIEW_H - 20, 'SIGNAL OVERDRIVE  [E]', mono(6, P.uiDim)).setOrigin(0.5, 0).setDepth(32).setVisible(false);
-    // bottom-right: ability prompts
-    this.txtPrompts = this.add
-      .text(VIEW_W - 10, VIEW_H - 15, '[SHIFT] DASH   [Q] SCAN', mono(6, P.uiDim))
-      .setOrigin(1, 0)
-      .setDepth(32)
-      .setVisible(false);
-    // center: big combat banner
-    this.banner = this.add
-      .text(VIEW_W / 2, VIEW_H / 2 - 40, '', { fontFamily: 'monospace', fontSize: '18px', fontStyle: 'bold', color: css(P.signal) })
-      .setOrigin(0.5)
-      .setDepth(34)
-      .setAlpha(0)
-      .setVisible(false);
   }
 
   private buildSweepDom(): void {
     const frame = document.getElementById('game-frame');
     if (!frame || this.sweepHudEl) return;
     const el = document.createElement('div');
-    el.id = 'sweep-hud-dom';
-    el.className = 'hidden';
+    el.id = 'sweep-hud-dom'; // id kept stable — the e2e suite asserts on it
+    el.className = 'td-hud hidden';
+    // Four panels, one concern each, and nothing permanent that isn't needed.
+    // Contextual alerts are transient (the banner) — there is no instruction ticker.
     el.innerHTML = `
-      <div class="sweep-hud-top">
-        <div class="sweep-hud-objective">CHARGE THE SIGNAL NODE</div>
-        <div class="sweep-hud-contacts">0 CONTACTS LEFT</div>
-        <div class="sweep-hud-node"><i></i></div>
+      <div class="td-objective">
+        <div class="td-objective-title">CHARGE THE SIGNAL NODE</div>
+        <div class="td-objective-sub">0 contacts left</div>
+        <div class="td-objective-bar"><i></i></div>
       </div>
-      <div class="sweep-hud-weapon"><span class="cap">WEAPON</span><span class="val">PULSE</span></div>
-      <div class="sweep-hud-overdrive">
-        <span>SIGNAL OVERDRIVE</span>
-        <div><i></i></div>
+      <div class="td-vitals">
+        <div class="td-vitals-chip" aria-hidden="true"></div>
+        <div class="td-vitals-body">
+          <div class="td-vitals-name">CONTACT-47</div>
+          <div class="td-hp"><i></i></div>
+          <div class="td-weapon"><span class="cap">WPN</span><span class="val">PULSE</span></div>
+        </div>
       </div>
-      <div class="sweep-hud-prompts"><span class="cap">CONTROLS</span><span class="val">DASH · SCAN · ECHO</span></div>
+      <div class="td-overdrive"><span>SIGNAL OVERDRIVE</span><div><i></i></div></div>
+      <div class="td-abilities">
+        <span data-k="SHIFT">DASH</span><span data-k="Q">SCAN</span>
+        <span data-k="E">ECHO</span><span data-k="LMB">FIRE</span>
+      </div>
       <div class="sweep-hud-banner"></div>`;
     frame.appendChild(el);
     this.sweepHudEl = el;
-    this.sweepObjectiveEl = el.querySelector('.sweep-hud-objective');
-    this.sweepContactsEl = el.querySelector('.sweep-hud-contacts');
-    this.sweepNodeFillEl = el.querySelector('.sweep-hud-node i');
-    this.sweepWeaponEl = el.querySelector('.sweep-hud-weapon .val');
-    this.sweepOverdriveEl = el.querySelector('.sweep-hud-overdrive span');
-    this.sweepOverdriveFillEl = el.querySelector('.sweep-hud-overdrive i');
-    this.sweepPromptsEl = el.querySelector('.sweep-hud-prompts .val');
+    this.sweepObjectiveEl = el.querySelector('.td-objective-title');
+    this.sweepContactsEl = el.querySelector('.td-objective-sub');
+    this.sweepNodeFillEl = el.querySelector('.td-objective-bar i');
+    this.sweepWeaponEl = el.querySelector('.td-weapon .val');
+    this.sweepOverdriveEl = el.querySelector('.td-overdrive span');
+    this.sweepOverdriveFillEl = el.querySelector('.td-overdrive i');
+    this.sweepHpFillEl = el.querySelector('.td-hp i');
     this.sweepBannerEl = el.querySelector('.sweep-hud-banner');
   }
 
   private setSweepMode(active: boolean): void {
     this.sweepActive = active;
-    for (const o of [this.sweepG, this.sweepGlow]) {
-      o.setVisible(active);
-    }
-    for (const o of [this.txtWeapon, this.txtObjective, this.txtEnemies, this.txtCombo, this.txtOd, this.txtPrompts]) {
-      o.setVisible(false);
-    }
     this.sweepHudEl?.classList.toggle('hidden', !active);
+    // The world should own the screen: suppress the persistent shell chrome
+    // (status strip, objective ticker) while the top-down arena is up.
+    document.body.classList.toggle('td-hud-active', active);
     if (active) {
       this.bars.clear(); // hide the side-view gauge cluster while in the Sweep
       this.drawSweepHud();
     } else {
       this.sweepG.clear();
       this.sweepGlow.clear();
-      this.banner.setAlpha(0).setVisible(false);
       this.hideSweepBanner();
     }
   }
@@ -203,84 +189,43 @@ export class UIScene extends Phaser.Scene {
 
   private drawSweepHud(): void {
     const s = this.stats;
-    const g = this.sweepG;
-    g.clear();
+    // Nothing is drawn in-canvas: the graphics layers stay cleared so no HUD
+    // element is subject to the HD backbuffer's scaling.
+    this.sweepG.clear();
+    this.sweepGlow.clear();
 
-    // ---- bottom-left: integrity (HP) bar + weapon plate ----
-    const { x: bx, y: by, segW, segH, gap, iconW } = HUD_HEALTH;
-    const barX = bx + iconW + 3; // segments start after the heart icon
-    const barW = this.hpMax * segW + (this.hpMax - 1) * gap;
-    g.fillStyle(P.black, 0.5).fillRect(bx - 2, by - 6, barW + iconW + 8, 34);
-
+    // ---- vitals: integrity + weapon ----
     const ratio = this.hpMax > 0 ? this.hp / this.hpMax : 0;
-    const hc = this.healthColor(ratio);
-    const hp = this.healthPulse(ratio);
-
-    // leading heart icon (a tiny palette-locked pixel heart reads as "integrity"), tinted to state
-    const hy = by;
-    g.fillStyle(hc, hp);
-    g.fillRect(bx, hy + 1, 3, 3);
-    g.fillRect(bx + 4, hy + 1, 3, 3);
-    g.fillRect(bx, hy + 2, iconW, 3);
-    g.fillRect(bx + 1, hy + 5, iconW - 2, 1);
-    g.fillStyle(0xffffff, 0.4).fillRect(bx + 1, hy + 1, 1, 1); // spec highlight
-
-    // recessed track behind the segments, then filled/empty segments
-    g.fillStyle(P.black, 0.6).fillRect(barX - 1, by - 1, barW + 2, segH + 2);
-    for (let i = 0; i < this.hpMax; i++) {
-      const on = i < this.hp;
-      const sx = barX + i * (segW + gap);
-      if (on) {
-        g.fillStyle(hc, hp).fillRect(sx, by, segW, segH);
-        g.fillStyle(0xffffff, 0.22).fillRect(sx, by, segW, 1); // top sheen
-        g.fillStyle(P.black, 0.35).fillRect(sx, by + segH - 1, segW, 1); // base shade
-      } else {
-        g.fillStyle(P.black, 0.5).fillRect(sx, by, segW, segH); // empty = recessed, not a red block
-        g.fillStyle(P.uiDim, 0.22).fillRect(sx, by, segW, 1);
-        g.fillStyle(P.uiDim, 0.18).fillRect(sx, by, 1, segH);
-      }
+    if (this.sweepHpFillEl) {
+      this.sweepHpFillEl.style.width = `${Math.round(ratio * 100)}%`;
+      // green (healthy) → amber → red, so a full bar is never an alarming wall of red
+      this.sweepHpFillEl.dataset.state = ratio > 0.6 ? 'ok' : ratio > 0.3 ? 'warn' : 'crit';
     }
-    // weapon underline swatch
-    g.fillStyle(P.signalDim, 0.9).fillRect(bx + 1, VIEW_H - 6, 96, 1);
-    this.txtWeapon.setText(`▸ ${s.weapon}`);
     if (this.sweepWeaponEl) this.sweepWeaponEl.textContent = s.weapon;
 
-    if (s.traverse) {
-      this.txtObjective.setText(s.breachOpen ? 'BREACH OPEN ▸' : 'CHARGE THE SIGNAL NODE');
-      this.txtObjective.setColor(css(s.breachOpen ? P.signal : P.white));
-      if (this.sweepObjectiveEl) {
-        this.sweepObjectiveEl.textContent = s.breachOpen ? 'BREACH OPEN' : 'CHARGE THE SIGNAL NODE';
-        this.sweepObjectiveEl.classList.toggle('ready', s.breachOpen);
-      }
-    } else {
-      this.txtObjective.setText(`WAVE ${s.wave} / ${s.waves}`);
-      this.txtObjective.setColor(css(P.white));
-      if (this.sweepObjectiveEl) {
-        this.sweepObjectiveEl.textContent = `WAVE ${s.wave} / ${s.waves}`;
-        this.sweepObjectiveEl.classList.remove('ready');
-      }
+    // ---- objective ----
+    if (this.sweepObjectiveEl) {
+      this.sweepObjectiveEl.textContent = s.traverse
+        ? s.breachOpen ? 'BREACH OPEN' : 'CHARGE THE SIGNAL NODE'
+        : `WAVE ${s.wave} / ${s.waves}`;
+      this.sweepObjectiveEl.classList.toggle('ready', s.traverse && s.breachOpen);
     }
-    this.txtEnemies.setText(s.enemies > 0 ? `◦ ${s.enemies} CONTACT${s.enemies === 1 ? '' : 'S'} LEFT` : 'AREA CLEAR');
-    this.txtEnemies.setColor(css(s.enemies > 0 ? P.uiDim : P.signalGreen));
     if (this.sweepContactsEl) {
-      this.sweepContactsEl.textContent = s.enemies > 0 ? `${s.enemies} CONTACT${s.enemies === 1 ? '' : 'S'} LEFT` : 'AREA CLEAR';
+      // sentence case — uppercase is reserved for labels and the objective itself
+      this.sweepContactsEl.textContent =
+        s.enemies > 0 ? `${s.enemies} contact${s.enemies === 1 ? '' : 's'} left` : 'Area clear';
       this.sweepContactsEl.classList.toggle('clear', s.enemies <= 0);
     }
     if (this.sweepNodeFillEl) this.sweepNodeFillEl.style.width = `${Math.round((s.breachOpen ? 1 : s.node) * 100)}%`;
 
-    // ---- top-right: combo ----
-    this.txtCombo.setText(s.combo >= 2 ? `x${s.combo}` : '');
-
-    // ---- bottom-center: Signal Overdrive meter ----
-    this.txtOd
-      .setText(s.odActive ? 'OVERDRIVE ACTIVE' : s.odReady ? 'SIGNAL OVERDRIVE READY — [E]' : 'SIGNAL OVERDRIVE  [E]')
-      .setColor(css(s.odActive ? P.signal : s.odReady ? P.neonCyan : P.uiDim));
+    // ---- Signal Overdrive: restrained until it matters ----
     if (this.sweepOverdriveEl) {
-      this.sweepOverdriveEl.textContent = s.odActive ? 'OVERDRIVE ACTIVE' : s.odReady ? 'SIGNAL OVERDRIVE READY' : 'SIGNAL OVERDRIVE';
+      this.sweepOverdriveEl.textContent = s.odActive
+        ? 'OVERDRIVE ACTIVE'
+        : s.odReady ? 'OVERDRIVE READY · E' : 'SIGNAL OVERDRIVE';
       this.sweepOverdriveEl.classList.toggle('ready', s.odReady || s.odActive);
     }
     if (this.sweepOverdriveFillEl) this.sweepOverdriveFillEl.style.width = `${Math.round((s.odActive ? 1 : s.overdrive) * 100)}%`;
-    if (this.sweepPromptsEl) this.sweepPromptsEl.textContent = 'DASH · SCAN · ECHO · FIRE';
   }
 
   private showBanner(text: string): void {
@@ -303,12 +248,16 @@ export class UIScene extends Phaser.Scene {
 
   update(_t: number, dt: number): void {
     if (this.sweepActive) {
-      // pulse the READY overdrive label so it draws the eye
+      // pulse the READY overdrive panel so it draws the eye — CSS drives the
+      // look, this just keeps the phase so it breathes rather than blinks.
       if (this.stats.odReady && !this.stats.odActive) {
         this.odPulseT += dt;
-        this.txtOd.setAlpha(0.55 + 0.45 * Math.abs(Math.sin(this.odPulseT * 0.006)));
+        this.sweepOverdriveEl?.style.setProperty(
+          '--td-pulse',
+          `${0.6 + 0.4 * Math.abs(Math.sin(this.odPulseT * 0.006))}`
+        );
       } else {
-        this.txtOd.setAlpha(1);
+        this.sweepOverdriveEl?.style.setProperty('--td-pulse', '1');
       }
       return; // sweep HUD is event-driven; skip the side-view gauges
     }

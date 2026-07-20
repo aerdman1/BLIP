@@ -79,5 +79,7 @@ test('refreshing after new game continues the unfinished cold-open Sweep', async
   await waitScene(page, 'SweepScene');
   expect(await api<string>(page, 'api.getSceneName()')).toBe('SweepScene');
   await expect(page.locator('#sweep-hud-dom')).toBeVisible();
-  await expect(page.locator('.sweep-hud-objective')).toContainText(/CHARGE|WAVE|BREACH/);
+  // top-down HUD was rebuilt in the visual overhaul: `.sweep-hud-objective` →
+  // `.td-objective-title` (the #sweep-hud-dom id is deliberately unchanged).
+  await expect(page.locator('#sweep-hud-dom .td-objective-title')).toContainText(/CHARGE|WAVE|BREACH/);
 });
