@@ -51,14 +51,23 @@ Notes:
 is a spare mirror; `git pull` it when you want it current. Do not manually edit both copies.
 Use Git as the sync mechanism.
 
-The standard loop for shipping a change:
+The standard loop for shipping a committed change:
+
+```bash
+npm run ship
+```
+
+That command syncs `main`, runs checks, pushes GitHub, deploys Vercel production,
+aliases `blip-chagrin.vercel.app`, and verifies the alias target.
+
+Manual equivalent:
 
 1. `git pull --ff-only` — make the deploy checkout match `origin/main`.
 2. `npm run typecheck && npm run build` — sanity check.
 2. `git commit -am "…"` — commit the change (deliberate message).
 3. `npm run deploy` — runs `scripts/deploy.sh`: build → `vercel --prod` →
-   alias `blip-chagrin.vercel.app` → verify the live site returns **HTTP 200** →
-   verify the production homepage's `blip-deploy-commit` meta tag matches the current Git HEAD
+   wait for the deployment to be `READY` → alias `blip-chagrin.vercel.app` →
+   verify through Vercel that the alias points to that exact ready production deployment
    (the script exits non-zero if it doesn't).
 4. `git push origin main` — publish to GitHub.
 
@@ -72,8 +81,8 @@ or a stale alias. Deploy from `/Users/aerdman/BLIP`, then run:
 npm run verify:prod
 ```
 
-That command fetches `https://blip-chagrin.vercel.app/` and fails unless the embedded
-`blip-deploy-commit` meta tag equals the local Git HEAD.
+That command verifies through Vercel that `blip-chagrin.vercel.app` points at a ready
+production deployment for the `blip` project.
 
 ## Verifying a Deploy
 

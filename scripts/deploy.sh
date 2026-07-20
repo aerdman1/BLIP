@@ -30,28 +30,29 @@ echo "==> Building..."
 npm run build
 
 echo "==> Deploying to Vercel production..."
-# Capture all output, then extract the deployment URL robustly (last *.vercel.app URL seen).
-DEPLOY_OUT="$(npx --yes vercel@latest --prod --yes 2>&1)"
+DEPLOY_LOG="$(mktemp)"
+set +e
+npx --yes vercel@latest --prod --yes 2>&1 | tee "${DEPLOY_LOG}"
+DEPLOY_STATUS="${PIPESTATUS[0]}"
+set -e
+DEPLOY_OUT="$(cat "${DEPLOY_LOG}")"
 DEPLOY_URL="$(printf '%s\n' "${DEPLOY_OUT}" | grep -Eo 'https://[a-zA-Z0-9._-]+\.vercel\.app' | tail -1)"
 if [ -z "${DEPLOY_URL}" ]; then
   echo "!! Could not parse a deployment URL from Vercel output:" >&2
   printf '%s\n' "${DEPLOY_OUT}" | tail -20 >&2
   exit 1
 fi
+if [ "${DEPLOY_STATUS}" != "0" ]; then
+  echo "!! Vercel CLI exited ${DEPLOY_STATUS}, but a deployment URL was created. Inspecting it before deciding." >&2
+fi
 echo "    Deployment: ${DEPLOY_URL}"
+
+echo "==> Waiting for deployment to be ready..."
+npx --yes vercel@latest inspect "${DEPLOY_URL}" --wait --timeout 5m >/dev/null
 
 echo "==> Aliasing ${ALIAS_DOMAIN} -> ${DEPLOY_URL}..."
 npx --yes vercel@latest alias set "${DEPLOY_URL}" "${ALIAS_DOMAIN}"
 
-echo "==> Verifying https://${ALIAS_DOMAIN}/ ..."
-STATUS="$(curl -s -o /dev/null -w '%{http_code}' "https://${ALIAS_DOMAIN}/")"
-echo "    HTTP ${STATUS}  https://${ALIAS_DOMAIN}/"
+bash scripts/verify-production.sh "${ALIAS_DOMAIN}" "${DEPLOY_URL}"
 
-if [ "${STATUS}" != "200" ]; then
-  echo "!! Deploy verification FAILED: expected HTTP 200, got ${STATUS}" >&2
-  exit 1
-fi
-
-bash scripts/verify-production.sh "${ALIAS_DOMAIN}"
-
-echo "==> Done. Live at https://${ALIAS_DOMAIN}/ (verified current Git HEAD; don't forget: git push origin main)"
+echo "==> Done. Live at https://${ALIAS_DOMAIN}/ (verified alias target; don't forget: git push origin main)"

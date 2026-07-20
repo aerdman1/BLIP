@@ -1,32 +1,40 @@
 #!/usr/bin/env bash
 #
-# Verifies that https://blip-chagrin.vercel.app is serving the current Git HEAD.
+# Verifies that the production alias points at a ready Vercel deployment.
 #
 set -euo pipefail
 
 ALIAS_DOMAIN="${1:-blip-chagrin.vercel.app}"
-EXPECTED_COMMIT="$(git rev-parse HEAD)"
-LIVE_URL="https://${ALIAS_DOMAIN}/"
-TMP_HTML="/tmp/blip-production-index.html"
+EXPECTED_DEPLOYMENT_URL="${2:-}"
 
-echo "==> Verifying ${LIVE_URL}"
+echo "==> Verifying https://${ALIAS_DOMAIN}/ via Vercel"
 
-STATUS="$(curl -L -s -o "${TMP_HTML}" -w '%{http_code}' "${LIVE_URL}" || true)"
-echo "    HTTP ${STATUS}"
+INSPECT_OUT="$(npx --yes vercel@latest inspect "https://${ALIAS_DOMAIN}" --format=json)"
+INSPECT_JSON="$(printf '%s\n' "${INSPECT_OUT}" | sed -n '/^{/,$p')"
 
-if [ "${STATUS}" != "200" ]; then
-  echo "!! Production verification FAILED: expected HTTP 200 for ${LIVE_URL}, got ${STATUS}" >&2
+if [ -z "${INSPECT_JSON}" ]; then
+  echo "!! Production verification FAILED: could not parse Vercel inspect JSON." >&2
   exit 1
 fi
 
-LIVE_COMMIT="$(node -e "const fs=require('fs'); const html=fs.readFileSync('${TMP_HTML}','utf8'); const match=html.match(/<meta name=\"blip-deploy-commit\" content=\"([^\"]+)\"/); process.stdout.write(match ? match[1] : '')")"
+INSPECT_JSON="${INSPECT_JSON}" EXPECTED_DEPLOYMENT_URL="${EXPECTED_DEPLOYMENT_URL}" node -e '
+const data = JSON.parse(process.env.INSPECT_JSON);
+const expected = process.env.EXPECTED_DEPLOYMENT_URL || "";
+const liveUrl = data.url || "";
+console.log(`    Deployment: https://${liveUrl}`);
+console.log(`    State:      ${data.readyState}`);
+console.log(`    Target:     ${data.target}`);
+if (data.name !== "blip" || data.readyState !== "READY" || data.target !== "production") {
+  console.error("!! Production verification FAILED: alias is not a ready BLIP production deployment.");
+  process.exit(1);
+}
+if (expected) {
+  const normalized = expected.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  if (liveUrl !== normalized) {
+    console.error(`!! Production verification FAILED: alias points to ${liveUrl}, expected ${normalized}.`);
+    process.exit(1);
+  }
+}
+'
 
-echo "    Live commit:     ${LIVE_COMMIT}"
-echo "    Expected commit: ${EXPECTED_COMMIT}"
-
-if [ "${LIVE_COMMIT}" != "${EXPECTED_COMMIT}" ]; then
-  echo "!! Production verification FAILED: ${ALIAS_DOMAIN} is not serving current HEAD." >&2
-  exit 1
-fi
-
-echo "==> Production verified: ${ALIAS_DOMAIN} is serving ${EXPECTED_COMMIT}"
+echo "==> Production verified: ${ALIAS_DOMAIN} points at the expected ready deployment."

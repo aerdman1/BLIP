@@ -17,7 +17,8 @@
     "qa:full": "npm run typecheck && npm run build && npm run test:e2e",
     "qa:loop": "node scripts/qa-loop.mjs",
     "deploy": "bash scripts/deploy.sh",
-    "verify:prod": "bash scripts/verify-production.sh"
+    "verify:prod": "bash scripts/verify-production.sh",
+    "ship": "bash scripts/ship.sh"
   },
   "dependencies": {
     "phaser": "^3.90.0"
