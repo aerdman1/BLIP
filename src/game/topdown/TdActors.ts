@@ -42,8 +42,15 @@ export class ActorRig {
       lightRadius?: number;
       lightColor?: number;
       lightIntensity?: number;
+      /** base/pulse alpha for the emissive layer (default 0.72/0.18 = player look).
+       *  Enemies dial this down — full-tint ADD-blend was amplifying the emissive
+       *  art's scattered rim-light flecks into a noisy "red halo" around each drone. */
+      emissiveAlpha?: number;
+      emissivePulse?: number;
     }
   ) {
+    this.emissiveAlpha = opts.emissiveAlpha ?? 0.72;
+    this.emissivePulse = opts.emissivePulse ?? 0.18;
     this.lift = opts.lift ?? 0;
 
     // Swap the texture ONLY. Origin stays centred: these are physics sprites and
@@ -81,6 +88,8 @@ export class ActorRig {
 
   private lift = 0;
   private lighting?: TdLighting;
+  private emissiveAlpha: number;
+  private emissivePulse: number;
 
   /** Called every frame by the scene. Cheap: position, depth, one sin(). */
   update(dtSec: number): void {
@@ -102,7 +111,7 @@ export class ActorRig {
         .setFlipX(h.flipX)
         .setScale(h.scaleX, h.scaleY)
         .setDepth(h.depth + 1)
-        .setAlpha(0.72 + Math.sin(this.pulseT) * 0.18);
+        .setAlpha(this.emissiveAlpha + Math.sin(this.pulseT) * this.emissivePulse);
     }
   }
 

@@ -569,6 +569,12 @@ export class SweepScene extends Phaser.Scene {
           body: art.body,
           emissive: art.emis,
           emissiveColor: TD_PALETTE.danger,
+          // dimmed from the 0.72/0.18 default (player look) — full-tint ADD-blend
+          // was amplifying the new HD emissive art's scattered rim-light flecks
+          // into a noisy red halo that visually oversold each drone's real
+          // (unchanged, 11x11) hitbox. Enemy-only; player/node untouched.
+          emissiveAlpha: 0.4,
+          emissivePulse: 0.1,
           px: TD_VISUALS.actorPx.drone,
           lift: 10, // drones hover — their shadow detaches and softens
           lighting: this.tdLight,
