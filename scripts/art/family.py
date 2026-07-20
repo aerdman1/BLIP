@@ -259,6 +259,55 @@ def lit_sprite(w: int, h: int, mask: np.ndarray, stops: list[tuple[float, str]],
     return img.filter(ImageFilter.GaussianBlur(0.6))
 
 
+def shard_mask(w: int, h: int, shards: int, seed_scale: float = 1.0) -> np.ndarray:
+    """A MANUFACTURED silhouette: straight fracture edges and hard corners, the
+    opposite of blob_mask's organic lobes. A few overlapping angular polygons —
+    broken slabs, a bent panel — so motel rubble/crate/scrap read as things that
+    were BUILT and then broke, not as mounds that grew. Kept separate from
+    blob_mask so zone 1's organic props are never touched."""
+    im = Image.new("L", (w, h), 0)
+    d = ImageDraw.Draw(im)
+    cx, cy = w / 2, h * 0.60
+    for _ in range(shards):
+        # a jittered convex quad — random centre, random size, hard vertices
+        ox = cx + (RNG.random() - 0.5) * w * 0.36 * seed_scale
+        oy = cy + (RNG.random() - 0.5) * h * 0.30 * seed_scale
+        rx = w * (0.16 + RNG.random() * 0.20)
+        ry = h * (0.14 + RNG.random() * 0.18)
+        ang = RNG.random() * math.pi
+        pts = []
+        # 4 corners, each pushed out to a slightly different radius → irregular
+        # but still straight-edged and convex (reads as a chipped slab)
+        for k in range(4):
+            a = ang + k * (math.pi / 2) + (RNG.random() - 0.5) * 0.5
+            rr = (0.7 + RNG.random() * 0.5)
+            pts.append((ox + math.cos(a) * rx * rr, oy + math.sin(a) * ry * rr))
+        d.polygon(pts, fill=255)
+    m = np.asarray(im, dtype=float) / 255.0
+    # a little grain modulates the FILL for surface texture, but the SILHOUETTE
+    # stays the crisp polygon edge — that hard boundary is the whole point.
+    n = fbm(h, w, base=6, octaves=4)
+    return np.clip(m * (0.78 + 0.4 * n), 0, 1)
+
+
+def lit_angular(w: int, h: int, mask: np.ndarray, stops: list[tuple[float, str]],
+                relief: float, ao_floor: float = 0.5, facets: int = 4) -> Image.Image:
+    """lit_sprite for hard-surface props: the height field is QUANTISED into a
+    few flat facets so light breaks along edges (a built object) instead of
+    rolling across a dome (a rock or bush), and the alpha edge stays crisp."""
+    body = np.clip(mask, 0, 1)
+    detail = fbm(h, w, base=8, octaves=4)
+    height = body * relief + detail * 0.28 * body
+    height = np.floor(height * facets) / max(1, facets - 1)   # faceting
+    lam = shade(height, ambient=0.5, strength=0.6)
+    grad = np.linspace(1.06, ao_floor, h)[:, None]
+    rgb = ramp(np.clip(detail * 0.4 + body * 0.6, 0, 1), stops) * (lam * grad)[:, :, None]
+    # hard alpha: 1px feather only, so corners survive at the ~0.26 render scale
+    a = np.clip((mask - 0.5) * 8.0, 0, 1)
+    img = Image.fromarray(np.dstack([np.clip(rgb, 0, 255), a * 255]).astype(np.uint8), "RGBA")
+    return img.filter(ImageFilter.GaussianBlur(0.35))
+
+
 def foliage_family() -> None:
     print("foliage / props")
     specs = [
@@ -694,27 +743,42 @@ def motel_tiles() -> None:
     # unarticulated grey rectangle reads as an unfinished asset.
     # ---------------------------------------------------------------------
     wb = fbm(S, S, base=10, octaves=4)
-    wh = np.clip(wb * 0.42 + 0.34, 0, 1)
-    wlam = shade(wh, ambient=0.60, strength=0.34)[:, :, None]
+    wh = np.clip(wb * 0.42 + 0.36, 0, 1)
+    wlam = shade(wh, ambient=0.62, strength=0.34)[:, :, None]
+    # The wall should sit a touch below the floor in value so the lit floor reads
+    # as the playable space — but only a touch. This arena is 65% wall, so
+    # over-darkening the cap crushes most of the frame to black. Keep the steel
+    # readable; the per-panel tone below supplies the depth variation instead.
     cap = ramp(wh, [(0.0, "steel_dk"), (0.5, "steel"), (1.0, "steel_lt")]) * wlam
 
     idx = np.arange(S)
     PITCH = 44                       # panel width in texels — reads as equipment
                                      # at the ~272px ground cell, not as a grid
+    px = idx // PITCH                # which panel a texel belongs to
+    npan = int(px.max()) + 1
+
+    # PER-PANEL TONE + POWER. A uniform grid reads as wallpaper; real equipment
+    # is a patchwork — panels at different ages, some powered, some dead. Each
+    # panel gets its own brightness and its own on/off, so the eye reads a wall
+    # of individual units instead of one repeating texture.
+    tone = (RNG.random((npan, npan)) * 0.34 + 0.82)     # 0.82..1.16 per panel
+    tone_f = tone[px[:, None], px[None, :]]
+    cap = cap * tone_f[:, :, None]
+    powered = (RNG.random((npan, npan)) < 0.42)         # only ~40% lit
+    pw_f = powered[px[:, None], px[None, :]]
+
     seam = ((idx % PITCH) < 2)
     seam_f = seam[None, :] | seam[:, None]
     cap = cap * (1 - seam_f[:, :, None] * 0.55)
-    # neon trim: a thin bright line just inside every seam
+    # neon trim: only on POWERED panels, so the cyan is interrupted, not a lattice
     trim = (((idx % PITCH) >= 3) & ((idx % PITCH) < 4))
-    trim_f = trim[None, :] | trim[:, None]
-    # Trim is a HINT of powered edge, not a light source. At 0.85 it dominated
-    # the frame and the arena read as a lattice overlay rather than a place.
-    cap = cap + np.array(P["neon_cyan_dim"], dtype=float) * trim_f[:, :, None] * 0.30
+    trim_f = (trim[None, :] | trim[:, None]) & pw_f
+    cap = cap + np.array(P["neon_cyan_dim"], dtype=float) * trim_f[:, :, None] * 0.32
     # bolt rows: a dot at each panel corner region
     bolt = (((idx % PITCH) > 6) & ((idx % PITCH) < 9))
     bolt_f = bolt[None, :] & bolt[:, None]
-    cap = cap + np.array(P["steel_lt"], dtype=float) * bolt_f[:, :, None] * 0.55
-    save_tile(cap, "td-z2-wall-top")
+    cap = cap + np.array(P["steel_lt"], dtype=float) * bolt_f[:, :, None] * 0.45
+    save_tile(np.clip(cap, 0, 255), "td-z2-wall-top")
 
     # Vertical face: the panel seen edge-on. Louvred vents run horizontally —
     # regular, hard-edged, and unmistakably manufactured, which is exactly the
@@ -743,26 +807,45 @@ def motel_tiles() -> None:
 def motel_props() -> None:
     print("motel props")
     P.update(PM)
+    # kind: 'shard' = built/broken (hard corners), 'blob' = organic/round
     specs = [
-        ("td-z2-rubble",  120,  88, 5, [(0.0, "block"), (0.55, "kerb"), (1.0, "kerb_lt")], 0.9),
-        ("td-z2-tire",    116,  96, 4, [(0.0, "tar_dk"), (0.6, "tar"), (1.0, "tar_lt")], 1.05),
-        ("td-z2-crate",   130, 108, 4, [(0.0, "steel_dk"), (0.55, "steel"), (1.0, "steel_lt")], 1.0),
-        ("td-z2-scrap",    96,  72, 5, [(0.0, "hull_dk"), (0.6, "hull"), (1.0, "hull_lt")], 0.85),
-        ("td-z2-weed",     98,  90, 5, [(0.0, "weed"), (0.6, "weed"), (1.0, "weed_lt")], 0.5),
-        ("td-z2-planter", 140,  96, 4, [(0.0, "kerb"), (0.5, "kerb_lt"), (1.0, "steel_lt")], 0.95),
+        ("td-z2-rubble",  120,  88, "shard", 5, [(0.0, "block"), (0.55, "kerb"), (1.0, "kerb_lt")], 0.9),
+        ("td-z2-crate",   130, 108, "shard", 3, [(0.0, "steel_dk"), (0.55, "steel"), (1.0, "steel_lt")], 1.0),
+        ("td-z2-scrap",    96,  72, "shard", 4, [(0.0, "hull_dk"), (0.6, "hull"), (1.0, "hull_lt")], 0.85),
+        ("td-z2-tire",    116,  96, "blob",  4, [(0.0, "tar_dk"), (0.6, "tar"), (1.0, "tar_lt")], 1.05),
+        ("td-z2-weed",     98,  90, "blob",  4, [(0.0, "weed"), (0.6, "weed"), (1.0, "weed_lt")], 0.42),
+        ("td-z2-planter", 140,  96, "shard", 3, [(0.0, "kerb"), (0.5, "kerb_lt"), (1.0, "steel_lt")], 0.95),
     ]
-    for name, w, h, lobes, stops, relief in specs:
-        m = blob_mask(w, h, lobes)
-        img = lit_sprite(w, h, m, stops, relief)
+    for name, w, h, kind, n, stops, relief in specs:
+        if kind == "shard":
+            m = shard_mask(w, h, n)
+            img = lit_angular(w, h, m, stops, relief)
+        else:
+            m = blob_mask(w, h, n)
+            img = lit_sprite(w, h, m, stops, relief)
         d = ImageDraw.Draw(img)
+        if name == "td-z2-crate":
+            # a lid seam + corner brackets read the box as manufactured
+            d.line([(w * 0.5, h * 0.18), (w * 0.5, h * 0.82)], fill=(*P["steel_dk"], 200), width=3)
+            d.line([(w * 0.18, h * 0.5), (w * 0.82, h * 0.5)], fill=(*P["steel_dk"], 200), width=3)
+            for cx, cy in [(0.24, 0.28), (0.76, 0.28), (0.24, 0.72), (0.76, 0.72)]:
+                d.rectangle((w * (cx - 0.05), h * (cy - 0.05), w * (cx + 0.05), h * (cy + 0.05)),
+                            fill=(*P["steel_lt"], 190))
+        if name == "td-z2-scrap":
+            # bent-sheet fold lines, straight and bright on the catch edge
+            for _ in range(3):
+                x0 = w * (0.2 + RNG.random() * 0.55)
+                d.line([(x0, h * 0.3), (x0 + w * 0.12, h * 0.75)], fill=(*P["steel_lt"], 170), width=2)
         if name == "td-z2-weed":
-            for _ in range(14):
-                bx = w * (0.2 + RNG.random() * 0.6)
-                by = h * (0.66 + RNG.random() * 0.28)
-                ln = h * (0.3 + RNG.random() * 0.36)
-                lean = (RNG.random() - 0.5) * w * 0.36
-                col = P["weed_lt"] if RNG.random() < 0.45 else P["weed"]
-                d.line([(bx, by), (bx + lean, by - ln)], fill=(*col, 205), width=2)
+            # DESATURATED and SPARSE — grass in a crack, not a lawn. Fewer, shorter
+            # blades and a duller green so it never competes with signal-green.
+            for _ in range(7):
+                bx = w * (0.3 + RNG.random() * 0.4)
+                by = h * (0.68 + RNG.random() * 0.24)
+                ln = h * (0.22 + RNG.random() * 0.24)
+                lean = (RNG.random() - 0.5) * w * 0.26
+                col = (0x5A, 0x5E, 0x3E) if RNG.random() < 0.4 else (0x3E, 0x44, 0x30)
+                d.line([(bx, by), (bx + lean, by - ln)], fill=(*col, 190), width=2)
         if name == "td-z2-tire":
             d.ellipse((w * 0.3, h * 0.34, w * 0.7, h * 0.72), fill=(*P["tar_dk"], 230))
         save_sprite(img, name)
@@ -822,21 +905,31 @@ def motel_landmarks() -> None:
         dd.rectangle((w * 0.23, h * 0.27, w * 0.77, h * 0.36), fill=(*P["neon_cyan"], 255)),
     )), "td-z2-lm-sign-emis")
 
-    # derelict car — a big silhouette that breaks sightlines, seen from above
+    # derelict car — seen from above, three-quarter. A big sightline-breaker,
+    # so it earns real structure: body panels, a recessed cabin with glass
+    # depth, wheel wells sitting proud of the body, a rusted hood seam.
     w, h = 320, 200
     im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
-    d.rounded_rectangle((w * 0.06, h * 0.30, w * 0.94, h * 0.86), radius=26,
-                        fill=(*P["hull_dk"], 255))
-    d.rounded_rectangle((w * 0.09, h * 0.26, w * 0.91, h * 0.80), radius=24,
-                        fill=(*P["rust"], 255))
-    d.rounded_rectangle((w * 0.30, h * 0.33, w * 0.68, h * 0.68), radius=14,
-                        fill=(*P["tar_dk"], 255))          # roof / cabin
-    d.rounded_rectangle((w * 0.33, h * 0.36, w * 0.64, h * 0.52), radius=8,
-                        fill=(*P["water_lt"], 190))        # windscreen glint
-    for cx in (0.20, 0.80):                                 # wheels
-        d.ellipse((w * (cx - 0.07), h * 0.74, w * (cx + 0.07), h * 0.92),
-                  fill=(*P["tar_dk"], 255))
+    # wheels FIRST, so the body sits over them and they read as tucked under
+    for cx in (0.17, 0.83):
+        for cy in (0.30, 0.78):
+            d.ellipse((w * (cx - 0.085), h * (cy - 0.11), w * (cx + 0.085), h * (cy + 0.11)),
+                      fill=(*P["tar_dk"], 255))
+            d.ellipse((w * (cx - 0.05), h * (cy - 0.06), w * (cx + 0.05), h * (cy + 0.06)),
+                      fill=(*P["steel_dk"], 255))
+    # body: two stacked rounded slabs for a shaded lower edge
+    d.rounded_rectangle((w * 0.10, h * 0.20, w * 0.90, h * 0.88), radius=30, fill=(*P["hull_dk"], 255))
+    d.rounded_rectangle((w * 0.12, h * 0.16, w * 0.88, h * 0.82), radius=28, fill=(*P["rust"], 255))
+    # hood + trunk panel seams
+    d.line([(w * 0.12, h * 0.40), (w * 0.88, h * 0.40)], fill=(*P["hull_dk"], 220), width=3)
+    d.line([(w * 0.12, h * 0.62), (w * 0.88, h * 0.62)], fill=(*P["hull_dk"], 220), width=3)
+    # cabin: recessed dark well, then glass with a cool glint inset
+    d.rounded_rectangle((w * 0.30, h * 0.30, w * 0.70, h * 0.72), radius=12, fill=(*P["hull_dk"], 255))
+    d.rounded_rectangle((w * 0.33, h * 0.34, w * 0.67, h * 0.68), radius=9, fill=(*P["tar_dk"], 255))
+    d.rounded_rectangle((w * 0.36, h * 0.37, w * 0.56, h * 0.52), radius=5, fill=(*P["water_lt"], 170))
+    # roof rail highlight catches the upper-left light
+    d.line([(w * 0.32, h * 0.32), (w * 0.66, h * 0.32)], fill=(*P["steel_lt"], 150), width=2)
     save_sprite(side_shade(im), "td-z2-lm-car")
 
     # sodium lamp post — the light SOURCE the whole biome is lit by

@@ -190,8 +190,9 @@ const MOTEL: TdBiomeDef = {
   // SKIRT IS GROUND COVER, not objects. dressEdges lays 2-4 of these on every
   // edge tile to bury the straight room boundaries, so anything with a strong
   // recognisable silhouette (a traffic cone) turns the lot into a cone farm.
-  // Weeds and rubble read as accumulated grime and disappear correctly.
-  skirt: ['td-z2-weed', 'td-z2-rubble', 'td-z2-weed', 'td-z2-scrap'],
+  // Skirt buries straight boundaries. Rubble/scrap (hard debris) do that job;
+  // weed appears ONCE here so crack-growth stays sparse and never reads as lawn.
+  skirt: ['td-z2-rubble', 'td-z2-scrap', 'td-z2-rubble', 'td-z2-weed'],
   scatter: ['td-z2-rubble', 'td-z2-tire', 'td-z2-crate', 'td-z2-cone', 'td-z2-weed', 'td-z2-planter'],
   bank: ['td-z2-rubble', 'td-z2-crate'],
   canopy: null,
@@ -199,7 +200,7 @@ const MOTEL: TdBiomeDef = {
     ['td-z2-lm-vending', 'td-z2-lm-vending-emis', 0.34],
     // index 1 is the biome's warm/powered anchor — see TdTerrain.placeLandmarks
     ['td-z2-lm-lamp', 'td-z2-lm-lamp-emis', 0.40],
-    ['td-z2-lm-car', null, 0.36],
+    ['td-z2-lm-car', null, 0.30],
     ['td-z2-lm-sign', 'td-z2-lm-sign-emis', 0.38],
   ],
   flatLandmark: null, // nothing here lies flat on the ground the way a pool does
