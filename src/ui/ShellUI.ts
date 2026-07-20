@@ -761,10 +761,14 @@ export class ShellUI {
 
   private buildMenuEntries(): void {
     this.menuEntries = [];
-    // Save slots — always show all three slots so the save picker reads as a
-    // real slot system even before any progress exists.
     const slots = allSlotSummaries();
-    for (const s of slots) {
+    const occupiedSlots = slots.filter((s) => s.exists);
+    const nextEmptySlot = slots.find((s) => !s.exists);
+    const visibleSlots = occupiedSlots.length > 0
+      ? [...occupiedSlots, ...(nextEmptySlot ? [nextEmptySlot] : [])]
+      : [slots[0]];
+
+    for (const s of visibleSlots) {
       const n = s.index + 1;
       if (s.exists) {
         const zone = ZONES.find((z) => z.id === s.zone)?.name ?? 'Miller Field';

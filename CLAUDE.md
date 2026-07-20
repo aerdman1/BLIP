@@ -2,6 +2,19 @@
 
 **Always follow the local BLIP project skills/instructions before implementing features. BLIP is a playable, Vercel-ready, side-view procedural pixel-art game — a 5-zone campaign + classification-choice ending (Skyline Array is the finale).**
 
+## Non-Negotiable Production Deploy Rule
+
+- The production URL is **https://blip-chagrin.vercel.app/**. Do not call deployment work done until this URL is verified.
+- There are two local BLIP checkouts. Do not edit both by hand. Use Git to sync them.
+  - Canonical Vercel-linked deploy checkout: `/Users/aerdman/BLIP`
+  - GitHub mirror checkout: `/Users/aerdman/ReadMe_Local/Github/BLIP`
+- Before deploy, make sure the checkout being deployed is clean and at `origin/main`: `git fetch origin`, `git status -sb`, `git rev-parse HEAD`, and compare to `origin/main`.
+- Deploy only from `/Users/aerdman/BLIP` unless `.vercel/project.json` in another checkout is confirmed to point to project `blip` with project id `prj_NSl22sZuspAp8SitcT6Nv0P7154n`.
+- Standard production flow: `git pull --ff-only`, `npm run typecheck`, `npm run build`, `npm run deploy`, then `npm run verify:prod`.
+- `npm run deploy` must alias the ready deployment to `blip-chagrin.vercel.app` and `npm run verify:prod` must confirm `/deploy-version.json` on production matches the current Git HEAD. HTTP 200 alone is not enough.
+- If GitHub Actions, GitHub API, Vercel, or account connection status is degraded, do not trust automatic deployments. Use the canonical local Vercel deploy flow and verify `/deploy-version.json`.
+- If a Vercel deployment sits in `Initializing` and serves Vercel's placeholder page, do not alias `blip-chagrin` to it. Wait for `Ready` or remove the stuck deployment, then keep the alias pointed at the newest verified ready deployment.
+
 ## Local Project Skills (read before working on the relevant area)
 
 | Skill | Path | Governs |

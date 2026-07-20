@@ -48,19 +48,32 @@ Notes:
 **Canonical checkout:** `/Users/aerdman/BLIP` (this clone holds the Vercel project link in
 `.vercel/`, which is gitignored — so only this checkout can deploy). The production alias is
 **https://blip-chagrin.vercel.app/**. A second clone at `/Users/aerdman/ReadMe_Local/Github/BLIP`
-is a spare mirror; `git pull` it when you want it current.
+is a spare mirror; `git pull` it when you want it current. Do not manually edit both copies.
+Use Git as the sync mechanism.
 
 The standard loop for shipping a change:
 
-1. `npm run typecheck && npm run build` — sanity check.
+1. `git pull --ff-only` — make the deploy checkout match `origin/main`.
+2. `npm run typecheck && npm run build` — sanity check.
 2. `git commit -am "…"` — commit the change (deliberate message).
 3. `npm run deploy` — runs `scripts/deploy.sh`: build → `vercel --prod` →
-   alias `blip-chagrin.vercel.app` → verify the live site returns **HTTP 200**
+   alias `blip-chagrin.vercel.app` → verify the live site returns **HTTP 200** →
+   verify `/deploy-version.json` on production matches the current Git HEAD
    (the script exits non-zero if it doesn't).
 4. `git push origin main` — publish to GitHub.
 
 Requires the `vercel` CLI to be authenticated once (`npx vercel login`). The deploy script
 intentionally does not commit or push — keep those as explicit git steps around it.
+
+If GitHub or Vercel has an outage affecting automatic deployments, do not trust the dashboard
+or a stale alias. Deploy from `/Users/aerdman/BLIP`, then run:
+
+```bash
+npm run verify:prod
+```
+
+That command fetches `https://blip-chagrin.vercel.app/deploy-version.json` and fails unless
+the live commit equals the local Git HEAD.
 
 ## Verifying a Deploy
 

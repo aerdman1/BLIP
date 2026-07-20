@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
@@ -6,12 +7,20 @@ import { defineConfig, type Plugin } from 'vite';
 // Each build gets a fresh value, so every deploy invalidates old PWA caches.
 const SW_VERSION = new Date().toISOString().replace(/[:.]/g, '-');
 
+function gitValue(args: string[], fallback: string): string {
+  try {
+    return execFileSync('git', args, { encoding: 'utf8' }).trim() || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 // Rewrites the __SW_VERSION__ token inside the emitted public/sw.js so the
 // service worker's CACHE_NAME is unique per build (public/ files aren't touched
 // by Vite's `define`, hence this small post-build stamp).
-function stampServiceWorker(): Plugin {
+function stampDeployArtifacts(): Plugin {
   return {
-    name: 'blip-stamp-sw',
+    name: 'blip-stamp-deploy-artifacts',
     apply: 'build',
     closeBundle() {
       const swPath = resolve(__dirname, 'dist', 'sw.js');
@@ -21,6 +30,32 @@ function stampServiceWorker(): Plugin {
       } catch {
         /* sw.js may be absent in unusual build configs — don't fail the build. */
       }
+
+      const commit =
+        process.env.VERCEL_GIT_COMMIT_SHA ||
+        gitValue(['rev-parse', 'HEAD'], 'unknown');
+      const branch =
+        process.env.VERCEL_GIT_COMMIT_REF ||
+        gitValue(['branch', '--show-current'], 'unknown');
+      const message =
+        process.env.VERCEL_GIT_COMMIT_MESSAGE ||
+        gitValue(['log', '-1', '--pretty=%s'], 'unknown');
+
+      writeFileSync(
+        resolve(__dirname, 'dist', 'deploy-version.json'),
+        `${JSON.stringify(
+          {
+            app: 'BLIP',
+            commit,
+            shortCommit: commit.slice(0, 7),
+            branch,
+            message,
+            builtAt: new Date().toISOString(),
+          },
+          null,
+          2,
+        )}\n`,
+      );
     },
   };
 }
@@ -32,7 +67,7 @@ export default defineConfig({
   define: {
     __SW_VERSION__: JSON.stringify(SW_VERSION),
   },
-  plugins: [stampServiceWorker()],
+  plugins: [stampDeployArtifacts()],
   server: { port: 5173 },
   preview: { port: 4173 },
   build: {

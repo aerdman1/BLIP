@@ -3,7 +3,7 @@
 # BLIP production deploy — one command, repeatable.
 #
 # Reproduces the canonical flow:
-#   build -> Vercel production -> alias blip-chagrin.vercel.app -> verify HTTP 200
+#   build -> Vercel production -> alias blip-chagrin.vercel.app -> verify live commit
 #
 # Run from the Vercel-linked checkout (/Users/aerdman/BLIP, or a worktree of it) so the
 # .vercel/ project link resolves. Prerequisite: `vercel` CLI already authenticated.
@@ -52,4 +52,6 @@ if [ "${STATUS}" != "200" ]; then
   exit 1
 fi
 
-echo "==> Done. Live at https://${ALIAS_DOMAIN}/ (don't forget: git push origin main)"
+bash scripts/verify-production.sh "${ALIAS_DOMAIN}"
+
+echo "==> Done. Live at https://${ALIAS_DOMAIN}/ (verified current Git HEAD; don't forget: git push origin main)"
