@@ -31,34 +31,79 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const SPRITES = path.join(ROOT, 'art-src', 'sprites');
 const OUT = path.join(ROOT, 'public', 'assets', 'topdown');
-const NAME = 'topdown-z1';
 const PAD = 2; // transparent gutter; prevents LINEAR filtering bleeding neighbours
+
+/** Which biome to pack. `node build-atlas.mjs --biome motel` */
+const argIdx = process.argv.indexOf('--biome');
+const BIOME = argIdx > -1 ? process.argv[argIdx + 1] : 'miller';
 
 const DRONES = [
   'drifter', 'tagger', 'diver', 'warden', 'sniper', 'splitter', 'weaver', 'turret',
 ];
 
-/** Exactly the TEX.td* atlas keys the runtime will look up. */
-export const REQUIRED_FRAMES = [
+/**
+ * The SHARED cast — packed into EVERY biome's atlas.
+ *
+ * The player, drones, elite and Node do not change appearance from zone to
+ * zone, so each atlas carries its own copy rather than the runtime juggling a
+ * second "common" atlas. They cost ~40% of the sheet and buy a much simpler
+ * load path: one atlas per arena, complete on its own.
+ */
+const ACTOR_FRAMES = [
   'td-blip', 'td-blip-emis',
   ...DRONES.map((d) => `td-${d}`),
   ...DRONES.map((d) => `td-${d}-emis`),
   'td-elite', 'td-elite-emis',
   'td-node', 'td-node-emis',
-  'td-rock', 'td-log', 'td-bush', 'td-fern', 'td-tuft', 'td-canopy',
-  'td-debris', 'td-scrap',
-
-  'td-lm-pod', 'td-lm-pod-emis', 'td-lm-relay', 'td-lm-relay-emis',
-  'td-lm-roots', 'td-lm-pool', 'td-lm-pool-emis',
 ];
 
-/** Individual tile files (NOT atlas frames) that process.py must have written. */
-export const REQUIRED_TILES = [
-  'td-ground.webp', 'td-ground-lit.webp', 'td-ground-dark.webp',
-  'td-path.webp', 'td-wall-top.webp', 'td-wall-face.webp',
-];
+/**
+ * Per-biome scenery. These MUST match the keys the matching TdBiomeDef
+ * declares in src/game/topdown/TdBiomes.ts — frame-name drift between the two
+ * is the single most likely silent failure in this pipeline, which is why a
+ * mismatch fails hard here rather than surfacing as __MISSING at runtime.
+ */
+const BIOMES = {
+  miller: {
+    name: 'topdown-z1',
+    prefix: 'td',
+    scenery: [
+      'td-rock', 'td-log', 'td-bush', 'td-fern', 'td-tuft', 'td-canopy',
+      'td-debris', 'td-scrap',
+      'td-lm-pod', 'td-lm-pod-emis', 'td-lm-relay', 'td-lm-relay-emis',
+      'td-lm-roots', 'td-lm-pool', 'td-lm-pool-emis',
+    ],
+    tiles: ['ground', 'ground-lit', 'ground-dark', 'path', 'wall-top', 'wall-face']
+      .map((t) => `td-${t}.webp`),
+  },
+  motel: {
+    name: 'topdown-z2',
+    prefix: 'td-z2',
+    scenery: [
+      'td-z2-rubble', 'td-z2-tire', 'td-z2-cone', 'td-z2-weed', 'td-z2-crate',
+      'td-z2-scrap', 'td-z2-planter',
+      'td-z2-lm-vending', 'td-z2-lm-vending-emis', 'td-z2-lm-sign',
+      'td-z2-lm-sign-emis', 'td-z2-lm-car', 'td-z2-lm-lamp', 'td-z2-lm-lamp-emis',
+    ],
+    tiles: ['ground', 'ground-lit', 'ground-dark', 'path', 'wall-top', 'wall-face']
+      .map((t) => `td-z2-${t}.webp`),
+  },
+};
+
+const CFG = BIOMES[BIOME];
+if (!CFG) {
+  console.error(`[atlas] ERROR unknown biome "${BIOME}" (have: ${Object.keys(BIOMES).join(', ')})`);
+  process.exit(1);
+}
+const SPRITES = path.join(ROOT, 'art-src', BIOME === 'miller' ? 'sprites' : `sprites-${BIOME}`);
+const NAME = CFG.name;
+
+/** Exactly the TEX.td* atlas keys the runtime will look up for this biome. */
+export const REQUIRED_FRAMES = [...ACTOR_FRAMES, ...CFG.scenery];
+
+/** Individual tile files (NOT atlas frames) that family.py must have written. */
+export const REQUIRED_TILES = CFG.tiles;
 
 function fail(msg) {
   console.error(`[atlas] ERROR ${msg}`);
@@ -66,37 +111,41 @@ function fail(msg) {
 }
 
 /* ------------------------- read sprite metadata --------------------------- */
-if (!fs.existsSync(SPRITES)) {
-  fail(`${SPRITES} missing - run process.py and author-actors.py first`);
+// Two source dirs: the SHARED actor PNGs (authored once, packed into every
+// biome atlas) and this biome's own scenery. Only frames REQUIRED_FRAMES asks
+// for are read, so the shared dir's zone-1 scenery is simply ignored when
+// packing another biome.
+const SRC_DIRS = [path.join(ROOT, 'art-src', 'sprites')];
+if (BIOME !== 'miller') SRC_DIRS.push(SPRITES);
+for (const d of SRC_DIRS) {
+  if (!fs.existsSync(d)) fail(`${d} missing - run family.py for this biome first`);
 }
 
 // PIL is the only image library here, so ask it for sizes and trim boxes.
 const probe = `
 import json, os, sys
 from PIL import Image
-d = sys.argv[1]
 out = {}
-for f in sorted(os.listdir(d)):
-    if not f.endswith('.png'):
-        continue
-    im = Image.open(os.path.join(d, f)).convert('RGBA')
-    bbox = im.split()[3].getbbox() or (0, 0, im.width, im.height)
-    out[f[:-4]] = {'w': im.width, 'h': im.height, 'bbox': list(bbox)}
+for d in sys.argv[1:]:
+    for f in sorted(os.listdir(d)):
+        if not f.endswith('.png'):
+            continue
+        im = Image.open(os.path.join(d, f)).convert('RGBA')
+        bbox = im.split()[3].getbbox() or (0, 0, im.width, im.height)
+        out[f[:-4]] = {'w': im.width, 'h': im.height, 'bbox': list(bbox),
+                       'path': os.path.join(d, f)}
 print(json.dumps(out))
 `;
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'blip-atlas-'));
 const probePath = path.join(tmp, 'probe.py');
 fs.writeFileSync(probePath, probe);
-const meta = JSON.parse(execFileSync('python3', [probePath, SPRITES]).toString());
+const meta = JSON.parse(execFileSync('python3', [probePath, ...SRC_DIRS]).toString());
 
 const missing = REQUIRED_FRAMES.filter((f) => !meta[f]);
 if (missing.length) fail(`missing sprite PNGs for frames: ${missing.join(', ')}`);
-const extra = Object.keys(meta).filter((f) => !REQUIRED_FRAMES.includes(f));
-if (extra.length) {
-  fail(
-    `unexpected sprites in art-src/sprites (would silently bloat the atlas): ${extra.join(', ')}`
-  );
-}
+// Only assert on frames we were asked to pack. Unlike the single-biome version,
+// a shared dir legitimately holds sprites this atlas does not want.
+for (const k of Object.keys(meta)) if (!REQUIRED_FRAMES.includes(k)) delete meta[k];
 
 /* ------------------------------- packing ---------------------------------- */
 // Shelf packer, tallest-first. With ~30 frames this lands within a few percent
@@ -107,6 +156,7 @@ const frames = REQUIRED_FRAMES.map((name) => {
   const [bx0, by0, bx1, by1] = m.bbox;
   return {
     name,
+    src: m.path, // absolute — frames come from two dirs now, so carry the path
     srcW: m.w,
     srcH: m.h,
     trimX: bx0,
@@ -153,7 +203,7 @@ const atlasH = best.h;
 
 /* ------------------------------ composite --------------------------------- */
 const placements = frames.map((f) => ({
-  name: f.name, x: f.x, y: f.y, w: f.w, h: f.h, trimX: f.trimX, trimY: f.trimY,
+  name: f.name, src: f.src, x: f.x, y: f.y, w: f.w, h: f.h, trimX: f.trimX, trimY: f.trimY,
 }));
 
 const comp = `
@@ -163,7 +213,7 @@ warnings.filterwarnings('ignore')
 spec = json.load(open(sys.argv[1]))
 sheet = Image.new('RGBA', (spec['w'], spec['h']), (0, 0, 0, 0))
 for p in spec['frames']:
-    im = Image.open(os.path.join(spec['dir'], p['name'] + '.png')).convert('RGBA')
+    im = Image.open(p['src']).convert('RGBA')
     im = im.crop((p['trimX'], p['trimY'], p['trimX'] + p['w'], p['trimY'] + p['h']))
     sheet.paste(im, (p['x'], p['y']))
 # Lossless: actor sprites have hard alpha edges and emissive layers, both of
@@ -176,7 +226,6 @@ const specPath = path.join(tmp, 'spec.json');
 fs.writeFileSync(
   specPath,
   JSON.stringify({
-    dir: SPRITES,
     w: atlasW,
     h: atlasH,
     frames: placements,

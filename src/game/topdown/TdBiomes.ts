@@ -85,6 +85,19 @@ export interface TdBiomeDef {
     cloudDark: number;
     canopy: number;
   };
+  /**
+   * Optional per-biome overrides of the global TD_VISUALS lighting curve.
+   *
+   * Those globals were measured against Miller Field's night-graded forest
+   * albedos. A biome lit by its own practical light sources needs a different
+   * curve — inheriting the forest's darkness buries it. Omitted ⇒ use globals.
+   */
+  light?: {
+    darkness?: number;
+    darknessLow?: number;
+    ambientFloor?: number;
+    vignette?: number;
+  };
 }
 
 /* --------------------------------------------------------------------------
@@ -142,6 +155,81 @@ const MILLER: TdBiomeDef = {
   },
 };
 
+/* --------------------------------------------------------------------------
+ * MOTEL — the zone-2 lot, "Inside the Circuit".
+ *
+ * Deliberately NOT a recolour of Miller Field. Three things invert:
+ *   * WALLS ARE BUILT ('hardEdge'). Running zone 1's erosion over a motel
+ *     dissolves architecture into geology.
+ *   * NO CANOPY. An open lot has nothing overhead; faking a frame here would
+ *     read as trees that aren't there.
+ *   * LIGHT IS WARM AND PLENTIFUL. Miller Field is scarce cool bioluminescence
+ *     in a dark wood (14 accents, 30% warm). A lot under sodium lamps is the
+ *     opposite: more pools, mostly warm. Cool is the neon sign's job.
+ * -------------------------------------------------------------------------- */
+const MOTEL: TdBiomeDef = {
+  id: 'motel',
+  atlas: 'topdown-z2',
+  tiles: {
+    ground: 'td-z2-ground',
+    groundLit: 'td-z2-ground-lit',
+    groundDark: 'td-z2-ground-dark',
+    path: 'td-z2-path',
+    wallTop: 'td-z2-wall-top',
+    wallFace: 'td-z2-wall-face',
+  },
+  fallback: {
+    ground: TEX.sweepGrass,
+    groundLit: TEX.sweepGrass2,
+    groundDark: TEX.sweepGrassDk,
+    path: TEX.sweepPath,
+    wallTop: TEX.sweepHedge,
+    wallFace: TEX.sweepHedge,
+  },
+  wallStyle: 'hardEdge',
+  // SKIRT IS GROUND COVER, not objects. dressEdges lays 2-4 of these on every
+  // edge tile to bury the straight room boundaries, so anything with a strong
+  // recognisable silhouette (a traffic cone) turns the lot into a cone farm.
+  // Weeds and rubble read as accumulated grime and disappear correctly.
+  skirt: ['td-z2-weed', 'td-z2-rubble', 'td-z2-weed', 'td-z2-scrap'],
+  scatter: ['td-z2-rubble', 'td-z2-tire', 'td-z2-crate', 'td-z2-cone', 'td-z2-weed', 'td-z2-planter'],
+  bank: ['td-z2-rubble', 'td-z2-crate'],
+  canopy: null,
+  landmarks: [
+    ['td-z2-lm-vending', 'td-z2-lm-vending-emis', 0.34],
+    // index 1 is the biome's warm/powered anchor — see TdTerrain.placeLandmarks
+    ['td-z2-lm-lamp', 'td-z2-lm-lamp-emis', 0.40],
+    ['td-z2-lm-car', null, 0.36],
+    ['td-z2-lm-sign', 'td-z2-lm-sign-emis', 0.38],
+  ],
+  flatLandmark: null, // nothing here lies flat on the ground the way a pool does
+  accents: {
+    warm: 0xffb14a, // sodium vapour
+    coolA: 0xff4d9e, // neon pink
+    coolB: 0x35e0d0, // neon cyan
+    warmChance: 0.66,
+    count: 20,
+  },
+  tints: {
+    skirt: 0xb9bec9,
+    propNear: 0xffffff,
+    propFar: 0xb6bcc9,
+    wallFace: 0x9aa0ac,
+    cloudLit: 0xffc987, // lamp spill pools warm
+    cloudDark: 0x2b3444, // shadow goes blue, not green
+    canopy: 0xffffff, // unused (canopy: null)
+  },
+  // A lot under working sodium lamps is simply not as dark as a wood at night,
+  // and asphalt is a far darker albedo than earth to begin with — inheriting
+  // Miller Field's curve stacked both and rendered the arena near-black.
+  light: {
+    darkness: 0.14,
+    darknessLow: 0.08,
+    ambientFloor: 0.72,
+    vignette: 0.38,
+  },
+};
+
 /**
  * Registry. A biome absent from here simply never gets the HD treatment and
  * renders with the existing procedural pixel art — which is the correct,
@@ -149,6 +237,7 @@ const MILLER: TdBiomeDef = {
  */
 export const TD_BIOMES: Partial<Record<SweepBiome, TdBiomeDef>> = {
   miller: MILLER,
+  motel: MOTEL,
 };
 
 /** The HD descriptor for an arena, or null if that arena stays procedural. */

@@ -370,7 +370,7 @@ export class SweepScene extends Phaser.Scene {
         floor: floorCoords, markers: keyMarkers, art: this.tdArt,
         biome: this.tdBiome!,
       });
-      this.tdLight = new TdLighting(this, AW, AH);
+      this.tdLight = new TdLighting(this, AW, AH, this.tdBiome!);
       this.tdTerrain.accentLights = (h) => void this.tdLight?.add(h);
       this.tdTerrain.build();
       // collision bodies — identical merged rects to the legacy path

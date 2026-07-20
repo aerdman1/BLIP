@@ -566,11 +566,260 @@ def landmark_family() -> None:
     save_sprite(e.filter(ImageFilter.GaussianBlur(7.0)), "td-lm-pool-emis")
 
 
+# ============================================================================
+#  MOTEL NOWHERE — zone 2. "Inside the Circuit."
+#
+#  A different WORLD, not a recolour of the forest. Miller Field is organic,
+#  unlit and cool; the motel lot is BUILT, sodium-lit and warm-on-cold. What
+#  carries over untouched is the machinery that makes both read as one game:
+#  the same LIGHT vector, the same noise basis, the same relief/AO conventions.
+#
+#  The single biggest read here is asphalt vs earth. Asphalt is flat, hard and
+#  specular where it has worn smooth; it cracks in long straight-ish seams
+#  rather than eroding in blobs, and weeds come up THROUGH those cracks. That
+#  crack structure is what stops it looking like grey mud.
+# ============================================================================
+PM = {
+    "tar_dk":    (0x3E, 0x41, 0x4A),
+    "tar":       (0x56, 0x5B, 0x66),
+    "tar_lt":    (0x71, 0x77, 0x84),
+    "tar_worn":  (0x8C, 0x93, 0xA1),
+    "kerb":      (0x50, 0x4E, 0x48),
+    "kerb_lt":   (0x6E, 0x6B, 0x62),
+    "stucco_dk": (0x24, 0x21, 0x1C),
+    "stucco":    (0x38, 0x33, 0x2A),
+    "stucco_lt": (0x4E, 0x47, 0x3A),
+    "block":     (0x2A, 0x2A, 0x28),
+    "block_lt":  (0x3C, 0x3C, 0x38),
+    "paint":     (0x6B, 0x60, 0x34),   # faded lot line
+    "rust":      (0x5A, 0x3A, 0x24),
+    "weed":      (0x33, 0x3D, 0x28),
+    "weed_lt":   (0x4A, 0x55, 0x33),
+    "neon_pink": (0xFF, 0x4D, 0x9E),
+    "neon_cyan": (0x35, 0xE0, 0xD0),
+    "sodium":    (0xFF, 0xB1, 0x4A),
+}
+
+
+def motel_tiles() -> None:
+    """Asphalt lot + built walls. The crack field is the whole trick."""
+    print("motel ground / walls")
+    P.update(PM)
+    base = warped(S, S, base=2, strength=0.30)
+    mid = fbm(S, S, base=7, octaves=4)
+    fine = fbm(S, S, base=34, octaves=3)
+
+    # CRACKS: ridged noise (1 - |2n-1|) sharpened. Ridged rather than plain fBm
+    # because we want thin continuous SEAMS, not soft patches — the ridge lines
+    # of the field are exactly where tar splits.
+    ridge = 1.0 - np.abs(fbm(S, S, base=5, octaves=5) * 2 - 1)
+    cracks = np.clip((ridge - 0.72) * 9.0, 0, 1)
+    cracks = np.clip(cracks + np.clip((1.0 - np.abs(fbm(S, S, base=11, octaves=4) * 2 - 1) - 0.80) * 8, 0, 1), 0, 1)
+
+    height = base * 0.5 + mid * 0.34 + fine * 0.16 - cracks * 0.55
+    lam = shade(height, ambient=0.66, strength=0.34)[:, :, None]
+
+    def compose(stops, wear: float, weeds: float, wet: float) -> np.ndarray:
+        t = np.clip(base * 0.55 + mid * 0.32 + fine * 0.13, 0, 1)
+        rgb = ramp(t, stops)
+        # tyre-polished patches: where the lot is driven, aggregate wears smooth
+        if wear > 0:
+            w_ = np.clip((base - 0.52) * 2.6, 0, 1)[:, :, None] * wear
+            rgb = rgb * (1 - w_) + ramp(t, [(0.0, "tar"), (1.0, "tar_worn")]) * w_
+        # cracks are DARK and sit under everything else
+        rgb = rgb * (1 - cracks[:, :, None] * 0.82)
+        # growth only in the cracks — the one place it can get light and water
+        if weeds > 0:
+            g = (cracks * np.clip(mid * 1.5, 0, 1) * weeds)[:, :, None]
+            rgb = rgb * (1 - g) + ramp(np.clip(fine, 0, 1),
+                                       [(0.0, "weed"), (1.0, "weed_lt")]) * g
+        # standing water: asphalt does not absorb, so puddles are SPECULAR
+        if wet > 0:
+            pw = np.clip((0.36 - base) * 3.6, 0, 1)[:, :, None] * wet
+            rgb = rgb * (1 - pw * 0.75)
+            spec = np.clip((normals(height) @ LIGHT) ** 22, 0, 1)[:, :, None]
+            rgb = rgb + spec * pw * 210
+        return rgb * lam
+
+    save_tile(compose([(0.0, "tar_dk"), (0.45, "tar"), (0.8, "tar_lt"), (1.0, "tar_worn")],
+                      wear=0.55, weeds=0.5, wet=0.0), "td-z2-ground")
+    # "lit" = under a sodium lamp: the whole ramp shifts warm, not just brighter
+    save_tile(compose([(0.0, "tar"), (0.4, "tar_lt"), (0.75, "tar_worn"), (1.0, "kerb_lt")],
+                      wear=0.7, weeds=0.35, wet=0.0) * np.array([1.10, 1.00, 0.86]),
+              "td-z2-ground-lit")
+    save_tile(compose([(0.0, "tar_dk"), (0.5, "tar_dk"), (0.85, "tar"), (1.0, "tar_lt")],
+                      wear=0.2, weeds=0.6, wet=0.8), "td-z2-ground-dark")
+    # the "path" is the worn driving lane — smoother, faded paint ghost
+    lane = compose([(0.0, "tar"), (0.4, "tar_lt"), (0.8, "tar_worn"), (1.0, "kerb")],
+                   wear=0.95, weeds=0.12, wet=0.0)
+    stripe = np.clip(np.sin(np.linspace(0, 2 * math.pi, S))[None, :] * 6 - 5.2, 0, 1)[:, :, None]
+    lane = lane * (1 - stripe * 0.5) + np.array(P["paint"], dtype=float) * stripe * 0.5
+    save_tile(lane, "td-z2-path")
+
+    # --- walls: BUILT. Stucco courses over a block base, not eroded rock. ---
+    wb = fbm(S, S, base=8, octaves=4)
+    course = np.abs(np.sin(np.linspace(0, 16 * math.pi, S)))[:, None] * 0.10
+    wh = np.clip(wb * 0.7 + course, 0, 1)
+    wlam = shade(wh, ambient=0.58, strength=0.40)[:, :, None]
+    cap = ramp(wh, [(0.0, "block"), (0.5, "stucco"), (1.0, "stucco_lt")]) * wlam
+    save_tile(cap, "td-z2-wall-top")
+
+    H = 192
+    fb = fbm(H, S, base=6, octaves=4)
+    # MORTAR COURSES: hard horizontal lines. A motel wall is laid, and those
+    # regular lines are most of why the eye reads "building" instead of "cliff".
+    rows = np.abs(np.sin(np.linspace(0, 11 * math.pi, H)))[:, None]
+    mortar = np.clip((rows - 0.93) * 14, 0, 1)
+    fh = np.clip(fb * 0.55 + 0.3, 0, 1)
+    flam = shade(fh, ambient=0.52, strength=0.42)[:, :, None]
+    face = ramp(fh, [(0.0, "block"), (0.45, "stucco"), (1.0, "stucco_lt")]) * flam
+    face = face * (1 - mortar[:, :, None] * 0.45)
+    # water staining runs DOWN from the top edge — the cheapest, most legible
+    # cue that this surface is vertical and has stood outside for years.
+    streak = np.clip(fbm(H, S, base=3, octaves=3) * 1.4 - 0.55, 0, 1)
+    streak = streak * np.linspace(1.0, 0.15, H)[:, None]
+    face = face * (1 - streak[:, :, None] * 0.42)
+    depth = np.linspace(1.06, 0.40, H)[:, None, None]
+    save_tile(face * depth, "td-z2-wall-face")
+
+
+def motel_props() -> None:
+    print("motel props")
+    P.update(PM)
+    specs = [
+        ("td-z2-rubble",  120,  88, 5, [(0.0, "block"), (0.55, "kerb"), (1.0, "kerb_lt")], 0.9),
+        ("td-z2-tire",    116,  96, 4, [(0.0, "tar_dk"), (0.6, "tar"), (1.0, "tar_lt")], 1.05),
+        ("td-z2-crate",   130, 108, 4, [(0.0, "stucco_dk"), (0.55, "stucco"), (1.0, "stucco_lt")], 1.0),
+        ("td-z2-scrap",    96,  72, 5, [(0.0, "hull_dk"), (0.6, "hull"), (1.0, "hull_lt")], 0.85),
+        ("td-z2-weed",     98,  90, 5, [(0.0, "weed"), (0.6, "weed"), (1.0, "weed_lt")], 0.5),
+        ("td-z2-planter", 140,  96, 4, [(0.0, "kerb"), (0.5, "kerb_lt"), (1.0, "stucco_lt")], 0.95),
+    ]
+    for name, w, h, lobes, stops, relief in specs:
+        m = blob_mask(w, h, lobes)
+        img = lit_sprite(w, h, m, stops, relief)
+        d = ImageDraw.Draw(img)
+        if name == "td-z2-weed":
+            for _ in range(14):
+                bx = w * (0.2 + RNG.random() * 0.6)
+                by = h * (0.66 + RNG.random() * 0.28)
+                ln = h * (0.3 + RNG.random() * 0.36)
+                lean = (RNG.random() - 0.5) * w * 0.36
+                col = P["weed_lt"] if RNG.random() < 0.45 else P["weed"]
+                d.line([(bx, by), (bx + lean, by - ln)], fill=(*col, 205), width=2)
+        if name == "td-z2-tire":
+            d.ellipse((w * 0.3, h * 0.34, w * 0.7, h * 0.72), fill=(*P["tar_dk"], 230))
+        save_sprite(img, name)
+
+    # traffic cone — the one saturated non-signal note on the lot floor
+    w, h = 96, 116
+    im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.ellipse((w * 0.10, h * 0.80, w * 0.90, h * 0.99), fill=(*P["tar_dk"], 255))
+    d.polygon([(w * 0.5, h * 0.06), (w * 0.80, h * 0.88), (w * 0.20, h * 0.88)],
+              fill=(*P["rust"], 255))
+    d.polygon([(w * 0.5, h * 0.06), (w * 0.66, h * 0.88), (w * 0.44, h * 0.88)],
+              fill=(0xC8, 0x5A, 0x2A, 255))
+    d.polygon([(w * 0.36, h * 0.50), (w * 0.64, h * 0.50), (w * 0.68, h * 0.62), (w * 0.32, h * 0.62)],
+              fill=(0xD8, 0xD2, 0xC0, 235))
+    save_sprite(side_shade(im), "td-z2-cone")
+
+
+def motel_landmarks() -> None:
+    """Navigation anchors for a lot: things that GLOW and things you park."""
+    print("motel landmarks")
+    P.update(PM)
+
+    def emis(w, h, draw_fn, blur=6.0):
+        e = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        draw_fn(ImageDraw.Draw(e))
+        return e.filter(ImageFilter.GaussianBlur(blur))
+
+    # vending machine — a lit box against a dark wall, the classic motel beacon
+    w, h = 190, 260
+    im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.rectangle((w * 0.16, h * 0.14, w * 0.86, h * 0.94), fill=(*P["hull_dk"], 255))
+    d.rectangle((w * 0.20, h * 0.10, w * 0.82, h * 0.90), fill=(*P["hull"], 255))
+    d.rectangle((w * 0.26, h * 0.17, w * 0.66, h * 0.62), fill=(*P["neon_cyan"], 255))
+    for i in range(4):  # product rows behind the glass
+        d.rectangle((w * 0.28, h * (0.20 + i * 0.10), w * 0.64, h * (0.25 + i * 0.10)),
+                    fill=(*P["hull_dk"], 190))
+    d.rectangle((w * 0.26, h * 0.68, w * 0.64, h * 0.80), fill=(*P["hull_dk"], 255))
+    save_sprite(side_shade(im), "td-z2-lm-vending")
+    save_sprite(emis(w, h, lambda dd: dd.rectangle(
+        (w * 0.25, h * 0.16, w * 0.67, h * 0.63), fill=(*P["neon_cyan"], 255))), "td-z2-lm-vending-emis")
+
+    # VACANCY sign — the zone's single strongest colour note, so it earns being
+    # the one thing on the lot that is unambiguously pink.
+    w, h = 200, 300
+    im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.rectangle((w * 0.44, h * 0.42, w * 0.56, h * 0.98), fill=(*P["hull_dk"], 255))
+    d.rectangle((w * 0.10, h * 0.06, w * 0.90, h * 0.44), fill=(*P["hull_dk"], 255))
+    d.rectangle((w * 0.14, h * 0.10, w * 0.86, h * 0.40), fill=(*P["hull"], 255))
+    d.rectangle((w * 0.20, h * 0.15, w * 0.80, h * 0.24), fill=(*P["neon_pink"], 255))
+    d.rectangle((w * 0.24, h * 0.28, w * 0.76, h * 0.35), fill=(*P["neon_cyan"], 255))
+    save_sprite(side_shade(im), "td-z2-lm-sign")
+    save_sprite(emis(w, h, lambda dd: (
+        dd.rectangle((w * 0.19, h * 0.14, w * 0.81, h * 0.25), fill=(*P["neon_pink"], 255)),
+        dd.rectangle((w * 0.23, h * 0.27, w * 0.77, h * 0.36), fill=(*P["neon_cyan"], 255)),
+    )), "td-z2-lm-sign-emis")
+
+    # derelict car — a big silhouette that breaks sightlines, seen from above
+    w, h = 320, 200
+    im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.rounded_rectangle((w * 0.06, h * 0.30, w * 0.94, h * 0.86), radius=26,
+                        fill=(*P["hull_dk"], 255))
+    d.rounded_rectangle((w * 0.09, h * 0.26, w * 0.91, h * 0.80), radius=24,
+                        fill=(*P["rust"], 255))
+    d.rounded_rectangle((w * 0.30, h * 0.33, w * 0.68, h * 0.68), radius=14,
+                        fill=(*P["tar_dk"], 255))          # roof / cabin
+    d.rounded_rectangle((w * 0.33, h * 0.36, w * 0.64, h * 0.52), radius=8,
+                        fill=(*P["water_lt"], 190))        # windscreen glint
+    for cx in (0.20, 0.80):                                 # wheels
+        d.ellipse((w * (cx - 0.07), h * 0.74, w * (cx + 0.07), h * 0.92),
+                  fill=(*P["tar_dk"], 255))
+    save_sprite(side_shade(im), "td-z2-lm-car")
+
+    # sodium lamp post — the light SOURCE the whole biome is lit by
+    w, h = 150, 320
+    im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.ellipse((w * 0.28, h * 0.86, w * 0.72, h * 0.99), fill=(*P["kerb"], 255))
+    d.rectangle((w * 0.44, h * 0.12, w * 0.56, h * 0.92), fill=(*P["hull"], 255))
+    d.rectangle((w * 0.46, h * 0.12, w * 0.51, h * 0.92), fill=(*P["hull_lt"], 255))
+    d.polygon([(w * 0.50, h * 0.14), (w * 0.94, h * 0.06), (w * 0.90, h * 0.20),
+               (w * 0.50, h * 0.22)], fill=(*P["hull_dk"], 255))
+    d.ellipse((w * 0.62, h * 0.14, w * 0.88, h * 0.22), fill=(*P["sodium"], 255))
+    save_sprite(side_shade(im), "td-z2-lm-lamp")
+    save_sprite(emis(w, h, lambda dd: dd.ellipse(
+        (w * 0.58, h * 0.11, w * 0.92, h * 0.25), fill=(*P["sodium"], 255)), blur=9.0),
+        "td-z2-lm-lamp-emis")
+
+
 if __name__ == "__main__":
+    import argparse
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--biome", default="miller", choices=["miller", "motel"])
+    args = ap.parse_args()
+
     print("BLIP top-down asset family — one light, one palette, one noise basis\n")
-    ground_family()
-    wall_family()
-    foliage_family()
-    actor_family()
-    landmark_family()
+    if args.biome == "miller":
+        ground_family()
+        wall_family()
+        foliage_family()
+        actor_family()          # SHARED cast — authored here, packed into every atlas
+        landmark_family()
+    else:
+        # Scenery only. The cast is generated by the miller run and packed into
+        # this biome's atlas from art-src/sprites by build-atlas.mjs — CONTACT-47
+        # does not get a new body because the ground changed.
+        OUT_SPRITES = os.path.join(ROOT, "art-src", f"sprites-{args.biome}")
+        os.makedirs(OUT_SPRITES, exist_ok=True)
+        globals()["OUT_SPRITES"] = OUT_SPRITES
+        motel_tiles()
+        motel_props()
+        motel_landmarks()
     print(f"\ntiles  -> {OUT_TILES}\nsprites-> {OUT_SPRITES}")

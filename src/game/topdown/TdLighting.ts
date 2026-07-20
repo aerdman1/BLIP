@@ -18,6 +18,7 @@
  */
 import Phaser from 'phaser';
 import { TD_PALETTE as C, TD_VISUALS, TEX } from '../config';
+import type { TdBiomeDef } from './TdBiomes';
 import { DEPTH } from '../render/Depth';
 import { tdQuality } from '../render/RenderScale';
 
@@ -89,9 +90,17 @@ export class TdLighting {
 
   private cam?: Phaser.Cameras.Scene2D.Camera;
 
-  constructor(scene: Phaser.Scene, aw: number, ah: number) {
+  constructor(scene: Phaser.Scene, aw: number, ah: number, biome?: TdBiomeDef) {
     this.cam = scene.cameras.main;
     const low = tdQuality() === 'low';
+    // The TD_VISUALS curve was measured against Miller Field's night-graded
+    // forest albedos. A biome with its own practical lights overrides it.
+    const L = {
+      darkness: biome?.light?.darkness ?? TD_VISUALS.darkness,
+      darknessLow: biome?.light?.darknessLow ?? TD_VISUALS.darknessLow,
+      ambientFloor: biome?.light?.ambientFloor ?? TD_VISUALS.ambientFloor,
+      vignette: biome?.light?.vignette ?? TD_VISUALS.vignette,
+    };
     this.cap = low ? TD_VISUALS.lightsLow : TD_VISUALS.lightsHigh;
     ensureLightTexture(scene);
     ensureFogTexture(scene);
@@ -103,7 +112,7 @@ export class TdLighting {
     // the strength constant has to be baked into the colour rather than passed
     // as the alpha — Rectangle's 6th argument is *fill* alpha, which does not
     // attenuate a multiply and left the scene at ~3% brightness.
-    const strength = low ? TD_VISUALS.darknessLow : TD_VISUALS.darkness;
+    const strength = low ? L.darknessLow : L.darkness;
     this.darkness = scene.add
       .rectangle(0, 0, aw, ah, mixToward(0xffffff, C.shadow, strength), 1)
       .setOrigin(0)
@@ -125,7 +134,7 @@ export class TdLighting {
     // lifts the black point just enough to keep terrain readable where no light
     // pool reaches — the "ambient floor" the spec requires.
     scene.add
-      .rectangle(0, 0, aw, ah, C.haze, TD_VISUALS.ambientFloor * 0.1)
+      .rectangle(0, 0, aw, ah, C.haze, L.ambientFloor * 0.1)
       .setOrigin(0)
       .setDepth(DEPTH.lighting + 2)
       .setBlendMode(Phaser.BlendModes.ADD);
@@ -156,7 +165,7 @@ export class TdLighting {
       // positioned in WORLD space against the camera's view each frame (see
       // update) — a scrollFactor of 0 would double-apply the camera offset
       .setDepth(DEPTH.weather + 5)
-      .setAlpha(TD_VISUALS.vignette);
+      .setAlpha(L.vignette);
 
     // 3 — localized drifting fog. Sheets, not a full-screen wash.
     if (!low) {
