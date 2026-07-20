@@ -73,6 +73,25 @@ export interface BestiaryReplacementSpec {
   effectLayers: string;
 }
 
+/**
+ * "Do we have custom art for this yet, and if not, where does it sit in line?"
+ * — the running answer to that question for every entry in this Bestiary.
+ * `shipped` = a real authored asset is live in the game today.
+ * `integrated-unplaced` = a real authored asset exists and is wired in, but
+ *   the current level/roster data doesn't place it anywhere yet (nothing to
+ *   commission — a level-design task, not an art task).
+ * `needs-art` = still running on procedural placeholder art (or, for the
+ *   Harvest Pattern/Listening Station, an explicitly-labeled stub).
+ */
+export type CustomArtStatus = 'shipped' | 'integrated-unplaced' | 'needs-art';
+
+export interface CustomArtInfo {
+  status: CustomArtStatus;
+  /** position in BESTIARY_ASSET_ROADMAP's ship order; absent = not yet triaged onto the roadmap. */
+  roadmapOrder?: number;
+  note: string;
+}
+
 export interface BestiaryEnemyEntry {
   id: string;
   name: string;
@@ -99,6 +118,7 @@ export interface BestiaryEnemyEntry {
   knownIssues: string[];
   replacement: BestiaryReplacementSpec;
   sourceRefs: string[];
+  customArt?: CustomArtInfo;
 }
 
 export interface BestiaryHazardEntry {
@@ -113,6 +133,7 @@ export interface BestiaryHazardEntry {
   behavior: string;
   knownIssues: string[];
   sourceRefs: string[];
+  customArt?: CustomArtInfo;
 }
 
 export interface BestiarySystemEntry {
@@ -707,15 +728,128 @@ export const BESTIARY_SWEEP_BOSSES: BestiaryEnemyEntry[] = [
   },
 ];
 
-export const BESTIARY_ALL_ENEMIES: BestiaryEnemyEntry[] = [
+/* ------------------------- custom-art tracking / roadmap ------------------------ */
+/* The single place to update when an entry gets real art, or the ship order
+ * changes — everything the Bestiary displays (per-card chip + the roadmap
+ * section) reads from here. Agreed order (2026-07-20): Scanner Drone +
+ * Spotter → the 5 side-view bosses (Listening Station last/most-attention,
+ * since it's the finale and has essentially no real artwork today) →
+ * Maze Heart → top-down fallback set (motel/stadium/orchard) → fixed hazards. */
+const CUSTOM_ART_STATUS: Record<string, CustomArtInfo> = {
+  'scanner-drone': {
+    status: 'needs-art',
+    roadmapOrder: 1,
+    note: 'Next up. Biggest immediate payoff — used live in Miller Field (Zone 1) and reused (tint-only) as the Spotter body in Chagrin Falls High (Zone 3).',
+  },
+  spotter: {
+    status: 'needs-art',
+    roadmapOrder: 1,
+    note: 'Ship alongside Scanner Drone. Needs a visually distinct variant (not just a recolor of the drone hull) — see knownIssues.',
+  },
+  'boss-scarecrow-antenna': { status: 'needs-art', roadmapOrder: 2, note: 'Side-view boss batch, 1 of 5 — Zone 1.' },
+  'boss-vacancy-sign': { status: 'needs-art', roadmapOrder: 2, note: 'Side-view boss batch, 2 of 5 — Zone 2.' },
+  'boss-weather-balloon': { status: 'needs-art', roadmapOrder: 2, note: 'Side-view boss batch, 3 of 5 — Zone 3.' },
+  'boss-harvest-pattern': { status: 'needs-art', roadmapOrder: 2, note: 'Side-view boss batch, 4 of 5 — Zone 4.' },
+  'boss-listening-station': {
+    status: 'needs-art',
+    roadmapOrder: 2,
+    note: 'Side-view boss batch, 5 of 5 — LAST but gets the MOST custom attention: this is the finale (Skyline Array classification-choice ending) and currently has no real artwork at all (composites from generic glow/ring VFX primitives).',
+  },
+  'sweep-maze-heart': {
+    status: 'needs-art',
+    roadmapOrder: 3,
+    note: "Zone 4 Fold finale boss. No HD pipeline reaches maze-z4, so this needs its own custom procedural-quality pass, not an atlas swap.",
+  },
+  'scanner-rig': { status: 'needs-art', roadmapOrder: 5, note: 'Fixed hazards ship last — mostly geometric/VFX rather than character art.' },
+  'blipstream-hazards': { status: 'needs-art', roadmapOrder: 5, note: 'Fixed hazards ship last.' },
+  'motel-security-lamps': { status: 'needs-art', roadmapOrder: 5, note: 'Fixed hazards ship last.' },
+  'stadium-light-towers': { status: 'needs-art', roadmapOrder: 5, note: 'Fixed hazards ship last.' },
+  'skyline-lightning': { status: 'needs-art', roadmapOrder: 5, note: 'Fixed hazards ship last.' },
+  'skyline-dashgate': { status: 'needs-art', roadmapOrder: 5, note: 'Fixed hazards ship last.' },
+};
+
+const HD_SHIPPED_NOTE =
+  'Shipped 2026-07-20 (commit 137bad9) — real authored HD art, live in Miller Field (surface-z1).';
+const HD_UNPLACED_NOTE =
+  'Shipped 2026-07-20 (commit 137bad9) and fully integrated (atlas + code) — but not currently placed anywhere by the surface-z1 roster (a level-design task, not an art task; no further art needed).';
+
+for (const kind of ['drifter', 'tagger', 'diver', 'weaver'] as const) {
+  CUSTOM_ART_STATUS[`sweep-${kind}`] = { status: 'shipped', note: HD_SHIPPED_NOTE };
+}
+for (const kind of ['warden', 'sniper', 'splitter', 'turret'] as const) {
+  CUSTOM_ART_STATUS[`sweep-${kind}`] = { status: 'integrated-unplaced', note: HD_UNPLACED_NOTE };
+}
+CUSTOM_ART_STATUS['sweep-elite'] = { status: 'shipped', note: HD_SHIPPED_NOTE };
+
+function withArtStatus<T extends { id: string }>(entries: T[]): T[] {
+  return entries.map((e) => ({
+    ...e,
+    customArt: CUSTOM_ART_STATUS[e.id] ?? { status: 'needs-art' as const, note: 'Not yet triaged onto the asset roadmap.' },
+  }));
+}
+
+export interface BestiaryRoadmapPhase {
+  order: number;
+  title: string;
+  targetIds: string[];
+  status: 'done' | 'next' | 'planned';
+  note: string;
+}
+
+export const BESTIARY_ASSET_ROADMAP: BestiaryRoadmapPhase[] = [
+  {
+    order: 0,
+    title: 'Top-down HD enemy set (surface-z1 / Miller Field)',
+    targetIds: ['sweep-drifter', 'sweep-tagger', 'sweep-diver', 'sweep-warden', 'sweep-sniper', 'sweep-splitter', 'sweep-weaver', 'sweep-turret', 'sweep-elite'],
+    status: 'done',
+    note: 'Shipped 2026-07-20 (commit 137bad9). warden/sniper/splitter/turret are integrated but not currently placed by the surface-z1 roster — no further art needed for those 4 unless/until a level places them.',
+  },
+  {
+    order: 1,
+    title: 'Scanner Drone + Spotter',
+    targetIds: ['scanner-drone', 'spotter'],
+    status: 'next',
+    note: 'Biggest immediate payoff — Scanner Drone is used live in Zone 1 and reused (tint-only) for Spotter in Zone 3. Spotter needs a visually distinct variant, not just a recolor.',
+  },
+  {
+    order: 2,
+    title: 'The five side-view bosses',
+    targetIds: ['boss-scarecrow-antenna', 'boss-vacancy-sign', 'boss-weather-balloon', 'boss-harvest-pattern', 'boss-listening-station'],
+    status: 'planned',
+    note: 'One at a time, in this order. The Listening Station gets the most custom attention — it is the finale and currently has no real artwork.',
+  },
+  {
+    order: 3,
+    title: 'The Maze Heart',
+    targetIds: ['sweep-maze-heart'],
+    status: 'planned',
+    note: 'Zone 4 Fold finale boss. No HD pipeline reaches maze-z4, so this needs its own custom procedural-quality pass rather than an atlas swap.',
+  },
+  {
+    order: 4,
+    title: 'Top-down fallback enemy set (motel / stadium / orchard arenas)',
+    targetIds: ['sweep-drifter', 'sweep-tagger', 'sweep-diver', 'sweep-warden', 'sweep-sniper', 'sweep-splitter', 'sweep-weaver', 'sweep-turret', 'sweep-elite'],
+    status: 'planned',
+    note: 'The same 8 archetypes + elite, but their non-HD pixel-art fallback used in every Sweep arena except surface-z1.',
+  },
+  {
+    order: 5,
+    title: 'Fixed hazards',
+    targetIds: ['scanner-rig', 'blipstream-hazards', 'motel-security-lamps', 'stadium-light-towers', 'skyline-lightning', 'skyline-dashgate'],
+    status: 'planned',
+    note: 'Lowest priority — mostly geometric/VFX rather than character art.',
+  },
+];
+
+export const BESTIARY_ALL_ENEMIES: BestiaryEnemyEntry[] = withArtStatus([
   ...BESTIARY_ENEMIES,
   ...BESTIARY_SWEEP_ENEMIES,
   ...BESTIARY_SWEEP_BOSSES,
-];
+]);
 
 /* ============================== FIXED HAZARDS ============================ */
 
-export const BESTIARY_HAZARDS: BestiaryHazardEntry[] = [
+const BESTIARY_HAZARDS_RAW: BestiaryHazardEntry[] = [
   {
     id: 'scanner-rig',
     name: 'SCANNER RIG',
@@ -820,6 +954,8 @@ export const BESTIARY_HAZARDS: BestiaryHazardEntry[] = [
     sourceRefs: ['src/game/config.ts:724 (DASHGATE)'],
   },
 ];
+
+export const BESTIARY_HAZARDS: BestiaryHazardEntry[] = withArtStatus(BESTIARY_HAZARDS_RAW);
 
 /* ============================== GAMEPLAY SYSTEMS ========================= */
 

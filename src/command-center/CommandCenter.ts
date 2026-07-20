@@ -10,12 +10,15 @@ import { BOSS, BUILD_VERSION, EVT, PLAYER, PULSE, SCAN, TILE } from '../game/con
 import { GAME_BIBLE } from '../game/data/gameBible';
 import {
   BESTIARY_ALL_ENEMIES,
+  BESTIARY_ASSET_ROADMAP,
   BESTIARY_HAZARDS,
   BESTIARY_SYSTEMS,
   CONTACT47_SCALE_REF,
   type BestiaryEnemyEntry,
   type BestiaryHazardEntry,
+  type BestiaryRoadmapPhase,
   type BestiarySystemEntry,
+  type CustomArtInfo,
 } from '../game/data/bestiaryData';
 // bestiaryExport pulls in JSZip — loaded on demand (see runExportButton) so it
 // never ships in the base game bundle for players who never open dev exports.
@@ -666,6 +669,14 @@ export class CommandCenter {
     return `<p class="cc-kv"><label>${esc(label)}</label> ${esc(value)}</p>`;
   }
 
+  private customArtChip(info: CustomArtInfo | undefined): string {
+    if (!info) return '';
+    const label = info.status === 'shipped' ? '✓ CUSTOM ART — LIVE' : info.status === 'integrated-unplaced' ? '✓ CUSTOM ART — NOT PLACED' : '✕ NEEDS CUSTOM ART';
+    const cls = info.status === 'shipped' ? 'ok' : info.status === 'integrated-unplaced' ? '' : 'bad';
+    const order = info.roadmapOrder !== undefined ? ` · ROADMAP #${info.roadmapOrder}` : '';
+    return `<span class="cc-chip ${cls}" title="${esc(info.note)}">${esc(label)}${esc(order)}</span>`;
+  }
+
   private enemyCard(e: BestiaryEnemyEntry): string {
     const statusCls = /shipped — (fully|100%)|shipped — dual/i.test(e.implementationStatus)
       ? 'ok'
@@ -673,7 +684,7 @@ export class CommandCenter {
         ? 'bad'
         : 'warn';
     return `<article class="cc-card cc-bestiary-card" data-enemy="${esc(e.id)}">
-      <header><b>${esc(e.name)}</b><span class="cc-chip ${e.chipCls}">${esc(e.chip)}</span></header>
+      <header><b>${esc(e.name)}</b><span class="cc-chip ${e.chipCls}">${esc(e.chip)}</span>${this.customArtChip(e.customArt)}</header>
       <p class="cc-zone-tag">${esc(e.zones.join(' · '))} — <span class="key">${esc(e.internalId)}</span></p>
       <p>${esc(e.behavior)}</p>
       ${this.kv('MOVEMENT', e.movement)}
@@ -710,7 +721,7 @@ export class CommandCenter {
 
   private hazardCard(h: BestiaryHazardEntry): string {
     return `<article class="cc-card">
-      <header><b>${esc(h.name)}</b><span class="cc-chip bad">${esc(h.chip)}</span></header>
+      <header><b>${esc(h.name)}</b><span class="cc-chip bad">${esc(h.chip)}</span>${this.customArtChip(h.customArt)}</header>
       <p class="cc-zone-tag">${esc(h.zones.join(' · '))}</p>
       <p>${esc(h.desc)}</p>
       ${this.statChips(h.tuning)}
@@ -720,6 +731,16 @@ export class CommandCenter {
       ${h.knownIssues.length ? `<h4>FLAGS</h4><ul class="cc-list cc-issues">${h.knownIssues.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>` : ''}
       <p class="cc-note">SOURCE: ${h.sourceRefs.map((r) => esc(r)).join(' · ')}</p>
     </article>`;
+  }
+
+  private roadmapPhase(p: BestiaryRoadmapPhase, nameById: Map<string, string>): string {
+    const statusChip =
+      p.status === 'done' ? '<span class="cc-chip ok">DONE</span>' : p.status === 'next' ? '<span class="cc-chip warn">NEXT UP</span>' : '<span class="cc-chip">PLANNED</span>';
+    return `<li class="${p.status === 'done' ? 'done' : p.status === 'next' ? 'current' : ''}">
+      ${p.status === 'done' ? '☑' : p.status === 'next' ? '▸' : '☐'} <b>#${p.order} — ${esc(p.title)}</b> ${statusChip}
+      <div class="cc-note" style="margin:2px 0 0 18px">${esc(p.note)}</div>
+      <div class="cc-chips" style="margin:4px 0 0 18px">${p.targetIds.map((id) => `<span class="cc-chip">${esc(nameById.get(id) ?? id)}</span>`).join('')}</div>
+    </li>`;
   }
 
   private systemCard(s: BestiarySystemEntry): string {
@@ -733,12 +754,21 @@ export class CommandCenter {
   }
 
   private sectionBestiary(): string {
+    const nameById = new Map<string, string>();
+    BESTIARY_ALL_ENEMIES.forEach((e) => nameById.set(e.id, e.name));
+    BESTIARY_HAZARDS.forEach((h) => nameById.set(h.id, h.name));
+    const shippedCount = BESTIARY_ALL_ENEMIES.filter((e) => e.customArt?.status === 'shipped').length;
+    const needsArtCount = [...BESTIARY_ALL_ENEMIES, ...BESTIARY_HAZARDS].filter((e) => e.customArt?.status === 'needs-art').length;
     return this.panel(
       'bestiary',
       'BESTIARY',
       `<p class="cc-note">GENERATED <b id="cc-bestiary-generated">—</b> · COMMIT <b class="key" id="cc-bestiary-commit">—</b> — this page is the source of truth for enemy gameplay data and replacement-art requirements.
       Numbers read live from <span class="key">src/game/config.ts</span> (see <span class="key">src/game/data/bestiaryData.ts</span>) — tune in config, this page follows on next build.</p>
       <p class="cc-kv"><label>CONTACT-47 SCALE REFERENCE</label> ${esc(CONTACT47_SCALE_REF.note)}</p>
+      <div class="cc-chips" style="margin:8px 0 4px">
+        <span class="cc-chip ok">CUSTOM ART LIVE: ${shippedCount}</span>
+        <span class="cc-chip bad">NEEDS CUSTOM ART: ${needsArtCount}</span>
+      </div>
       <div class="cc-actions cc-dev-only" style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 18px">
         <button id="cc-export-brief" class="cc-btn">⬇ EXPORT ENEMY ART BRIEF</button>
       </div>
@@ -747,7 +777,10 @@ export class CommandCenter {
       <h3>2 · FIXED HAZARDS / ENVIRONMENTAL THREATS (${BESTIARY_HAZARDS.length})</h3>
       <div class="cc-cards">${BESTIARY_HAZARDS.map((h) => this.hazardCard(h)).join('')}</div>
       <h3>3 · GAMEPLAY SYSTEMS (${BESTIARY_SYSTEMS.length})</h3>
-      <div class="cc-cards">${BESTIARY_SYSTEMS.map((s) => this.systemCard(s)).join('')}</div>`
+      <div class="cc-cards">${BESTIARY_SYSTEMS.map((s) => this.systemCard(s)).join('')}</div>
+      <h3>4 · CUSTOM ART ROADMAP</h3>
+      <p class="cc-note">The agreed ship order for replacement art — update <span class="key">CUSTOM_ART_STATUS</span> / <span class="key">BESTIARY_ASSET_ROADMAP</span> in <span class="key">src/game/data/bestiaryData.ts</span> as batches land.</p>
+      <ul class="cc-check">${[...BESTIARY_ASSET_ROADMAP].sort((a, b) => a.order - b.order).map((p) => this.roadmapPhase(p, nameById)).join('')}</ul>`
     );
   }
 
