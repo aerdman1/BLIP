@@ -5,7 +5,7 @@
  * Emits `art-src/contact-sheet.html`: every produced asset on a dark background
  * at 1x and 3x, so palette coherence and light direction can actually be
  * REVIEWED before any integration happens. Per the plan, a captured screenshot
- * is not a passed checkpoint - this page exists to be looked at.
+ * is not a passed review gate - this page exists to be looked at.
  *
  * - Ground and wall tiles are shown 2x2-repeated so a seam would be obvious.
  * - Actors are shown body-only AND with their additive emissive layer

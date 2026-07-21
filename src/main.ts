@@ -10,8 +10,7 @@ import { installErrorLogger, getPersistedErrorLog } from './game/systems/ErrorLo
 installErrorLogger();
 
 import { createGame } from './game/BlipGame';
-import type { SweepScene } from './game/scenes/SweepScene';
-import { EVT, SCENES } from './game/config';
+import { EVT } from './game/config';
 import { audio } from './game/systems/AudioSystem';
 import { bus } from './game/systems/EventBus';
 import { getSave, selectSkin, unlockSkin, updateSave } from './game/systems/SaveSystem';
@@ -60,14 +59,6 @@ window.addEventListener('keydown', (ev) => {
       bus.emit(EVT.toast, { text: 'DEBUG: FRAGMENT GRANTED', color: 'orange' });
       break;
     }
-    case 'F4':
-      ev.preventDefault();
-      bus.emit(EVT.toast, { text: 'DEBUG: SIDE-VIEW BLIPSTREAM REMOVED', color: 'orange' });
-      break;
-    case 'F5':
-      ev.preventDefault();
-      bus.emit(EVT.toast, { text: 'DEBUG: SIDE-VIEW RETURN REMOVED', color: 'orange' });
-      break;
     case 'F6': {
       // debug: unlock all skins + cycle to the next one (applies live)
       ev.preventDefault();
@@ -78,36 +69,6 @@ window.addEventListener('keydown', (ev) => {
       selectSkin(next.id);
       bus.emit(EVT.skinSelected, { id: next.id, name: next.name, color: next.color, live: true });
       bus.emit(EVT.toast, { text: `SKIN: ${next.name}`, color: 'green' });
-      break;
-    }
-    case 'F7': {
-      // WARP → Signal Storm top-down arena.
-      ev.preventDefault();
-      if (game.scene.isActive(SCENES.sweep)) break; // already there
-      game.registry.set('sweepArenaId', 'anomaly-01');
-      if (!game.scene.isActive(SCENES.ui)) game.scene.run(SCENES.ui);
-      bus.emit(EVT.toast, { text: 'DEBUG: WARP → SIGNAL STORM', color: 'orange' });
-      game.scene.start(SCENES.sweep);
-      break;
-    }
-    case 'F8': {
-      // WARP → Miller Field top-down.
-      ev.preventDefault();
-      if (game.scene.isActive(SCENES.sweep)) break;
-      game.registry.set('sweepArenaId', 'surface-z1');
-      if (!game.scene.isActive(SCENES.ui)) game.scene.run(SCENES.ui);
-      bus.emit(EVT.toast, { text: 'DEBUG: WARP → MILLER FIELD (TOP-DOWN)', color: 'orange' });
-      game.scene.start(SCENES.sweep);
-      break;
-    }
-    case 'F10': {
-      // TELEPORT TO ROUTE EXIT — preview the top-down area transition instantly
-      ev.preventDefault();
-      const sweep = game.scene.getScene(SCENES.sweep) as SweepScene | null;
-      if (sweep && game.scene.isActive(SCENES.sweep)) {
-        sweep.debugSkipToBreach();
-        bus.emit(EVT.toast, { text: 'DEBUG: SKIP → BREACH', color: 'orange' });
-      }
       break;
     }
   }

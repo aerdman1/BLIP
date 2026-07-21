@@ -41,7 +41,7 @@ export class GameOverScene extends Phaser.Scene {
     // gamepad retry: A / Cross or START; title: B / Circle
     const pad = readPad();
     const pressed = (i: number) => pad?.buttons[i] === true && this.prevPadButtons[i] !== true;
-    if (pressed(PAD.jump) || pressed(PAD.start)) this.retry();
+    if (pressed(PAD.primary) || pressed(PAD.start)) this.retry();
     if (pressed(PAD.interact)) this.mainMenu();
     this.prevPadButtons = pad ? { ...pad.buttons } : {};
   }
@@ -93,15 +93,8 @@ export class GameOverScene extends Phaser.Scene {
       arenaId = arenaByZone[getSave().currentZone] ?? 'surface-z1';
       this.registry.set('sweepArenaId', arenaId);
     }
-    this.scene.stop(SCENES.blipstream);
+    this.registry.remove('sweepWorldHandoff');
     this.scene.stop(SCENES.sweep);
-    this.scene.stop(SCENES.underwater);
-    this.scene.stop(SCENES.field);
-    this.scene.stop(SCENES.motel);
-    this.scene.stop(SCENES.stadium);
-    this.scene.stop(SCENES.orchard);
-    this.scene.stop(SCENES.skyline);
-    this.scene.stop(SCENES.ending);
     this.scene.stop(SCENES.ui);
     this.scene.start(SCENES.sweep);
     this.scene.stop();
@@ -109,15 +102,7 @@ export class GameOverScene extends Phaser.Scene {
 
   private mainMenu(): void {
     this.removeDomOverlay();
-    this.scene.stop(SCENES.blipstream);
     this.scene.stop(SCENES.sweep);
-    this.scene.stop(SCENES.underwater);
-    this.scene.stop(SCENES.field);
-    this.scene.stop(SCENES.motel);
-    this.scene.stop(SCENES.stadium);
-    this.scene.stop(SCENES.orchard);
-    this.scene.stop(SCENES.skyline);
-    this.scene.stop(SCENES.ending);
     this.scene.stop(SCENES.ui);
     this.scene.start(SCENES.menu);
     this.scene.stop();

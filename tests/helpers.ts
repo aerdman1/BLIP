@@ -97,12 +97,6 @@ export async function tap(page: Page, key: string): Promise<void> {
   await page.keyboard.up(key);
 }
 
-export async function teleport(page: Page, checkpoint: string): Promise<void> {
-  const ok = await api<boolean>(page, `api.teleportToCheckpoint('${checkpoint}')`);
-  expect(ok, `teleport to ${checkpoint}`).toBe(true);
-  await page.waitForTimeout(350);
-}
-
 export async function screenshotTo(page: Page, name: string): Promise<void> {
   await page.screenshot({ path: `test-results/screenshots/${name}.png` });
 }

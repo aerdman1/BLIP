@@ -46,8 +46,8 @@ export function makeProjectileGroup(scene: Phaser.Scene, texture: string, maxSiz
 }
 
 /* ------------------- Pulse Ricochet (Orchard signature) -------------------- */
-// Passive shared helpers used by the side-view scenes' bolt colliders when the
-// player owns `pulse-ricochet`. Gated at the call site via hasAbility.
+// Passive shared helpers for bolt colliders when the player owns
+// `pulse-ricochet`. Gated at the call site via hasAbility.
 
 /** Reflect a bolt off level geometry it just hit. Returns true if it bounced
  *  (bolt kept alive), false once it has spent all its bounces (caller kills it). */

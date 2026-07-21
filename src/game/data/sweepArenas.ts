@@ -3,7 +3,7 @@
  * out of a solid wall field by overlapping room + hall rectangles (tile units), so
  * you navigate real rooms, corridors and chokepoints — with multiple routes — that
  * feel human-made and are unique per zone. Markers place node/breach/spawn/elite/
- * enemies/caches. Two modes: 'traverse' (charge node → reach breach → Fold) and
+ * enemies/caches. Two modes: 'traverse' (charge node → reach breach → route onward) and
  * 'waves' (hold, spawns from open floor).
  */
 import type { SweepEnemyKind } from '../config';
@@ -38,7 +38,7 @@ export interface SweepArena {
   biome: SweepBiome;
   zoneId?: string;
   questId?: string;
-  nextArena?: string; // connected top-down world route
+  nextArena?: string; // next arena in the route-connected top-down chain
   nextLabel?: string;
   completeZoneOnExit?: string;
   grid: { w: number; h: number }; // map size in tiles
@@ -52,9 +52,9 @@ export interface SweepArena {
   caches?: SweepMarker[]; // hidden scan caches
   chargeTarget?: number;
   waves?: SweepWave[]; // waves mode
-  // ── finale generosity / climax (scoped per-arena so earlier Folds stay tuned) ──
+  // ── finale generosity / climax (scoped per-arena so earlier routes stay tuned) ──
   dropChance?: number; // override SWEEP.dropChance for THIS arena only (loot-rich finale)
-  clearBonus?: number; // override SWEEP.shardsClearBonus granted on Fold-onward
+  clearBonus?: number; // override SWEEP.shardsClearBonus granted on route completion
   weaponSpawns?: { tx: number; ty: number; wid: string }[]; // guaranteed weapon pickups
   bossFinale?: boolean; // charging the Node wakes the Maze Heart; breach gates on its death
 }
@@ -204,7 +204,7 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
   // The corn maze from above. Narrow hedgerow corridors and small clearings; the
   // NODE is the crop-circle glyph at the heart (charging it blooms the circle).
   // North route: spawn → west → node → north → breach. South/east route: spawn →
-  // lower-mid → node → east-mid → breach (with a SE loop). Folds back to OrchardScene.
+  // lower-mid -> node -> east-mid -> breach, with a southeast loop.
   'maze-z4': {
     id: 'maze-z4',
     label: 'The Living Maze · Patterson’s Orchard',
@@ -244,15 +244,15 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     chargeTarget: 110,
     // FINALE FLAGS (scoped to THIS arena only): loot-rich drops, a bumped clear payout,
     // guaranteed weapon pickups seeded along both routes, and the Maze Heart boss gate.
-    dropChance: 0.55, // the campaign's most generous Fold — the finale should shower loot
-    clearBonus: 45, // a fatter Fold-onward payout for clearing the last Fold
+    dropChance: 0.55, // the campaign's most generous route clear — the finale should shower loot
+    clearBonus: 45, // a fatter payout for clearing the last connected region
     bossFinale: true, // charging the Node wakes the Maze Heart; breach seals until it dies
     weaponSpawns: [
-      { tx: 7, ty: 17, wid: 'scatter' }, // A — right by spawn, so you're armed for the maze
-      { tx: 4, ty: 10, wid: 'seeker' }, // D — SEEKER for the weaver-choked west rows
-      { tx: 17, ty: 3, wid: 'arc' }, // E — ECHO ARC for the north corridor
-      { tx: 30, ty: 15, wid: 'lance' }, // G — LANCE for the east lane
-      { tx: 23, ty: 18, wid: 'rupture' }, // H — RUPTURE waiting for the boss finale
+      { tx: 7, ty: 17, wid: 'pulse' }, // A — reliable ranged pressure near spawn
+      { tx: 4, ty: 10, wid: 'disc' }, // D — recall line for the west rows
+      { tx: 17, ty: 3, wid: 'arc' }, // E — close-range answer for the north corridor
+      { tx: 30, ty: 15, wid: 'disc' }, // G — positioning tool for the east lane
+      { tx: 23, ty: 18, wid: 'arc' }, // H — risky burst option before the boss finale
     ],
     // ROSTER — "the hunting maze": long corn lanes let PINPOINT snipers line up telegraphed
     // shots (break line-of-sight around a hedge), JITTER weavers dart the rows, REPLICATOR

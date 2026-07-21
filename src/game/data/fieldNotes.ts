@@ -3,7 +3,7 @@
  * Notebook pages the Five Scouts left behind — they teach a mechanic in a
  * wholesome kids'-club voice and reward curiosity. Hidden until a scan pulse
  * finds them; some secret spots pay Signal Shards instead of a note.
- * Content data only — placements are pixel coords the scenes scan against.
+ * Content data only — placements are area coords the top-down scene scans against.
  */
 
 export interface FieldNoteDef {
@@ -19,8 +19,8 @@ export const FIELD_NOTES: FieldNoteDef[] = [
     id: 'will-map-margin',
     scoutId: 'will',
     title: "Will's map margin",
-    body: '“If the lights start watching, don’t run straight — the hill has another way through. I drew the safe rungs in cyan. Scan and they light up.”',
-    hint: 'Scan reveals WILLOW route markers on hidden climbs.',
+    body: '“If the lights start watching, don’t run straight. The field has another way through. I drew the safe marks in cyan. Scan and they light up.”',
+    hint: 'Scan reveals WILLOW route markers and hidden caches.',
   },
   {
     id: 'henry-safe-spots',
@@ -33,14 +33,14 @@ export const FIELD_NOTES: FieldNoteDef[] = [
     id: 'chip-circuit-doodle',
     scoutId: 'chip',
     title: "Chip's circuit doodle",
-    body: '“Only the LIT signs hold your weight. Shoot the power box to flip a whole row on at once. I rewired the diner with bike spokes — don’t tell my mom.”',
-    hint: 'Pulse-shot the power switches; lit neon = solid platforms.',
+    body: '“Only the lit signs tell the truth. Shoot the power box and the whole lot changes. I rewired the diner with bike spokes — don’t tell my mom.”',
+    hint: 'Pulse-shot signal machinery to open route pressure windows.',
   },
   {
     id: 'danny-dare',
     scoutId: 'danny',
     title: "Danny's dare",
-    body: '“Bet you can’t dash the whole lot without touching the ground. I did it in four. Chip says the trick is the drainpipe. Chip is right (don’t tell him).”',
+    body: '“Bet you can’t dash the whole lot without getting read. I did it in four. Chip says the trick is the drainpipe. Chip is right (don’t tell him).”',
     hint: 'Dash i-frames slip you clean through the security cones.',
   },
 ];
@@ -54,7 +54,7 @@ export interface SecretDef {
   reward: SecretReward;
 }
 
-/** scannable secret spots per zone (pixel coords near real checkpoints). */
+/** Scannable secret spots per area. */
 export const ZONE_SECRETS: Record<string, SecretDef[]> = {
   'miller-field': [
     { id: 'miller-cache-1', x: 1216, y: 380, reward: { kind: 'shards', amount: 15 } },

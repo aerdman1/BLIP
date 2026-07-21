@@ -60,8 +60,8 @@ export class UIScene extends Phaser.Scene {
 
   /** Map the fixed 480×270 HUD layout space onto whatever the backbuffer is.
    *  SweepScene raises the buffer for HD top-down rendering; without this the
-   *  entire HUD would collapse into a corner of the larger canvas. Side-view
-   *  runs at 480×270, where this is exactly the old `setZoom(RENDER_ZOOM)`. */
+   *  entire HUD would collapse into a corner of the larger canvas. At base
+   *  density this is exactly the old `setZoom(RENDER_ZOOM)`. */
   private fitHudCamera = (): void => {
     const cam = this.cameras?.main;
     if (!cam) return;
@@ -136,13 +136,13 @@ export class UIScene extends Phaser.Scene {
         <div class="td-vitals-body">
           <div class="td-vitals-name">CONTACT-47</div>
           <div class="td-hp"><i></i></div>
-          <div class="td-weapon"><span class="cap">WPN</span><span class="val">PULSE</span></div>
+          <div class="td-weapon"><span class="cap">1/2/3 WPN</span><span class="val">PULSE CARBINE</span></div>
         </div>
       </div>
       <div class="td-overdrive"><span>SIGNAL OVERDRIVE</span><div><i></i></div></div>
       <div class="td-abilities">
         <span data-k="SHIFT">DASH</span><span data-k="Q">SCAN</span>
-        <span data-k="E">ECHO</span><span data-k="LMB">FIRE</span>
+        <span data-k="1-3">WPN</span><span data-k="E">ECHO</span><span data-k="LMB">FIRE</span>
       </div>
       <div class="sweep-hud-banner"></div>`;
     frame.appendChild(el);

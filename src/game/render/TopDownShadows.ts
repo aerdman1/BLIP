@@ -1,9 +1,6 @@
 /**
  * TopDownShadows — ground contact shadows for the Sweep.
  *
- * Deliberately NOT a generalisation of VisualFX's shadow code: that projects
- * onto `surfaceYAt(x)` from the side-view LevelDef and the coupling is total.
- *
  * Static geometry gets its shadow BAKED into the ground RenderTexture at map
  * build (see topdown/GroundBake) — long, directional, zero runtime cost, and
  * the main source of the "real shadows" impression. This module handles only

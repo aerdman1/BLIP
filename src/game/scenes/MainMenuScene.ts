@@ -602,7 +602,6 @@ export class MainMenuScene extends Phaser.Scene {
     if (!continueRun) {
       resetSave();
       updateSave((s) => {
-        s.flags.introSweepCleared = false;
         s.currentZone = 'miller-field';
         s.currentQuest = 'the-first-contact';
         s.questStep = 'wake';
@@ -623,6 +622,7 @@ export class MainMenuScene extends Phaser.Scene {
         'pattersons-orchard': 'maze-z4',
         'skyline-array': 'anomaly-01',
       };
+      this.registry.remove('sweepWorldHandoff');
       this.registry.set('sweepArenaId', continueRun ? arenaByZone[getSave().currentZone] ?? 'surface-z1' : 'surface-z1');
       this.scene.start(SCENES.sweep);
     });

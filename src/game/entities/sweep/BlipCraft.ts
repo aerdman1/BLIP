@@ -1,8 +1,7 @@
 /**
  * BlipCraft — CONTACT-47 on the radar scope. Top-down, gravity-free, 8-directional
  * roam with a phase-drift dash. Twin-stick: you MOVE with one hand and AIM with the
- * mouse/right-stick (the scene drives aim + firing). Self-contained so The Sweep
- * can't perturb core platformer movement. Tuning in config.SWEEP.
+ * mouse/right-stick (the scene drives aim + firing). Tuning in config.SWEEP.
  */
 import Phaser from 'phaser';
 import { EVT, FLY_SPEED, PALETTE as P, SWEEP, TEX } from '../../config';
@@ -13,7 +12,7 @@ import { devState } from '../../systems/DevState';
 import type { EffectsSystem } from '../../systems/EffectsSystem';
 import type { PlayerInput } from '../../systems/InputSystem';
 
-/** dev tools (god key) — dev server or ?test, matching Player.ts */
+/** dev tools (god key) — dev server or ?test */
 const DEV_TOOLS: boolean =
   import.meta.env.DEV ||
   (typeof location !== 'undefined' && new URLSearchParams(location.search).has('test'));
@@ -65,7 +64,7 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
     bus.on(EVT.flyMode, onFly);
     this.once('destroy', () => bus.off(EVT.flyMode, onFly));
 
-    // G toggles god mode in the top-down too (shared devState with the side-view).
+    // G toggles god mode.
     // Live whenever dev tools are on OR god mode is already enabled via the console.
     if (DEV_TOOLS || devState.god) {
       scene.input.keyboard?.on('keydown-G', () => {
@@ -100,8 +99,7 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
     return devState.god || this.isDashing || this.scene.time.now < this.invulnUntil;
   }
 
-  /* --- effective stats = SWEEP base × the active skin's mods (progression carries
-     into the top-down mode, matching the side-view Player) --- */
+  /* --- effective stats = SWEEP base × the active skin's mods --- */
   get maxHp(): number {
     return Math.max(1, SWEEP.maxHp + (activeSkin().mods.maxHpDelta ?? 0));
   }

@@ -55,18 +55,18 @@ export const GAME_BIBLE: BibleEntry[] = [
       'Will, Chip, Henry, Cameron and Danny — best friends and cousins who found the first leak years before you woke up. They formed a secret club, built gadgets, mapped hidden paths, and left behind badges, notes and recordings, as if they knew someone like you would come along and need them. The real mystery is not just what the Signal is. It is what five kids understood about it that the Interpretation Engine still doesn’t.',
   },
   {
-    id: 'blipstream',
-    title: 'The Blipstream',
-    classification: 'DIMENSION // PARTIAL ACCESS',
+    id: 'signal-nodes',
+    title: 'Signal Nodes',
+    classification: 'ROUTE SYSTEM // ACTIVE',
     body:
-      'The inside of the Signal: a black space of waveforms, static and routing logic. Blipstream Nodes are stitches where the leak was patched — crude, clever patches, more bike-parts than physics. Route a node correctly and the world outside changes shape. Cameron’s notebooks called it "the drawing under the drawing."',
+      'The Signal left crude, clever patches in the world: nodes built out of radio logic, bike parts, field wiring and static. Charge a node correctly and the next road, trail, bridge or breach opens. Cameron’s notebooks called it "the drawing under the drawing."',
   },
   {
-    id: 'the-fold',
-    title: 'The Fold',
+    id: 'the-breach',
+    title: 'The Breach',
     classification: 'PHENOMENON // OBSERVED',
     body:
-      'The Interpretation Engine cannot classify you side-on — too much noise, too many angles. So it does the only thing it can: it SURFACES you. The world folds, and for a moment you are seen the way the radar sees you — from directly above, a bright contact on its scan, drones converging to force a reading. Survive the scan, reach the breach, and the view folds back down into the world. You begin the whole story this way: a blip on the scan that refuses to be labelled, breaking the fix and dropping into Miller Field. The Fold is not a place. It is the machine changing how it looks at you — and you slipping between the looks.',
+      'The Interpretation Engine sees CONTACT-47 from directly above: a bright contact on its scan, drones converging to force a reading. Each breach is not a different game, it is the machine changing pressure, opening the next route, and trying again to decide what you are.',
   },
   {
     id: 'tiger-stadium',
@@ -107,10 +107,10 @@ export const GAME_BIBLE: BibleEntry[] = [
     classification: 'ZONE 05 // LISTENING',
     body:
       'Radio towers and a mountaintop observatory above the storm line, where the dishes still ' +
-      'point up and wait. The lightning never lands the same way twice, and the wind pushes ' +
-      'the brave straight up. The grown-ups built this place to hear the sky better; the Signal ' +
-      'answered by making the sky worth hearing. Danny climbed it because everyone said the ' +
-      'jump between the spires was impossible. It wasn’t. He tuned the last dish himself.',
+      'point up and wait. The lightning never lands the same way twice, and the wind shoves ' +
+      'the brave through narrow routes. The grown-ups built this place to hear the sky better; the Signal ' +
+      'answered by making the sky worth hearing. Danny crossed it because everyone said the ' +
+      'route between the spires was impossible. It wasn’t. He tuned the last dish himself.',
   },
   {
     id: 'the-broadcast',

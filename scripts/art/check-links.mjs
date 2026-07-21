@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 /**
- * BLIP top-down art pipeline - Phase 3 link gate.
+ * BLIP top-down art pipeline link gate.
  *
- * Per TOPDOWN_VISUAL_PLAN.md:
  *   1. HEAD-follow every URL in ASSET_SOURCES.md and GENERATED_ASSETS.md;
  *      a non-200 fails. (The plan's example of why: kenney.nl/assets/
  *      topdown-shooter is a 404 - the correct slug is top-down-shooter.)

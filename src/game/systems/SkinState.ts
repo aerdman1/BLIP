@@ -1,7 +1,6 @@
 /**
- * Active Signal Skin state — a tiny shared accessor so Player, FieldScene,
- * ClassificationSystem etc. all read the same equipped skin's modifiers/abilities
- * without threading it through constructors. Set on field spawn + on live swap.
+ * Active Signal Skin state — a tiny shared accessor so gameplay and UI read the
+ * same equipped skin's modifiers/abilities without threading it through constructors.
  */
 import { DEFAULT_SKIN, skinById, type SkinAbilities, type SkinDef, type SkinMods } from '../data/skins';
 

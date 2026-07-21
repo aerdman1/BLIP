@@ -27,8 +27,8 @@ Import the repo into Vercel as a Vite/static frontend project.
 - **Install command:** `npm install`
 - **Framework preset:** Vite
 
-No server runtime is required — BLIP is a fully static, client-side game (a 5-zone
-campaign ending in the Skyline Array finale + EndingScene).
+No server runtime is required — BLIP is a fully static, client-side top-down game
+with a connected 5-area route ending in Signal Storm.
 Save data is stored locally in the browser via localStorage (`blip_save_v1`).
 
 The build has two static entries: the game (`/`) and the standalone developer
@@ -36,8 +36,7 @@ dashboard (`/command-center.html`) — both ship in `dist/` automatically.
 
 Notes:
 
-- All assets are procedurally generated in the browser at boot — there are no
-  image/audio files to host beyond `public/` (manifest, icon, qa-status.json).
+- Runtime art is generated or loaded from `public/`; audio is synthesized in the browser.
 - No environment variables, no APIs, no hardcoded localhost URLs.
 - The Playwright/QA tooling is dev-only and does not ship in `dist`.
 - The Test API (`window.__BLIP_TEST_API__`) is enabled only in dev or with
@@ -60,16 +59,16 @@ npm run ship
 That command syncs `main`, runs checks, pushes GitHub, deploys Vercel production,
 aliases `blip-chagrin.vercel.app`, and verifies the alias target.
 
-Manual equivalent:
+Manual equivalent to `npm run ship`:
 
 1. `git pull --ff-only` — make the deploy checkout match `origin/main`.
 2. `npm run typecheck && npm run build` — sanity check.
-2. `git commit -am "…"` — commit the change (deliberate message).
-3. `npm run deploy` — runs `scripts/deploy.sh`: build → `vercel --prod` →
+3. `git commit -am "…"` — commit the change (deliberate message).
+4. `git push origin main` — publish to GitHub before production deployment.
+5. `npm run deploy` — runs `scripts/deploy.sh`: build → `vercel --prod` →
    wait for the deployment to be `READY` → alias `blip-chagrin.vercel.app` →
    verify through Vercel that the alias points to that exact ready production deployment
    (the script exits non-zero if it doesn't).
-4. `git push origin main` — publish to GitHub.
 
 Requires the `vercel` CLI to be authenticated once (`npx vercel login`). The deploy script
 intentionally does not commit or push — keep those as explicit git steps around it.
@@ -86,7 +85,6 @@ production deployment for the `blip` project.
 
 ## Verifying a Deploy
 
-1. Game boots to the BLIP menu, starts, and plays through Miller Field (the first of five zones).
+1. Game boots to the BLIP menu, starts, and enters Miller Surface.
 2. Save persists across a reload (localStorage).
-3. Command Center opens (C) and renders all panels, including AI QA Lab
-   (it reads `/qa-status.json` — committed from the last QA run).
+3. Command Center opens (C) and renders all panels.

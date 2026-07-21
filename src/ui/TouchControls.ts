@@ -4,7 +4,7 @@
  * which PlayerInput reads each frame (see src/game/systems/TouchInput.ts).
  *
  * Layout: a virtual thumbstick bottom-left, an action cluster bottom-right
- * (JUMP · SHOOT · SCAN · DASH · ECHO · INTERACT), and a small PAUSE pip top-right.
+ * (FIRE · SHOOT · SCAN · DASH · WPN · ECHO · INTERACT), and a small PAUSE pip top-right.
  * Visibility is driven by ShellUI (only during unobstructed gameplay).
  */
 import { touchInput, resetTouchInput } from '../game/systems/TouchInput';
@@ -83,12 +83,13 @@ export class TouchControls {
     // ── action cluster (bottom-right) ────────────────────────────────────
     const actions = document.createElement('div');
     actions.className = 'tc-actions';
-    // held buttons: level-triggered (hold JUMP to hover, hold SHOOT to autofire)
-    actions.appendChild(this.heldButton('tc-btn tc-jump', 'JUMP', 'jumpHeld', true));
+    // held buttons: level-triggered primary action and hold-to-autofire
+    actions.appendChild(this.heldButton('tc-btn tc-primary', 'FIRE', 'primaryHeld', true));
     actions.appendChild(this.aimFireButton('tc-btn tc-shoot', '◎'));
     // tap buttons: one-shot edges
     actions.appendChild(this.tapButton('tc-btn tc-scan', '((·))', 'scanQueued'));
     actions.appendChild(this.tapButton('tc-btn tc-dash', '»', 'dashQueued'));
+    actions.appendChild(this.tapButton('tc-btn tc-weapon', 'WPN', 'weaponNextQueued'));
     actions.appendChild(this.tapButton('tc-btn tc-echo', 'ECHO', 'echoQueued'));
     actions.appendChild(this.tapButton('tc-btn tc-interact', 'E', 'interactQueued'));
     this.root.appendChild(actions);
@@ -189,13 +190,13 @@ export class TouchControls {
   }
 
   /** A hold-to-act button: sets a boolean held flag true on press, false on release. */
-  private heldButton(className: string, glyph: string, flag: 'jumpHeld' | 'shootHeld', alsoQueueJump: boolean): HTMLElement {
+  private heldButton(className: string, glyph: string, flag: 'primaryHeld' | 'shootHeld', alsoQueuePrimary: boolean): HTMLElement {
     const b = this.makeButton(className, glyph);
     const down = (e: Event) => {
       e.preventDefault();
       e.stopPropagation();
       touchInput[flag] = true;
-      if (alsoQueueJump) touchInput.jumpQueued = true; // edge for jumpJustDown
+      if (alsoQueuePrimary) touchInput.primaryQueued = true;
       b.classList.add('active');
       audio.unlock();
     };
@@ -213,7 +214,7 @@ export class TouchControls {
   }
 
   /** A tap button: queues a one-shot edge consumed by PlayerInput.update(). */
-  private tapButton(className: string, glyph: string, flag: 'scanQueued' | 'dashQueued' | 'echoQueued' | 'interactQueued' | 'pauseQueued'): HTMLElement {
+  private tapButton(className: string, glyph: string, flag: 'scanQueued' | 'dashQueued' | 'weaponNextQueued' | 'echoQueued' | 'interactQueued' | 'pauseQueued'): HTMLElement {
     const b = this.makeButton(className, glyph);
     b.addEventListener('pointerdown', (e) => {
       e.preventDefault();

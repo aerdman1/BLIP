@@ -20,12 +20,11 @@ import {
   type PadAction,
 } from '../game/systems/PadBindings';
 import { readPad } from '../game/systems/PadSim';
-import { addShards, allSlotSummaries, buyUpgrade, getSave, getSlotName, grantAbility, ownsUpgrade, resetSave, resetSlot, setActiveSlot, setSlotName, unlockSkin, updateSave } from '../game/systems/SaveSystem';
+import { addShards, buyUpgrade, getSave, grantAbility, hasProgress, ownsUpgrade, resetSave, unlockSkin, updateSave } from '../game/systems/SaveSystem';
 import { rewards } from '../game/systems/RewardSystem';
 import { skinById } from '../game/data/skins';
 import { UPGRADES } from '../game/data/upgrades';
 import { devState } from '../game/systems/DevState';
-import { ZONES } from '../game/data/zones';
 import { settings, type TouchControlsMode } from '../game/systems/Settings';
 import { setOverlayDepth } from '../game/systems/UIState';
 import { TouchControls } from './TouchControls';
@@ -35,15 +34,8 @@ interface MenuEntry {
   icon: string;
   cls?: string;
   id?: string;
-  sub?: string; // secondary line (save-slot summary)
-  onErase?: () => void; // occupied slots get an erase affordance
-  onRename?: () => void; // occupied slots get a rename affordance
+  sub?: string;
   action: () => void;
-}
-
-/** Escape user-supplied text before it goes into innerHTML (slot names). */
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 }
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -54,6 +46,22 @@ const MENU_SCOUT_TARGETS = [
   { id: 'chip', name: 'Chip / SPARK', color: '#ffb03b', x: 70, y: 224 },
   { id: 'will', name: 'Will / WILLOW', color: '#35d5ff', x: 86, y: 224 },
   { id: 'danny', name: 'Danny / ROCKET', color: '#ff4b5c', x: 101, y: 224 },
+] as const;
+
+const ZONE_LABELS: Record<string, string> = {
+  'miller-field': 'Miller Surface',
+  'motel-nowhere': 'Motel Circuit',
+  'tiger-stadium': 'Chagrin Falls Town',
+  'pattersons-orchard': "Patterson's Orchard",
+  'skyline-array': 'Signal Storm',
+};
+
+const DEV_WARP_ZONES = [
+  ['miller-field', 'Miller Surface'],
+  ['motel-nowhere', 'Motel Circuit'],
+  ['tiger-stadium', 'Chagrin Falls Town'],
+  ['pattersons-orchard', "Patterson's Orchard"],
+  ['skyline-array', 'Signal Storm'],
 ] as const;
 
 /* ------------------------------ pixel logo ------------------------------- */
@@ -132,10 +140,6 @@ export class ShellUI {
   private heroBuilt = false;
   private pauseVisible = false;
   private settingsVisible = false;
-  private nameModalVisible = false;
-  private nameTarget: { mode: 'new' | 'rename'; index: number } = { mode: 'new', index: 0 };
-  private nameWired = false;
-  private nameKeyFocus = 0;
   private transmissionVisible = false;
   private portraitVisible = false;
   private ccVisible = false;
@@ -228,7 +232,7 @@ export class ShellUI {
    *  secret rapid multi-tap on the unit badge — both open the ERD dev console. */
   private wireTouchDevAccess(): void {
     if (this.isTouchDevice()) {
-      // reveal the DEV console launcher so touch players can enable God / Fly / warp
+      // reveal the DEV console launcher so touch players can enable God / Fly
       $('btn-dev').classList.remove('hidden');
     }
     // secret fallback (works on any device): 5 quick taps/clicks on the unit badge
@@ -251,7 +255,7 @@ export class ShellUI {
       if (!this.shouldWarnBeforeUnload()) return;
       try {
         updateSave(() => {
-          /* force a final slot write before the browser leaves */
+          /* force a final save write before the browser leaves */
         });
       } catch {
         /* localStorage may be unavailable; still show the browser guard */
@@ -456,11 +460,9 @@ export class ShellUI {
     $('god-indicator').classList.toggle('hidden', !showButtons);
   }
 
-  private confirmReset(): void {
-    // resets the ACTIVE slot (the run in progress), then returns to the menu
-    if (window.confirm('Erase this save slot and return to the menu?')) {
-      resetSave();
-      window.location.reload();
+  private confirmQuitToMenu(): void {
+    if (window.confirm('Quit to menu? You will continue from your last autosave.')) {
+      bus.emit(EVT.uiMainMenu, {});
     }
   }
 
@@ -560,10 +562,6 @@ export class ShellUI {
     });
 
     // shell-level action events
-    bus.on(EVT.uiReset, () => {
-      resetSave();
-      window.location.reload();
-    });
     bus.on(EVT.uiMainMenu, () => {
       this.setPauseVisible(false);
       [SCENES.gameOver, SCENES.sweep, SCENES.ui].forEach((k) => {
@@ -782,40 +780,40 @@ export class ShellUI {
 
   private buildMenuEntries(): void {
     this.menuEntries = [];
-    const slots = allSlotSummaries();
-    const occupiedSlots = slots.filter((s) => s.exists);
-    const nextEmptySlot = slots.find((s) => !s.exists);
-    const visibleSlots = occupiedSlots.length > 0
-      ? [...occupiedSlots, ...(nextEmptySlot ? [nextEmptySlot] : [])]
-      : [slots[0]];
-
-    for (const s of visibleSlots) {
-      const n = s.index + 1;
-      if (s.exists) {
-        const zone = ZONES.find((z) => z.id === s.zone)?.name ?? 'Miller Field';
-        const mins = Math.max(1, Math.round(s.timePlayedSec / 60));
-        const skin = s.selectedSkin && s.selectedSkin !== 'contact47' ? ` · ${skinById(s.selectedSkin).name}` : '';
-        const label = escapeHtml(s.name || `SLOT ${n}`);
+    const save = getSave();
+    const hasSave = hasProgress();
+    if (hasSave) {
+      const zone = ZONE_LABELS[save.currentZone] ?? 'Miller Surface';
+      const mins = Math.max(1, Math.round(save.playerStats.timePlayedSec / 60));
+      const skin = save.selectedSkin && save.selectedSkin !== 'contact47' ? ` · ${skinById(save.selectedSkin).name}` : '';
+      this.menuEntries.push({
+        label: 'CONTINUE',
+        icon: '▶',
+        cls: 'primary',
+        id: 'menu-continue',
+        sub: `${zone.toUpperCase()} · ${save.signalFragments}◆ · ${mins}m${skin}`,
+        action: () => bus.emit(EVT.uiStartGame, { continueRun: true }),
+      });
+    }
+    this.menuEntries.push({
+      label: 'NEW GAME',
+      icon: '✦',
+      cls: hasSave ? '' : 'primary',
+      id: 'menu-new-game',
+      sub: hasSave ? 'erase the current run and start over' : 'start the connected Chagrin Falls route',
+      action: () => this.startNewGame(hasSave),
+    });
+    if (this.devMode()) {
+      DEV_WARP_ZONES.forEach(([zoneId, label]) => {
         this.menuEntries.push({
-          label: `${label} · CONTINUE`,
-          icon: '▶',
-          cls: 'primary slot',
-          id: `menu-slot-${s.index}`,
-          sub: `${zone.toUpperCase()} · ${s.fragments}◆ · ${mins}m${skin}`,
-          onErase: () => this.confirmEraseSlot(s.index),
-          onRename: () => this.openNameModal({ mode: 'rename', index: s.index }),
-          action: () => this.playSlot(s.index, true),
+          label: `WARP · ${label.toUpperCase()}`,
+          icon: '◇',
+          cls: 'dev-warp',
+          id: `menu-warp-${zoneId}`,
+          sub: 'dev test jump',
+          action: () => this.devWarp(zoneId),
         });
-      } else {
-        this.menuEntries.push({
-          label: `NEW GAME · SLOT ${n}`,
-          icon: '✦',
-          cls: 'slot empty',
-          id: `menu-slot-${s.index}`,
-          sub: 'empty slot — start a fresh transmission',
-          action: () => this.playSlot(s.index, false),
-        });
-      }
+      });
     }
     this.menuEntries.push(
       { label: 'COMMAND CENTER', icon: '▦', id: 'menu-command-center', action: () => this.openCommandCenter() },
@@ -831,17 +829,30 @@ export class ShellUI {
     });
   }
 
-  /** select a slot + launch it (continue if occupied, new game if empty) */
-  private playSlot(index: number, continueRun: boolean): void {
-    setActiveSlot(index);
-    bus.emit(EVT.uiStartGame, { continueRun });
+  private startNewGame(hasExistingSave: boolean): void {
+    if (hasExistingSave && !window.confirm('Start a new game? This erases the current save.')) return;
+    resetSave();
+    bus.emit(EVT.uiStartGame, { continueRun: false });
   }
 
-  private confirmEraseSlot(index: number): void {
-    if (window.confirm(`Erase Save Slot ${index + 1}? This can’t be undone.`)) {
-      resetSlot(index);
-      this.buildMenuEntries(); // re-render the picker
-    }
+  private devMode(): boolean {
+    return import.meta.env.DEV || new URLSearchParams(window.location.search).has('test') || devState.god;
+  }
+
+  private devWarp(zoneId: string): void {
+    updateSave((s) => {
+      s.currentZone = zoneId;
+      const questByZone: Record<string, string> = {
+        'miller-field': 'the-first-contact',
+        'motel-nowhere': 'motel-nowhere',
+        'tiger-stadium': 'tiger-stadium',
+        'pattersons-orchard': 'pattersons-orchard',
+        'skyline-array': 'skyline-array',
+      };
+      s.currentQuest = questByZone[zoneId] ?? 'the-first-contact';
+      s.questStep = 'wake';
+    });
+    bus.emit(EVT.uiStartGame, { continueRun: true });
   }
 
   private renderMenu(rootEl: HTMLElement, entries: MenuEntry[], focus: number, onHover: (i: number) => void): void {
@@ -851,23 +862,10 @@ export class ShellUI {
       btn.className = `menu-item ${entry.cls ?? ''} ${i === focus ? 'focused' : ''}`;
       if (entry.id) btn.id = entry.id;
       const sub = entry.sub ? `<span class="mi-sub">${entry.sub}</span>` : '';
-      const rename = entry.onRename ? `<span class="mi-rename" title="Rename this slot">✎</span>` : '';
-      const erase = entry.onErase ? `<span class="mi-erase" title="Erase this slot">✕</span>` : '';
-      btn.innerHTML = `<span class="mi-icon">${entry.icon}</span><span class="mi-label">${entry.label}${sub}</span>${rename}${erase}`;
+      btn.innerHTML = `<span class="mi-icon">${entry.icon}</span><span class="mi-label">${entry.label}${sub}</span>`;
       btn.addEventListener('click', (ev) => {
         audio.unlock();
         audio.uiToggle();
-        const target = ev.target as HTMLElement;
-        if (entry.onRename && target.classList.contains('mi-rename')) {
-          ev.stopPropagation();
-          entry.onRename();
-          return;
-        }
-        if (entry.onErase && target.classList.contains('mi-erase')) {
-          ev.stopPropagation();
-          entry.onErase();
-          return;
-        }
         entry.action();
       });
       btn.addEventListener('mouseenter', () => onHover(i));
@@ -888,8 +886,7 @@ export class ShellUI {
       { label: 'SIGNAL ARCHIVE', icon: '▦', id: 'pause-archive', action: () => bus.emit(EVT.rewardOpenArchive, {}) },
       { label: 'WORKBENCH', icon: '⚒', id: 'pause-workbench', action: () => this.openWorkbench() },
       { label: 'COMMAND CENTER', icon: '▤', id: 'pause-command-center', action: () => this.openCommandCenter() },
-      { label: 'MAIN MENU', icon: '⌂', id: 'pause-main-menu', action: () => bus.emit(EVT.uiMainMenu, {}) },
-      { label: 'RESET SAVE', icon: '⚠', cls: 'danger', id: 'pause-reset', action: () => this.confirmReset() },
+      { label: 'QUIT TO MENU', icon: '⌂', id: 'pause-quit-menu', action: () => this.confirmQuitToMenu() },
     ];
   }
 
@@ -960,7 +957,8 @@ export class ShellUI {
           <tr><th>ACTION</th><th>KEYBOARD / MOUSE</th><th>XBOX · PLAYSTATION</th></tr>
           <tr><td>Move</td><td class="key">WASD · ARROWS</td><td class="pad">Left stick · D-pad</td></tr>
           <tr><td>Dash</td><td class="key">SHIFT</td><td class="pad">RB / LB · R1 / L1</td></tr>
-          <tr><td>Pulse Shot</td><td class="key">X · LEFT CLICK</td><td class="pad">X / RT · ▢ / R2</td></tr>
+          <tr><td>Fire</td><td class="key">X · LEFT CLICK</td><td class="pad">X / RT · ▢ / R2</td></tr>
+          <tr><td>Switch Weapon</td><td class="key">1 / 2 / 3 · R</td><td class="pad">L-stick / R-stick click</td></tr>
           <tr><td>Scan Pulse</td><td class="key">RIGHT CLICK · Q</td><td class="pad">Y / LT · △ / L2</td></tr>
           <tr><td>Interact / Overdrive</td><td class="key">E</td><td class="pad">B · ○</td></tr>
           <tr><td>Echo Blink (place / return)</td><td class="key">F</td><td class="pad">D-pad Up</td></tr>
@@ -1218,7 +1216,7 @@ export class ShellUI {
 
   /* ----------------------------- Chip's Workbench ---------------------------- */
   // Signal Shard shop (Channel B). A modal like Settings: pushModal pauses the
-  // run while it's open. Purchases go through buyUpgrade (persists per slot).
+  // run while it's open. Purchases go through buyUpgrade (persists to the save).
 
   private wireWorkbench(): void {
     $('workbench-close').addEventListener('click', () => this.closeWorkbench());
@@ -1281,126 +1279,6 @@ export class ShellUI {
       bus.emit(EVT.toast, { text: 'NOT ENOUGH SHARDS', color: 'orange' });
     }
     this.renderWorkbench(); // reflect new balance + owned/afford states
-  }
-
-  /* ------------------------------- name a slot ------------------------------- */
-
-  // On-screen keyboard so gamepad (and touch) players can spell a name without a
-  // physical keyboard. NAME_KEYS is a fixed grid; last row holds the specials.
-  private static readonly NAME_COLS = 10;
-  private static readonly NAME_KEYS: string[] = [
-    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
-    'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
-    'U', 'V', 'W', 'X', 'Y', 'Z', '0', '1', '2', '3',
-    '4', '5', '6', '7', '8', '9', '-', 'SPACE', 'DEL', 'DONE',
-  ];
-
-  private wireNameModal(): void {
-    if (this.nameWired) return;
-    this.nameWired = true;
-    const input = $<HTMLInputElement>('name-input');
-    $('name-confirm').addEventListener('click', () => this.confirmNameModal());
-    $('name-cancel').addEventListener('click', () => this.closeNameModal());
-    input.addEventListener('keydown', (ev) => {
-      ev.stopPropagation(); // typing must not drive the menu underneath
-      if (ev.key === 'Enter') {
-        ev.preventDefault();
-        this.confirmNameModal();
-      } else if (ev.key === 'Escape') {
-        ev.preventDefault();
-        this.closeNameModal();
-      }
-    });
-    // build the on-screen keyboard once
-    const keysEl = $('name-keys');
-    keysEl.innerHTML = '';
-    ShellUI.NAME_KEYS.forEach((k, i) => {
-      const b = document.createElement('button');
-      b.className = 'nk';
-      b.textContent = k === 'SPACE' ? '␣' : k === 'DEL' ? '⌫' : k === 'DONE' ? '⏎' : k;
-      b.title = k;
-      b.addEventListener('click', () => {
-        this.nameKeyFocus = i;
-        this.renderNameKeyFocus();
-        this.pressNameKey(k);
-      });
-      keysEl.appendChild(b);
-    });
-  }
-
-  private renderNameKeyFocus(): void {
-    const children = $('name-keys').children;
-    for (let i = 0; i < children.length; i++) children[i].classList.toggle('focused', i === this.nameKeyFocus);
-  }
-
-  /** Apply one on-screen key to the name field (used by tap + gamepad). */
-  private pressNameKey(k: string): void {
-    if (k === 'DONE') {
-      this.confirmNameModal();
-      return;
-    }
-    const input = $<HTMLInputElement>('name-input');
-    if (k === 'DEL') input.value = input.value.slice(0, -1);
-    else if (k === 'SPACE') input.value = (input.value + ' ').slice(0, 14);
-    else input.value = (input.value + k).slice(0, 14);
-    audio.uiToggle();
-  }
-
-  private moveNameKeyFocus(dx: number, dy: number): void {
-    const total = ShellUI.NAME_KEYS.length;
-    const step = dx !== 0 ? dx : dy * ShellUI.NAME_COLS;
-    this.nameKeyFocus = ((this.nameKeyFocus + step) % total + total) % total;
-    this.renderNameKeyFocus();
-    audio.uiToggle();
-  }
-
-  /** Gamepad A on the focused on-screen key. */
-  private pressFocusedNameKey(): void {
-    this.pressNameKey(ShellUI.NAME_KEYS[this.nameKeyFocus]);
-  }
-
-  private openNameModal(opts: { mode: 'new' | 'rename'; index: number }): void {
-    if (this.nameModalVisible) return;
-    this.wireNameModal();
-    this.nameModalVisible = true;
-    this.nameTarget = opts;
-    const input = $<HTMLInputElement>('name-input');
-    input.value = opts.mode === 'rename' ? getSlotName(opts.index) : `Slot ${opts.index + 1}`;
-    $('name-confirm').textContent = opts.mode === 'rename' ? '✓ SAVE' : '✓ START';
-    this.nameKeyFocus = 0;
-    this.renderNameKeyFocus();
-    $('name-modal').classList.remove('hidden');
-    this.pushModal();
-    // On devices with a physical keyboard, focus+select so the player can type
-    // over the default immediately. On touch, DON'T steal focus — let them tap
-    // the field (native soft keyboard) or the on-screen keys when ready.
-    const coarse = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
-    if (!coarse) {
-      input.focus();
-      input.select();
-    }
-  }
-
-  private confirmNameModal(): void {
-    if (!this.nameModalVisible) return;
-    const { mode, index } = this.nameTarget;
-    const raw = $<HTMLInputElement>('name-input').value.trim();
-    if (mode === 'new') {
-      setSlotName(index, raw || `Slot ${index + 1}`);
-      this.closeNameModal();
-      this.playSlot(index, false);
-    } else {
-      setSlotName(index, raw);
-      this.closeNameModal();
-      this.buildMenuEntries();
-    }
-  }
-
-  private closeNameModal(): void {
-    if (!this.nameModalVisible) return;
-    this.nameModalVisible = false;
-    $('name-modal').classList.add('hidden');
-    this.popModal();
   }
 
   /* ------------------------------ transmissions ------------------------------ */
@@ -1499,14 +1377,6 @@ export class ShellUI {
     el.innerHTML = `
       <div class="dev-card bracketed">
         <div class="dev-title">▚ ERD DEV CONSOLE <span id="dev-close">✕</span></div>
-        <div class="dev-sec-h">WARP TO TOP-DOWN AREA</div>
-        <div class="dev-row" id="dev-topdown">
-          <button data-sweep="surface-z1">Miller Surface</button>
-          <button data-sweep="circuit-z2">Motel Circuit</button>
-          <button data-sweep="town-z3">Chagrin Town</button>
-          <button data-sweep="maze-z4">Orchard Maze</button>
-          <button data-sweep="anomaly-01">Signal Storm</button>
-        </div>
         <div class="dev-sec-h">GRANT</div>
         <div class="dev-row">
           <button data-act="abilities">All Abilities</button>
@@ -1529,7 +1399,7 @@ export class ShellUI {
         <div class="dev-row">
           <button data-act="god" id="dev-god">God Mode: OFF</button>
           <button data-act="fly" id="dev-fly">Fly Mode: OFF</button>
-          <button data-act="reset" class="danger">Reset Save</button>
+          <button data-act="reset" class="danger">Clear Local Save</button>
         </div>
         <div class="dev-hint">Top-down only: <b>WASD</b> move · mouse/right stick aim · <b>X/click</b> fires · <b>Q</b> scans · <b>SHIFT</b> dashes · <b>G</b> toggles god mode.</div>
         <div class="dev-status" id="dev-status"></div>
@@ -1537,9 +1407,6 @@ export class ShellUI {
     document.body.appendChild(el);
     this.devEl = el;
 
-    el.querySelectorAll('[data-sweep]').forEach((b) =>
-      b.addEventListener('click', () => this.devWarpSweep((b as HTMLElement).dataset.sweep as string))
-    );
     (el.querySelector('#dev-close') as HTMLElement).addEventListener('click', () => this.hideDevPanel());
     el.querySelectorAll('[data-act]').forEach((b) =>
       b.addEventListener('click', () => this.devAction((b as HTMLElement).dataset.act as string))
@@ -1563,19 +1430,6 @@ export class ShellUI {
   private devStatus(msg: string): void {
     const st = this.devEl?.querySelector('#dev-status');
     if (st) st.textContent = msg;
-  }
-
-  /** warp straight into a top-down area. */
-  private devWarpSweep(arenaId: string): void {
-    this.game.registry.set('sweepArenaId', arenaId);
-    this.hideDevPanel();
-    audio.unlock();
-    bus.emit(EVT.menuActive, { active: false });
-    [SCENES.menu, SCENES.sweep, SCENES.gameOver].forEach((k) => {
-      if (this.game.scene.isActive(k)) this.game.scene.stop(k);
-    });
-    if (!this.game.scene.isActive(SCENES.ui)) this.game.scene.run(SCENES.ui);
-    this.game.scene.start(SCENES.sweep);
   }
 
   private devAction(act: string): void {
@@ -1623,12 +1477,12 @@ export class ShellUI {
         devState.fly = !devState.fly;
         bus.emit(EVT.flyMode, { on: devState.fly });
         bus.emit(EVT.toast, {
-          text: devState.fly ? 'FLY MODE ON — noclip · move stick + JUMP/↑ up · ↓ down' : 'FLY MODE OFF',
+          text: devState.fly ? 'FLY MODE ON — noclip · move stick + PRIMARY/↑ up · ↓ down' : 'FLY MODE OFF',
           color: devState.fly ? 'green' : 'orange',
         });
         break;
       case 'reset':
-        if (window.confirm('Reset this save slot?')) {
+        if (window.confirm('Clear local BLIP save data?')) {
           resetSave();
           window.location.reload();
         }
@@ -1668,7 +1522,6 @@ export class ShellUI {
       }
       return;
     }
-    if (this.nameModalVisible) return; // the name input handles its own keys (type/Enter/Esc)
     if (this.settingsVisible) {
       if (ev.code === 'Escape' || ev.code === 'KeyC' || ev.code === 'Tab') {
         ev.preventDefault();
@@ -1761,17 +1614,6 @@ export class ShellUI {
       if (this.transmissionVisible) {
         const anyEdge = Object.keys(pad.buttons).some((k) => this.padJust(pad, Number(k)));
         if (anyEdge) this.hideTransmission();
-      } else if (this.nameModalVisible) {
-        // drive the on-screen keyboard: DPAD moves, A presses the key,
-        // B backspaces, START confirms, SELECT cancels
-        if (this.padJust(pad, PAD.dpadLeft)) this.moveNameKeyFocus(-1, 0);
-        else if (this.padJust(pad, PAD.dpadRight)) this.moveNameKeyFocus(1, 0);
-        else if (this.padJust(pad, PAD.dpadUp) || stickEdge < 0) this.moveNameKeyFocus(0, -1);
-        else if (this.padJust(pad, PAD.dpadDown) || stickEdge > 0) this.moveNameKeyFocus(0, 1);
-        if (this.padJust(pad, PAD.jump)) this.pressFocusedNameKey();
-        else if (this.padJust(pad, PAD.interact)) this.pressNameKey('DEL');
-        else if (this.padJust(pad, PAD.start)) this.confirmNameModal();
-        else if (this.padJust(pad, PAD.select)) this.closeNameModal();
       } else if (this.settingsVisible) {
         if (this.padJust(pad, PAD.interact) || this.padJust(pad, PAD.start)) this.closeSettings();
       } else if (this.ccVisible) {
@@ -1792,7 +1634,7 @@ export class ShellUI {
           this.renderMenuFocus(rootEl, focus);
           audio.uiToggle();
         }
-        if (this.padJust(pad, PAD.jump)) {
+        if (this.padJust(pad, PAD.primary)) {
           audio.unlock();
           entries[focus].action();
         }

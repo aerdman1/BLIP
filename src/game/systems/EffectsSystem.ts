@@ -89,7 +89,7 @@ export class EffectsSystem {
     });
   }
 
-  /** full-screen static burst for Blipstream transitions / boss glitches */
+  /** full-screen static burst for route transitions and boss glitches */
   staticBurst(durationMs = 420): void {
     const cam = this.scene.cameras.main;
     const ts = this.scene.add

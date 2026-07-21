@@ -146,5 +146,5 @@ button from JavaScript, so the zip is not in an `href`. `fetch-sources.mjs` now 
 
 `node scripts/art/contact-sheet.mjs` writes `art-src/contact-sheet.html` — every produced asset on
 a dark background at 1× and 3×, tiles shown 2×2-repeated so seams are visible, and actors shown
-with their additive emissive layer composited. That sheet is the Phase 3 checkpoint gate: review it
+with their additive emissive layer composited. That sheet is the Phase 3 review gate: review it
 for palette coherence and consistent light direction **before** any integration work.

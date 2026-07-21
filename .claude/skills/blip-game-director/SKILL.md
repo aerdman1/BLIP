@@ -7,13 +7,13 @@ description: Keeps BLIP aligned with the current game vision — top-down proced
 
 Purpose: keep the project aligned with the actual game vision. Consult this before any feature, art, or story work.
 
-## The Vision (pivoted 2026-07-20)
+## The Vision
 
 - The game is called **BLIP**. Tagline: "You are the thing on the radar." Subtitle: "A pixel signal adventure about staying unknown."
-- BLIP is now a **top-down-only** procedural pixel action game. The previous side-view spine and Fold-back structure are removed from live access. The existing Sweep arenas are the foundation of the whole game and should be connected, expanded, and polished rather than rebuilt from scratch.
+- BLIP is a **top-down-only** procedural pixel action game. The current foundation is a route-connected chain of separate top-down arena maps, not a seamless open map yet. Polish this route before rebuilding or expanding it.
 - The player is **CONTACT-47**, an unknown signal/contact escaping classification.
 - The enemy is **classification/interpretation itself** (The Interpretation Engine), not just "bad guys." Drones and cones are trying to *label* you.
-- The puzzle dimension is the **Blipstream** (Blipstream Nodes / Blipstream Rooms). Collectibles are **Signal Fragments**.
+- Route progression runs through **Signal Nodes** and breaches. Collectibles are **Signal Fragments**.
 - Core vibe: **Dreamlike Rural Pixel Sci-Fi** — lush pixel fields at dusk, huge clouds, lonely radio towers, floating land chunks, crop-circle glyphs, red scan cones, cyan/green signal effects, glitch overlays, mysterious government tech.
 - The **Five Signal Scouts** (Will/WILLOW-cyan, Chip/SPARK-orange, Henry/ANCHOR-green, Cameron/ECHO-purple, Danny/ROCKET-red) are the heart of the story: five best friends/cousins who understood the Signal first and left a trail. Wholesome, brave, funny, clever — never victims, never dark. Tone stays PG, adventurous, mysterious, heartfelt.
 
@@ -30,10 +30,10 @@ Purpose: keep the project aligned with the actual game vision. Consult this befo
 
 Every player verb must have a **combat** job AND a **traversal/stealth** job — one input, two uses — so the kit stays tiny but deep. This is a house rule: before adding a new verb, first ask whether an existing verb can carry the job.
 
-- **Scan** — reveals hidden platforms & scout trails (traversal) AND stuns drones caught in the pulse + exposes boss cores (combat).
-- **Dash (Phase Drift)** — crosses gaps & slips through security cones with i-frames (traversal/stealth) AND ROCKET's phase-strike damages drones (combat).
-- **Pulse Shot** — trips node switches & powers neon platforms (traversal/puzzle) AND damages drones/boss cores (combat).
-- **Hover** — reaches ledges & feathers falls (traversal) AND repositions off a drone's gun line (combat spacing).
+- **Scan** — reveals caches and scout trails (exploration) AND stuns drones caught in the pulse + exposes weak points (combat).
+- **Dash (Phase Drift)** — crosses danger lanes and slips through security beams with i-frames (traversal/stealth) AND ROCKET's phase-strike damages drones (combat).
+- **Weapons** — Pulse Carbine pressures at range, Arc Blade creates melee/parry risk-reward, and Recall Disc rewards positioning. Fast switching is part of the combat identity. Future weapons should usually be mutations of these before becoming new standalone weapons.
+- **Overdrive** — clears a swarm to open space (survival) AND creates a short rapid-fire push for the node (combat).
 
 When a verb only does one job, that's a gap to close — not a reason for a new button.
 
@@ -45,12 +45,9 @@ Apply these when authoring ANY zone's secrets/collectibles (scan-secrets, scout 
    is 150px; keep them ~200px+ apart) so a single pulse never claims two at once — overlapping
    claims fire stacked transmissions and read as chaos.
 2. **Claimed = visibly done.** Every scannable/collectible MUST change state on claim: cues **pop
-   + fade away** (`retireSecretCue` in `systems/Secrets.ts`), persistent props **dim/tint green**
-   (see `SignalBox.markScanned`). Never leave a claimed item looking identical to an unclaimed one.
-3. **Reachability is math, not vibes.** Base jump apex ≈ **40px (2.49 tiles)**; hover only slows
-   falls, dash is horizontal. Every intended climb steps **≤ 2 rows (32px)** per hop. Never place
-   a reward the base kit can't reach (skin/ability-gated routes must be flagged as such).
+   + fade away** or otherwise visibly retire. Persistent props should **dim/tint green** or clearly show a claimed state. Never leave a claimed item looking identical to an unclaimed one.
+3. **Reachability is math, not vibes.** Every intended route must fit the top-down player radius,
+   dash distance, scan radius, and camera scale. Never place a reward the base kit cannot reach.
 4. **No signage without payoff.** A marker/arrow/glow must point at something real and obtainable.
    Decorative markers that promise a reward (the "stranded WILLOW chevron" bug) read as broken.
-5. **Tutorialize in Zone 1 only.** Miller Field shows `[Q] SCAN` prompts over scannable items
-   (see `FieldScene.buildScanHints`); later zones assume the verb is learned — don't re-prompt.
+5. **Tutorialize in Zone 1 only.** Miller Surface teaches `[Q] SCAN`; later zones assume the verb is learned.

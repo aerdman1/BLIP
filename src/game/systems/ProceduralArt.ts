@@ -221,8 +221,8 @@ export function generateAllTextures(scene: Phaser.Scene): void {
     px(g, 10, 2, 0x4d3a26, 0.8);
   });
 
-  // thin floating platform: mossy grass top, rocky underside, dangling root
-  tex(scene, TEX.tilePlatform, 16, 16, (g) => {
+  // mossy shelf: grass top, rocky underside, dangling root
+  tex(scene, TEX.mossShelf, 16, 16, (g) => {
     rect(g, 0, 0, 16, 4, P.grass);
     rect(g, 0, 0, 16, 1, P.grassLit);
     rect(g, 0, 3, 16, 1, P.grassDark);
@@ -785,9 +785,9 @@ export function generateAllTextures(scene: Phaser.Scene): void {
     });
   };
   relic(TEX.relicWill, P.scoutWill, (g) => {
-    // folded map
+    // route map
     rect(g, 2, 3, 10, 8, P.scoutWill, 0.9); rect(g, 2, 3, 10, 1, 0xffffff, 0.5);
-    for (let x = 3; x < 12; x += 3) rect(g, x, 4, 1, 6, 0x0a2530, 0.6); // folds
+    for (let x = 3; x < 12; x += 3) rect(g, x, 4, 1, 6, 0x0a2530, 0.6); // grid marks
     rect(g, 4, 5, 6, 4, 0x0a2530, 0.3); px(g, 7, 7, 0xffffff); // route dot
   });
   relic(TEX.relicChip, P.scoutChip, (g) => {
@@ -952,8 +952,8 @@ export function generateAllTextures(scene: Phaser.Scene): void {
     rect(g, 0, 4, 60, 1, P.white, 0.5);
   });
 
-  /* ---- Blipstream ---- */
-  tex(scene, TEX.wavePlatform, 16, 8, (g) => {
+  /* ---- signal node kit ---- */
+  tex(scene, TEX.waveLedge, 16, 8, (g) => {
     rect(g, 0, 0, 16, 1, P.white, 0.9);
     rect(g, 0, 1, 16, 2, P.signal, 0.95);
     rect(g, 0, 3, 16, 3, P.signalDim, 0.8);
@@ -1377,7 +1377,7 @@ function generateTownTextures(scene: Phaser.Scene): void {
 /* ========================= Zone 2 — Motel Nowhere ========================== */
 /**
  * Neon-night roadside motel kit. The look: dark wet-asphalt silhouettes lit
- * ENTIRELY by neon — signs, switches and powered platforms are the light AND
+ * ENTIRELY by neon — signs, switches and powered bridges are the light AND
  * the level. Crisp pixel bodies; smooth LINEAR glows layered separately.
  */
 function generateMotelTextures(scene: Phaser.Scene): void {
@@ -1457,9 +1457,9 @@ function generateMotelTextures(scene: Phaser.Scene): void {
   });
   linearize(scene, TEX.puddle);
 
-  /* ---- NEON PLATFORM (powered = solid). Dark frame stays dark under tint;
+  /* ---- NEON BRIDGE (powered = passable). Dark frame stays dark under tint;
          white tube core takes the group color via setTint at runtime. ---- */
-  tex(scene, TEX.neonPlatform, 16, 8, (g) => {
+  tex(scene, TEX.neonBridge, 16, 8, (g) => {
     rect(g, 0, 0, 16, 8, 0x0a0a12); // housing (near-black: survives tint)
     rect(g, 1, 1, 14, 6, 0x14141f);
     rect(g, 1, 1, 14, 2, P.white); // bright tube top (tinted to group color)
@@ -1467,7 +1467,7 @@ function generateMotelTextures(scene: Phaser.Scene): void {
     px(g, 1, 6, P.white, 0.5); px(g, 14, 6, P.white, 0.5);
   });
   /* unpowered ghost: a dim dashed outline so you can read the route ---- */
-  tex(scene, TEX.neonPlatformDark, 16, 8, (g) => {
+  tex(scene, TEX.neonBridgeDark, 16, 8, (g) => {
     g.lineStyle(1, 0xffffff, 0.5);
     for (let x = 0; x < 16; x += 4) g.lineBetween(x, 1, x + 2, 1);
     for (let x = 0; x < 16; x += 4) g.lineBetween(x, 7, x + 2, 7);
@@ -2162,7 +2162,7 @@ function generateStadiumTextures(scene: Phaser.Scene): void {
     for (const [x, y] of [[9, 22], [20, 20], [14, 28], [24, 24], [6, 25]] as Array<[number, number]>) g.fillCircle(x, y, 2);
   });
 
-  // tileable apple-tree trunk — repeats vertically behind the fruit-platform
+  // tileable apple-tree trunk backdrop
   // climb so the '%' shelves read as fruit hanging on a real tree, not floating.
   tex(scene, TEX.orchardTrunk, 14, 16, (g) => {
     rect(g, 3, 0, 8, 16, P.dirtDark); // bark core
@@ -2173,8 +2173,8 @@ function generateStadiumTextures(scene: Phaser.Scene): void {
     px(g, 8, 11, P.dirt);
   });
 
-  // respawning fruit platform (leafy shelf with hanging apples)
-  tex(scene, TEX.fruitPlatform, 16, 12, (g) => {
+  // leafy shelf with hanging apples
+  tex(scene, TEX.fruitShelf, 16, 12, (g) => {
     g.fillStyle(P.appleLeaf, 1);
     g.fillEllipse(8, 5, 16, 9);
     g.fillStyle(P.foliageDark, 1);
@@ -2187,7 +2187,7 @@ function generateStadiumTextures(scene: Phaser.Scene): void {
     g.fillCircle(8, 9, 1.6);
   });
 
-  // side-view corn-maze wall tile (tiles vertically; shifts on the beat)
+  // corn-maze wall tile
   tex(scene, TEX.cornWall, 16, 16, (g) => {
     rect(g, 0, 0, 16, 16, P.cornStalkDark);
     g.fillStyle(P.cornStalk, 1);
@@ -2209,7 +2209,7 @@ function generateStadiumTextures(scene: Phaser.Scene): void {
   });
 
   // '=' branch / plank ledge
-  tex(scene, TEX.orchardPlatform, 16, 8, (g) => {
+  tex(scene, TEX.orchardWalkway, 16, 8, (g) => {
     rect(g, 0, 0, 16, 6, P.dirtDark);
     rect(g, 0, 0, 16, 2, P.dirt);
     rect(g, 0, 5, 16, 1, P.black, 0.4);

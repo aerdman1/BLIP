@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """
-BLIP top-down art pipeline - Phase 3, step 2.
+BLIP top-down art pipeline.
 
 Night-grades the CC0 photoscan albedos fetched by `fetch-sources.mjs` toward
-TOPDOWN_VISUAL_SPEC.md section 3 (deep desaturated forest green-black, value
-0.06-0.22), verifies / forces seamless tiling, and emits:
+the current top-down forest palette, verifies / forces seamless tiling, and emits:
 
   public/assets/topdown/td-ground.webp        512x512  tileSprite ground base
   public/assets/topdown/td-ground-lit.webp    512x512  moonlit pool variant
@@ -59,13 +58,12 @@ WEBP_Q = 80
 LIGHT = np.array([-0.62, -0.62, 0.48])
 LIGHT = LIGHT / np.linalg.norm(LIGHT)
 
-# --- TD_PALETTE (TOPDOWN_VISUAL_SPEC.md section 3) --------------------------
+# --- TD_PALETTE --------------------------------------------------------------
 # Ground ramp: deep desaturated forest green-black.
 # Value 0.14 -> 0.42. The spec originally called for 0.06 -> 0.22; that was
 # measured in isolation and proved unplayable once the runtime multiply-darkness
 # layer, baked wall shadows and canopy stacked on top - the arena rendered as
-# near-black. Raised after looking at the running game. TOPDOWN_VISUAL_SPEC.md
-# section 3 has been corrected to match.
+# near-black. Raised after looking at the running game.
 RAMP_GROUND = [
     (0.00, (0x19, 0x27, 0x1D)),  # v 0.078  deep shadow between blades
     (0.35, (0x2F, 0x46, 0x33)),  # v 0.141

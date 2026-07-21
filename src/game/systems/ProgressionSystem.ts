@@ -1,9 +1,9 @@
 /**
- * ProgressionSystem — the earn-loop spine (PROGRESSION_PLAN.md).
+ * ProgressionSystem — the earn-loop spine.
  * Channel A: each zone's boss + Signal Fragment grants ONE signature ability.
  * Grants are idempotent and routed through SaveSystem.grantAbility (which emits
- * EVT.abilityUnlocked). Returns the granted upgrade so the caller can fold it
- * into the fragment reward card.
+ * EVT.abilityUnlocked). Returns the granted upgrade so callers can render it
+ * in reward cards.
  */
 import { ZONE_SIGNATURE, upgradeById, type UpgradeDef } from '../data/upgrades';
 import { grantAbility } from './SaveSystem';

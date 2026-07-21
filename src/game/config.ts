@@ -1,7 +1,7 @@
 /**
  * BLIP — central configuration.
  * ALL tuning constants, colors, texture keys and scene keys live here
- * (see .claude/skills/phaser-pixel-platformer). No magic numbers elsewhere.
+ * (see .claude/skills/phaser-topdown-runtime). No magic numbers elsewhere.
  */
 
 /**
@@ -19,26 +19,15 @@ export const GAME_HEIGHT = VIEW_H * RENDER_ZOOM;
 export const TILE = 16;
 
 export const BUILD_VERSION = '0.1.0-slice';
-export const SAVE_KEY = 'blip_save_v1'; // slot 0 keeps this exact key (back-compat)
+export const SAVE_KEY = 'blip_save_v1';
 export const LEGACY_SAVE_KEY = 'beamline_save_v1'; // pre-rename key, migrated on load
 export const SETTINGS_KEY = 'blip_settings_v1';
-export const ACTIVE_SLOT_KEY = 'blip_active_slot';
-export const SLOT_NAMES_KEY = 'blip_slot_names_v1'; // per-slot player-chosen names
-export const SLOT_COUNT = 3;
 
 /* ---------------------------------- scenes --------------------------------- */
 export const SCENES = {
   boot: 'BootScene',
   menu: 'MainMenuScene',
-  field: 'FieldScene',
-  motel: 'MotelScene',
-  stadium: 'StadiumScene', // Zone 3 — Chagrin Falls High
-  underwater: 'UnderwaterScene', // Zone 3 rec-pool reflection node
-  orchard: 'OrchardScene', // Zone 4 — Patterson's Orchard
-  skyline: 'SkylineArrayScene', // Zone 5 — Skyline Array (the finale)
-  ending: 'EndingScene', // finale classification choice + ending card
-  blipstream: 'BlipstreamScene',
-  sweep: 'SweepScene', // top-down bonus arena — "The Sweep" (Signal Storm)
+  sweep: 'SweepScene',
   ui: 'UIScene',
   gameOver: 'GameOverScene',
 } as const;
@@ -306,7 +295,7 @@ export const FILTER_GAME_STRENGTH: Record<string, number> = {
 // Standard-layout indices (Xbox: A B X Y / PlayStation: Cross Circle Square Triangle)
 export const PAD = {
   deadZone: 0.28,
-  jump: 0, // A / Cross (hold = hover)
+  primary: 0, // A / Cross (primary / confirm)
   interact: 1, // B / Circle
   shoot: 2, // X / Square
   scan: 3, // Y / Triangle
@@ -316,6 +305,8 @@ export const PAD = {
   shootAlt: 7, // RT / R2 — shoot on the right trigger
   select: 8, // Back / Share — Command Center
   start: 9, // Start / Options — Pause
+  leftStick: 10, // weapon previous
+  rightStick: 11, // weapon next
   dpadUp: 12,
   dpadDown: 13,
   dpadLeft: 14,
@@ -325,36 +316,13 @@ export const PAD = {
 /** number color -> css string */
 export const css = (c: number): string => '#' + c.toString(16).padStart(6, '0');
 
-/* ------------------------------ player tuning ------------------------------ */
+/* ------------------------------ player status ------------------------------ */
 export const PLAYER = {
-  width: 10,
-  height: 12,
-  runSpeed: 112,
-  accel: 1500,
-  airAccel: 1050,
-  drag: 1500,
-  gravity: 900,
-  jumpVel: 268,
-  jumpCutMult: 0.42,
-  coyoteMs: 95,
-  jumpBufferMs: 120,
-  hoverFallSpeed: 26,      // terminal fall speed while hovering
-  hoverDrainPerSec: 32,
   energyMax: 100,
-  energyRegenPerSec: 30,
-  dashSpeed: 252,
-  dashMs: 210,
-  dashCooldownMs: 750,
   maxHp: 5,
-  invulnMs: 950,
-  knockback: 130,
-  // Echo Blink (Cameron/ECHO scout-set ability): place a signal echo, snap back to it
-  echoLifeMs: 5000,
-  echoCost: 25, // energy to place an echo
-  echoCooldownMs: 600, // lockout after a blink
 } as const;
 
-/** DEV free-fly / noclip speed (px/sec) — shared by side-view + top-down fly mode. */
+/** DEV free-fly / noclip speed (px/sec). */
 export const FLY_SPEED = 360;
 
 /* ------------------------------ camera feel -------------------------------- */
@@ -376,19 +344,6 @@ export const PULSE = {
   lifeMs: 750,
   damage: 1,
   maxActive: 14,
-} as const;
-
-/* ---------------------- Blipstream side rooms (zones 2–5) ------------------- */
-export const BLIP_ROOM = {
-  breakerHoldMs: 7000, // fallback latch window for breaker rooms
-  echoDelayMs: 2000, // fallback mirror-echo delay
-  echoSampleMs: 33, // position-history sample rate
-  syncPadRadius: 14, // how close counts as "on the pad"
-  phasePeriodMs: 2400, // fallback phasing-platform beat
-  phaseOnRatio: 0.55, // fraction of the beat a '%' platform is solid
-  phaseWarnMs: 420, // telegraph flicker before it drops out
-  clearShards: 60, // payout for solving an optional Blipstream node
-  bridgeTiles: 3, // signal-bridge platforms spawned in the overworld on solve
 } as const;
 
 export const SCAN = {
@@ -606,15 +561,11 @@ export const PROGRESSION = {
   },
 } as const;
 
-// Chip's Workbench — single-purchase shop upgrades (Channel B). Keyed by the
-// upgrade ids in `src/game/data/upgrades.ts` (unlockType:'shop'); `cost` there is
-// the Shard price, the numbers here are the gameplay effect applied in Player.ts
-// (gated by `ownsUpgrade(id)`, stacking on top of the active skin's mods).
+// Chip's Workbench — single-purchase shop upgrades (Channel B).
 export const WORKBENCH_EFFECTS = {
-  'hover-cell-plus': { hoverDrainMul: 0.6 }, // slower energy drain → longer hover
   'wide-scan': { scanRadiusMul: 1.4 }, // bigger Scan Pulse reveal/EMP radius
   'max-hull-plus': { maxHpDelta: 1 }, // +1 hull segment
-  'pulse-rapid': { pulseCooldownMul: 0.78 }, // faster Pulse Shot cadence
+  'pulse-rapid': { pulseCooldownMul: 0.78 }, // faster Pulse Carbine cadence
   'dash-recharge': { dashCooldownMul: 0.72 }, // shorter Phase Drift cooldown
 } as const;
 
@@ -624,7 +575,7 @@ export const MOTEL = {
   securityConeHalfAngleDeg: 30, // a wide, near-static lit POOL on the walkway
   securitySweepDeg: 10, // barely drifts — linger in a pool → THREAT; cross fast → safe
   securitySweepPeriodMs: 4200,
-  neonFlickerMs: 220, // brief flicker before a powered platform state settles
+  neonFlickerMs: 220, // brief flicker before a powered route state settles
 } as const;
 
 /* -------------------------- Zone 3: Chagrin Falls High -------------------- */
@@ -684,28 +635,23 @@ export const STADIUM = {
 } as const;
 
 /* -------------------------- Zone 4: Patterson's Orchard ------------------- */
-// "THE MAZE THINKS": respawning fruit platforms + a side-view maze-approach
-// whose walls shift on a readable, telegraphed beat (never random). The real
-// maze traversal happens in the top-down `maze-z4` Sweep arena (see the Fold).
+// "THE MAZE THINKS": a readable, telegraphed route beat for the top-down maze.
 export const ORCHARD = {
-  fruitRespawnMs: 2600, // fruit platform solid↔gone cycle
-  fruitTelegraphMs: 600, // blink before a fruit platform toggles
-  mazeShiftPeriodMs: 2600, // side-view maze-approach wall-shift cadence
+  fruitRespawnMs: 2600,
+  fruitTelegraphMs: 600,
+  mazeShiftPeriodMs: 2600,
   mazeTelegraphMs: 700, // purple ECHO glyph preview before a shift
-  fold: {
-    arenaId: 'maze-z4', // the top-down Sweep arena this zone Folds into
+  route: {
+    arenaId: 'maze-z4',
   },
 } as const;
 
 /* -------------------------- Zone 5: Skyline Array ------------------------- */
-// The finale climb: storm-surf UP antenna spires on rising updrafts, dodging a
-// telegraphed lightning clock; the storm sea below is the fail state. Skins are
-// FREQUENCY KEYS — swap (1–5) to pass each Scout's beat. First-person summit +
-// mirror boss. Updrafts LIFT without killing jump/dash (gravity stays on).
+// Signal Storm pressure: lightning timing, Scout frequency beats, and final-node pressure.
 export const UPDRAFT = {
   riseSpeed: 220, // terminal upward speed — high enough that the crest CLEARS the catwalk
   // that spans the shaft so you drop onto it (still below dashSpeed 252, so dash reads faster)
-  accel: 1500, // MUST exceed PLAYER.gravity (900) so the shaft actually lifts (net upward)
+  accel: 1500,
   centerPull: 4.0, // keep you centered so the lift delivers you straight up onto the catwalk
   windStreakMs: 60,
 } as const;
@@ -749,10 +695,9 @@ export const FREQSWAP = {
   swapLockMs: 120, // tiny debounce between swaps
 } as const;
 
-/* -------------------- The Sweep (top-down bonus arena) --------------------- */
-// A separate top-down "radar scope" mode you WARP into for a Signal Storm — you
-// finally see yourself as the blip. Isolated scene (own physics world, gravity 0);
-// never touches the platformer. Rewards feed the existing Signal Shard economy.
+/* ---------------------- Connected Top-Down World -------------------------- */
+// The top-down "radar scope" world: you finally see yourself as the blip.
+// Regions share one scene, one physics setup, and one Signal Shard economy.
 export const SWEEP = {
   tile: 32, // top-down map grid tile size (rooms/corridors authored in tiles)
   cameraZoom: 0.82, // pulled-back top-down view: see more arena, still readable
@@ -896,7 +841,7 @@ export const TEX = {
   tileDirtRock: 'tile-dirt-rock',
   tileDirtBrick: 'tile-dirt-brick',
   tileDirtRoot: 'tile-dirt-root',
-  tilePlatform: 'tile-platform',
+  mossShelf: 'moss-shelf',
   tileHidden: 'tile-hidden',
   cliffEdge: 'cliff-edge',
   grassOverhang: 'grass-overhang',
@@ -986,8 +931,8 @@ export const TEX = {
   bossHead: 'boss-head',
   bossCore: 'boss-core',
   bossBeam: 'boss-beam',
-  // blipstream
-  wavePlatform: 'wave-platform',
+  // signal node kit
+  waveLedge: 'wave-ledge',
   hazardBar: 'hazard-bar',
   nodeSwitch: 'node-switch',
   exitGate: 'exit-gate',
@@ -998,10 +943,10 @@ export const TEX = {
   motelStars: 'motel-stars',
   motelHills: 'motel-hills',
   motelBillboard: 'motel-billboard', // distant highway sign (parallax)
-  neonPlatform: 'neon-platform', // powered sign platform (lit state tinted at runtime)
-  neonPlatformDark: 'neon-platform-dark', // unpowered ghost outline
+  neonBridge: 'neon-bridge', // powered sign bridge (lit state tinted at runtime)
+  neonBridgeDark: 'neon-bridge-dark', // unpowered ghost outline
   powerSwitch: 'power-switch', // shoot to toggle a circuit
-  fuseBox: 'fuse-box', // Blipstream circuit entrance
+  fuseBox: 'fuse-box', // signal machinery prop
   neonSignVacancy: 'neon-vacancy', // the boss sign face
   neonSignDiner: 'neon-diner',
   neonSignMotel: 'neon-motel',
@@ -1036,7 +981,7 @@ export const TEX = {
   fieldSoil: 'field-soil', // buried '#' (plain earth — no per-tile top band)
   fieldStripe: 'field-stripe', // yard-line decor
   trackTile: 'track-tile', // red-cinder track lane
-  bleacherRow: 'bleacher-row', // '=' platform (bleacher step / catwalk)
+  bleacherRow: 'bleacher-row', // bleacher step / catwalk
   pressBox: 'press-box',
   lightTower: 'light-tower', // sweeping-cone anchor
   scoreboard: 'scoreboard', // KNOWN/UNKNOWN threat-meter landmark
@@ -1113,19 +1058,19 @@ export const TEX = {
   sweepMazeHeart: 'sweep-maze-heart', // Zone-4 finale boss: the Maze Heart construct
   sweepShadowLg: 'sweep-shadow-lg', // larger prop ground shadow
   sweepBoltGlow: 'sweep-bolt-glow', // additive halo behind bolts
-  // Zone 4 — Patterson's Orchard (side-view)
+  // Zone 4 — Patterson's Orchard shared props
   orchardSky: 'orchard-sky', // dusk gradient
   orchardStars: 'orchard-stars',
   orchardHills: 'orchard-hills', // distant orchard-row silhouette (parallax)
   orchardBarn: 'orchard-barn', // white barn + green metal roof (parallax landmark)
   appleTree: 'apple-tree', // apple-tree pillar (trunk + foliage + red apples)
-  orchardTrunk: 'orchard-trunk', // tileable apple-tree trunk (backdrop behind the fruit-platform climb)
-  fruitPlatform: 'fruit-platform', // respawning fruit platform ('%')
-  cornWall: 'corn-wall', // side-view corn-maze wall segment (shifts on the beat)
+  orchardTrunk: 'orchard-trunk', // tileable apple-tree trunk backdrop
+  fruitShelf: 'fruit-shelf', // orchard fruit shelf
+  cornWall: 'corn-wall', // corn-maze wall segment
   orchardGround: 'orchard-ground', // '#' ground tile (soil + grass top)
-  orchardPlatform: 'orchard-platform', // '=' branch/plank ledge
+  orchardWalkway: 'orchard-walkway', // branch/plank ledge
   orchardLight: 'orchard-light', // hanging orchard light (purple/red glow)
-  cropGlyph: 'crop-glyph', // glowing crop-circle glyph (side-view decor / maze heart)
+  cropGlyph: 'crop-glyph', // glowing crop-circle glyph / maze heart
   chaff: 'chaff', // drifting chaff mote
   hayBale: 'hay-bale',
   harvestGlyph: 'harvest-glyph', // Harvest Pattern boss rotating crop-symbol
@@ -1184,8 +1129,7 @@ export const TEX = {
   tdLmRoots: 'td-lm-roots',
   tdLmPool: 'td-lm-pool',
   tdLmPoolEmis: 'td-lm-pool-emis',
-  // runtime-canvas (not loaded): sweep-only aliases so LINEAR never touches the
-  // shared glow8/spark/px keys the side-view scenes depend on.
+  // runtime-canvas (not loaded): top-down aliases so LINEAR never touches shared pixel keys.
   tdGlow: 'td-glow',
   tdShadow: 'td-shadow',
   tdLight: 'td-light',
@@ -1367,11 +1311,8 @@ export const EVT = {
   statTick: 'stat:tick',
   uiResume: 'ui:resume',
   uiMainMenu: 'ui:mainmenu',
-  uiReset: 'ui:reset',
   uiOpenSettings: 'ui:open-settings',
   uiStartGame: 'ui:start-game',
-  debugGotoBlipstream: 'debug:goto-blipstream',
-  debugGotoField: 'debug:goto-field',
   debugState: 'debug:state',
   settingsChanged: 'settings:changed',
   padStatus: 'pad:status',

@@ -2,11 +2,11 @@
  * Unified poll-based input: keyboard + gamepad + on-screen touch (Xbox /
  * PlayStation standard mapping), shared by every gameplay scene.
  *
- * Keyboard: A/D + arrows · SPACE/W/↑ jump-hover · SHIFT dash · X/left-click pulse ·
- *           RIGHT-CLICK/Q sonar · E interact · ESC pause (scene-level key event)
- * Gamepad:  stick/dpad move · A jump-hover · X/RT pulse · B interact · Y/LT scan ·
- *           RB/LB dash · START pause · BACK command center
- * Touch:    on-screen D-pad + JUMP/SHOOT/SCAN/DASH/INTERACT buttons feed the
+ * Keyboard: WASD + arrows · SHIFT dash · X/left-click pulse ·
+ *           RIGHT-CLICK/Q sonar · E interact · 1/2/3 or R weapon · ESC pause
+ * Gamepad:  stick/dpad move · A confirm/primary · X/RT pulse · B interact · Y/LT scan ·
+ *           RB/LB dash · stick-click weapon swap · START pause · BACK command center
+ * Touch:    on-screen D-pad + FIRE/SHOOT/SCAN/DASH/INTERACT buttons feed the
  *           shared `touchInput` state (src/ui/TouchControls.ts writes it).
  *
  * Call update() ONCE at the top of scene.update() — it snapshots the pad and
@@ -29,13 +29,15 @@ export class PlayerInput {
   private pad: PadSnapshot | null = null;
   private prevPad: PadSnapshot | null = null;
   private rightScanQueued = false;
+  private weaponSlotQueued: 0 | 1 | 2 | null = null;
+  private weaponNextQueued = false;
   private rightJust = false;
   // one-shot touch edges, consumed each frame in update() (mirrors rightJust)
-  private tJumpJust = false;
   private tDashJust = false;
   private tScanJust = false;
   private tInteractJust = false;
   private tEchoJust = false;
+  private tWeaponNextJust = false;
   private tPauseJust = false;
 
   constructor(scene: Phaser.Scene) {
@@ -43,16 +45,24 @@ export class PlayerInput {
     const kb = scene.input.keyboard;
     if (!kb) throw new Error('keyboard plugin unavailable');
     // right-click fires the sonar — swallow the browser context menu, and queue
-    // the press on the pointerdown edge so even a fast mid-jump click registers.
+    // the press on the pointerdown edge so fast taps register between frames.
     scene.input.mouse?.disableContextMenu();
     scene.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (p.rightButtonDown()) this.rightScanQueued = true;
     });
     this.k = kb.addKeys(
-      { left: 'A', right: 'D', aleft: 'LEFT', aright: 'RIGHT', jump: 'SPACE', jumpW: 'W', jumpUp: 'UP', down: 'S', adown: 'DOWN', dash: 'SHIFT', shoot: 'X', scan: 'Q', interact: 'E', echo: 'F' },
+      {
+        left: 'A', right: 'D', aleft: 'LEFT', aright: 'RIGHT', up: 'SPACE', upW: 'W', upArrow: 'UP',
+        down: 'S', adown: 'DOWN', dash: 'SHIFT', shoot: 'X', scan: 'Q', interact: 'E', echo: 'F',
+        weapon1: 'ONE', weapon2: 'TWO', weapon3: 'THREE', weaponNext: 'R',
+      },
       true,
       true
     ) as Record<string, Key>;
+    kb.on('keydown-ONE', () => { this.weaponSlotQueued = 0; });
+    kb.on('keydown-TWO', () => { this.weaponSlotQueued = 1; });
+    kb.on('keydown-THREE', () => { this.weaponSlotQueued = 2; });
+    kb.on('keydown-R', () => { this.weaponNextQueued = true; });
   }
 
   /** snapshot the gamepad + mouse buttons once per frame (before reading getters) */
@@ -63,17 +73,18 @@ export class PlayerInput {
     this.rightJust = this.rightScanQueued;
     this.rightScanQueued = false;
     // consume queued on-screen touch edges (set by the DOM controls overlay)
-    this.tJumpJust = touchInput.jumpQueued;
     this.tDashJust = touchInput.dashQueued;
     this.tScanJust = touchInput.scanQueued;
     this.tInteractJust = touchInput.interactQueued;
     this.tEchoJust = touchInput.echoQueued;
+    this.tWeaponNextJust = touchInput.weaponNextQueued;
     this.tPauseJust = touchInput.pauseQueued;
-    touchInput.jumpQueued = false;
+    touchInput.primaryQueued = false;
     touchInput.dashQueued = false;
     touchInput.scanQueued = false;
     touchInput.interactQueued = false;
     touchInput.echoQueued = false;
+    touchInput.weaponNextQueued = false;
     touchInput.pauseQueued = false;
     // announce newly-seen controllers (HUD toast + settings panel)
     const id = this.pad?.id ?? null;
@@ -132,33 +143,18 @@ export class PlayerInput {
     return 0;
   }
 
-  /** Vertical move for TOP-DOWN twin-stick: -1 up / 0 / 1 down. W/S/↑/↓ + D-pad +
-   *  LEFT-STICK Y. (Side-view movement ignores this and uses jump/hover instead.) */
+  /** Vertical move for top-down control: -1 up / 0 / 1 down. */
   get moveY(): -1 | 0 | 1 {
-    const up = this.k.jump.isDown || this.k.jumpW.isDown || this.k.jumpUp.isDown || this.padDown(PAD.dpadUp) || this.padAxisY < 0 || touchInput.moveY < 0;
+    const up = this.k.up.isDown || this.k.upW.isDown || this.k.upArrow.isDown || this.padDown(PAD.dpadUp) || this.padAxisY < 0 || touchInput.moveY < 0;
     const down = this.k.down.isDown || this.k.adown.isDown || this.padDown(PAD.dpadDown) || this.padAxisY > 0 || touchInput.moveY > 0;
     if (up && !down) return -1;
     if (down && !up) return 1;
     return 0;
   }
 
-  get jumpDown(): boolean {
-    return this.k.jump.isDown || this.k.jumpW.isDown || this.k.jumpUp.isDown || this.actDown('jump') || touchInput.jumpHeld;
-  }
-
   /** DEV fly-mode: descend (S / ↓ / left-stick down) */
   get flyDownHeld(): boolean {
     return this.k.down.isDown || this.k.adown.isDown || (this.pad?.axes[1] ?? 0) > PAD.deadZone;
-  }
-
-  get jumpJustDown(): boolean {
-    return (
-      Phaser.Input.Keyboard.JustDown(this.k.jump) ||
-      Phaser.Input.Keyboard.JustDown(this.k.jumpW) ||
-      Phaser.Input.Keyboard.JustDown(this.k.jumpUp) ||
-      this.actJust('jump') ||
-      this.tJumpJust
-    );
   }
 
   get dashJustDown(): boolean {
@@ -209,6 +205,28 @@ export class PlayerInput {
 
   get echoJustDown(): boolean {
     return Phaser.Input.Keyboard.JustDown(this.k.echo) || this.actJust('echo') || this.tEchoJust;
+  }
+
+  get weaponNextJustDown(): boolean {
+    const queued = this.weaponNextQueued;
+    this.weaponNextQueued = false;
+    return queued || Phaser.Input.Keyboard.JustDown(this.k.weaponNext) || this.actJust('weaponNext') || this.tWeaponNextJust;
+  }
+
+  get weaponPrevJustDown(): boolean {
+    return this.actJust('weaponPrev');
+  }
+
+  get weaponSlotJustDown(): 0 | 1 | 2 | null {
+    if (this.weaponSlotQueued !== null) {
+      const slot = this.weaponSlotQueued;
+      this.weaponSlotQueued = null;
+      return slot;
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.k.weapon1)) return 0;
+    if (Phaser.Input.Keyboard.JustDown(this.k.weapon2)) return 1;
+    if (Phaser.Input.Keyboard.JustDown(this.k.weapon3)) return 2;
+    return null;
   }
 
   /** START — pause toggle (poll before any early-return in scene.update) */

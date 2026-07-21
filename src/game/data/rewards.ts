@@ -164,7 +164,7 @@ export const REWARDS: RewardDef[] = [
   { id: 'skin-unknown', name: 'True Unknown Frequency', category: 'skin', rarity: 'anomaly', icon: 'skin', flavor: 'The color of a thing that refused to be classified.' },
 
   /* ---- relics (weird trophies) ---- */
-  { id: 'relic-fold', name: 'The Folded Map', category: 'relic', rarity: 'superrare', icon: 'relic', flavor: "Will's map, folded so many ways it hums." },
+  { id: 'relic-route-map', name: 'The Route Map', category: 'relic', rarity: 'superrare', icon: 'relic', flavor: "Will's map, marked so many ways it hums." },
   { id: 'relic-cell', name: 'The Power Cell', category: 'relic', rarity: 'superrare', icon: 'relic', flavor: "Chip's power cell, still holding a charge." },
   { id: 'relic-flare', name: 'The Signal Flare', category: 'relic', rarity: 'epic', icon: 'relic', flavor: "Henry's flare — light for when the lights lie." },
   { id: 'relic-fork', name: 'The Tuning Fork', category: 'relic', rarity: 'epic', icon: 'relic', flavor: "Cameron's fork rings a note the maze remembers." },

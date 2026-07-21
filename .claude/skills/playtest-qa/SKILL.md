@@ -29,4 +29,4 @@ Purpose: after each major feature, verify the game is actually playable.
 - `npm run qa:full` = typecheck + build + e2e. `npm run qa:loop` = bounded QA loop writing `test-results/qa-reports/latest.md` + `history.json`.
 - When a test fails: read the error → inspect code → inspect screenshots if visual → fix the ROOT CAUSE → rerun the failing test → only then continue.
 - Never weaken a test to make it pass (unless the test itself is clearly wrong). Never delete features to go green unless broken AND nonessential. Never expand the game while tests are failing.
-- Screenshot review is strict: player visible, level readable, projectiles readable, HUD legible, Command Center polished, no side-scrolling gameplay accessible, no old cow-abduction concept anywhere.
+- Screenshot review is strict: player visible, region readable, projectiles readable, HUD legible, Command Center polished, connected top-down route intact, no old cow-abduction concept anywhere.

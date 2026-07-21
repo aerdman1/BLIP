@@ -64,10 +64,10 @@ export const TROPHIES: TrophyDef[] = [
     icon: 'trophy-drone',
   },
   {
-    id: 'blipstream-solved',
-    name: 'Submerged & Solved',
-    description: 'Routed a full Blipstream node room.',
-    hint: 'Complete a Blipstream node.',
+    id: 'signal-node-routed',
+    name: 'Node Routed',
+    description: 'Charged a Signal Node and opened the next route.',
+    hint: 'Charge a Signal Node.',
     rarity: 'rare',
     icon: 'trophy-node',
   },
@@ -91,7 +91,7 @@ export const TROPHIES: TrophyDef[] = [
   {
     id: 'sweep-cleared',
     name: 'Storm Chaser',
-    description: 'Cleared a top-down Signal Storm and Folded onward.',
+    description: 'Cleared a top-down Signal Storm route.',
     hint: 'Clear a Signal Storm arena.',
     rarity: 'rare',
     icon: 'trophy-storm',

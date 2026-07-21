@@ -3,14 +3,14 @@
  *
  * Defaults are exactly the `PAD` constants, so out-of-the-box behaviour (and the
  * Playwright gamepad specs) are unchanged. Overrides are GLOBAL — stored in
- * localStorage under `blip_pad_bindings_v1`, not in the per-slot save.
+ * localStorage under `blip_pad_bindings_v1`, separate from the gameplay save.
  *
  * Each action keeps an optional `alt` button (the trigger/bumper fallbacks) so
  * shoot = X *or* RT, dash = RB *or* LB, scan = Y *or* LT keep working.
  */
 import { PAD } from '../config';
 
-export type PadAction = 'jump' | 'shoot' | 'dash' | 'scan' | 'interact' | 'echo' | 'pause' | 'commandCenter';
+export type PadAction = 'primary' | 'shoot' | 'dash' | 'scan' | 'interact' | 'echo' | 'weaponPrev' | 'weaponNext' | 'pause' | 'commandCenter';
 
 export interface PadBinding {
   /** primary standard-mapping button index */
@@ -20,23 +20,27 @@ export interface PadBinding {
 }
 
 export const PAD_ACTIONS: { id: PadAction; label: string }[] = [
-  { id: 'jump', label: 'Jump / Hover' },
-  { id: 'shoot', label: 'Pulse Shot' },
+  { id: 'primary', label: 'Primary / Confirm' },
+  { id: 'shoot', label: 'Fire Weapon' },
   { id: 'dash', label: 'Dash' },
   { id: 'scan', label: 'Sonar (Scan Pulse)' },
   { id: 'interact', label: 'Interact / Enter Node' },
   { id: 'echo', label: 'Echo Blink' },
+  { id: 'weaponPrev', label: 'Previous Weapon' },
+  { id: 'weaponNext', label: 'Next Weapon' },
   { id: 'pause', label: 'Pause' },
   { id: 'commandCenter', label: 'Command Center' },
 ];
 
 const DEFAULTS: Record<PadAction, PadBinding> = {
-  jump: { btn: PAD.jump },
+  primary: { btn: PAD.primary },
   shoot: { btn: PAD.shoot, alt: PAD.shootAlt },
   dash: { btn: PAD.dash, alt: PAD.dashAlt },
   scan: { btn: PAD.scan, alt: PAD.scanAlt },
   interact: { btn: PAD.interact },
   echo: { btn: PAD.dpadUp },
+  weaponPrev: { btn: PAD.leftStick },
+  weaponNext: { btn: PAD.rightStick },
   pause: { btn: PAD.start },
   commandCenter: { btn: PAD.select },
 };

@@ -24,19 +24,20 @@ Full controller support (Xbox / PlayStation, standard mapping) including menu na
 |---|---|---|
 | Move | A / D or ← / → | Left stick · D-pad |
 | Move Up / Down | W / S or ↑ / ↓ | Left stick · D-pad |
-| Dash (Phase Drift) | SHIFT | RB / LT · R1 / L2 |
-| Pulse Shot | X or Left Click | X / RT · ▢ / R2 |
-| Scan Pulse | Q | Y / LB · △ / L1 |
+| Dash (Phase Drift) | SHIFT | RB / LB · R1 / L1 |
+| Fire | X or Left Click | X / RT · ▢ / R2 |
+| Switch Weapon | 1 / 2 / 3 · mouse wheel · R | L-stick / R-stick click |
+| Scan Pulse | Q / Right Click | Y / LT · △ / L2 |
 | Interact / Enter Node | E | B · ○ |
 | Pause | ESC | START · OPTIONS |
 | Command Center | C or TAB | BACK · SHARE |
 | Menus | ↑ ↓ + ENTER | D-pad / stick + A |
-| Debug overlay / tools | F1–F5 | — |
+| Debug overlay / tools | F1–F3 | — |
 | Debug: cycle Signal Skin | F6 | — |
 
-## The Current Top-Down Route
+## Current Route
 
-BLIP is being pivoted into one connected top-down game. The current playable route preserves the existing top-down areas and links them together:
+BLIP currently plays as one route-connected top-down arena chain. It is not one seamless open map yet; each area is a separate top-down arena with fast breach handoffs and shared save/runtime state.
 
 1. **Miller Surface** (`surface-z1`) — rural Area 47 combat/traversal
 2. **Motel Circuit** (`circuit-z2`) — tight neon corridors and powered routes
@@ -44,11 +45,11 @@ BLIP is being pivoted into one connected top-down game. The current playable rou
 4. **Patterson's Orchard Maze** (`maze-z4`) — living corn-maze combat route
 5. **Signal Storm** (`anomaly-01`) — wave-based combat holdout
 
-Progress autosaves to localStorage. The **Command Center** (C) holds the story bible, the Five Signal Scouts, progression, world-area maps, debug/save data, and the AI QA lab.
+Progress autosaves to localStorage. The **Command Center** (C) holds the story bible, the Five Signal Scouts, progression, route-area maps, debug/save data, and the AI QA lab.
 
 ### Ending / Finale
 
-The previous side-scrolling campaign has been removed from live access. Story, bosses, scouts, rewards, and Signal Fragment structure are being ported onto the top-down foundation after the connected route is stable.
+The finale path is the Signal Storm route. Story, bosses, scouts, rewards, and Signal Fragment structure all build on the connected top-down foundation.
 
 ## Tech
 
@@ -78,10 +79,10 @@ The previous side-scrolling campaign has been removed from live access. Story, b
 Gather a scout's 3-piece **Signal Set** (badge · log · relic) in their home zone to **wear their frequency** — CONTACT-47 recolors into that kid and gains their signature ability. Completing a set triggers a **Scout Echo** (the kid, as a character) who hands you the signal. UNKNOWN / CONTACT-47 is the no-tradeoff baseline; each skin is a sidegrade (one strength, one honest tradeoff):
 
 - **WILLOW** (Will, Recon) — wider scan + Recon Ping (outlines enemy cones)
-- **SPARK** (Chip, Engineer) — endless hover + Surge Shot (every 3rd pulse trips switches)
+- **SPARK** (Chip, Engineer) — overdrive economy + Surge Shot concepts for signal devices
 - **ANCHOR** (Henry, Guardian) — +1 hull, reads slower, drops safe zones
-- **ECHO** (Cameron, Trickster) — bouncing shots, Blipstream master
-- **ROCKET** (Danny, Speed) — air-dash, Phase-Strike, glass cannon
+- **ECHO** (Cameron, Trickster) — reflection timing and route-memory master
+- **ROCKET** (Danny, Speed) — faster dash, Phase-Strike, glass cannon
 
 Manage them in **Command Center ▸ Wardrobe**. All five scouts have their Signal Sets placed across the five zones (Will in Miller Field, Chip in Motel Nowhere, Henry at the stadium, Cameron in the orchard, Danny on the Skyline Array). Debug: **F6** unlocks + cycles skins.
 
@@ -89,18 +90,17 @@ Manage them in **Command Center ▸ Wardrobe**. All five scouts have their Signa
 
 The **Command Center** doubles as the dev/design dashboard — in-game via `C`, or standalone (no game, no Phaser) at **`/command-center.html`**. Beyond story/progression it includes:
 
-- **World Areas** — live maps for the connected top-down arenas.
+- **Route Areas** — live maps for the route-connected top-down arenas.
 - **Wardrobe** — every Signal Skin with passive/signature/tradeoff, lock state, and live equip.
-- **Level Atlas** — the real collision/entity grids from `src/game/data/levels.ts` painted as maps.
-- **Bestiary / Arsenal** — every enemy + the CONTACT-47 kit with live tuning numbers from `config.ts`.
-- Plus live save/quest state, zones, build TODO, and AI QA status — all reading the same data the game runs on, so it cannot go stale.
+- **Bestiary / Arsenal** — every enemy, the CONTACT-47 kit, and the live three-weapon foundation from game data.
+- Plus live save/quest state, route-area maps, vertical-slice system status, region-purpose planning, build TODO, and the AI QA checklist — all reading the same data the game runs on.
 
 ## AI QA Pipeline
 
-This project is an experiment in AI-driven development: the game is built, played, screenshotted, debugged and re-verified by automation before a human tests it. Playwright drives a real browser through the full quest loop using real keyboard input plus a `?test=1` Test API (`window.__BLIP_TEST_API__`). Reports land in `test-results/qa-reports/` and surface in the Command Center's **AI QA / Playtest Lab** panel. Human handoff: [PLAYTEST.md](PLAYTEST.md).
+This project is an experiment in AI-driven development: the game is built, played, debugged and re-verified by automation before a human tests it. Playwright drives a real browser through the top-down smoke route using `?test=1` Test API (`window.__BLIP_TEST_API__`). Use `npm run qa:full` for the current gate.
 
 ## Project Guardrails
 
-Development rules live in `.claude/skills/` (game vision, engine rules, art direction, puzzle rules, QA checklist, scope control) and are indexed from [CLAUDE.md](CLAUDE.md).
+Development rules live in `.claude/skills/` (game vision, engine rules, art direction, QA checklist, progression, scope control) and are indexed from [CLAUDE.md](CLAUDE.md).
 
 <!-- vercel-github-linked: 2026-07-12 -->

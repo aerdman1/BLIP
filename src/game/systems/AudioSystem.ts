@@ -51,7 +51,7 @@ function buildTrack(
   };
 }
 
-const TRACKS: Record<'menu' | 'field' | 'motel' | 'blipstream' | 'stadium' | 'underwater' | 'orchard', MusicTrack> = {
+const TRACKS: Record<'menu' | 'field' | 'motel' | 'signal' | 'stadium' | 'underwater' | 'orchard', MusicTrack> = {
   // TITLE — dark analog synthwave. Filtered-saw sub, a hypnotic rising Am arpeggio
   // (Carpenter/Stranger-Things homage, original line), cold saw pads, a lonely lead.
   // Am – F – Dm – E (dark, cinematic).
@@ -127,8 +127,8 @@ const TRACKS: Record<'menu' | 'field' | 'motel' | 'blipstream' | 'stadium' | 'un
       ],
     },
   },
-  // Blipstream — cold digital menace: deep saw sub, tight arpeggio, no lead.
-  blipstream: buildTrack(0.13, 8, [
+  // Signal node pressure — cold digital menace: deep saw sub, tight arpeggio, no lead.
+  signal: buildTrack(0.13, 8, [
     { bass: 33, arp: [60, 67, 72, 67], lead: [0, 0] },
     { bass: 31, arp: [58, 65, 70, 65], lead: [0, 0] },
     { bass: 33, arp: [60, 67, 72, 67], lead: [0, 0] },
@@ -457,13 +457,11 @@ class AudioSystem {
   }
 
   /* -------------------------------- the sounds ------------------------------ */
-  // Volumes are deliberately restrained (shots/jumps fire constantly) and sit
+  // Volumes are deliberately restrained because combat sounds fire constantly and sit
   // above the quieter music bus. Master volume in Settings scales everything.
 
   pulseShot(): void { this.tone(950, 0.06, 'square', 0.13, 320); }
   scanPulse(): void { this.tone(320, 0.42, 'sine', 0.22, 1250); this.tone(320, 0.42, 'sine', 0.09, 1250, 0.05); }
-  jump(): void { this.tone(240, 0.09, 'square', 0.11, 430); }
-  hover(): void { this.tone(140, 0.12, 'triangle', 0.06, 160); }
   dash(): void { this.noise(0.14, 0.15, 2600); this.tone(600, 0.12, 'sawtooth', 0.08, 180); }
   playerHit(): void { this.tone(210, 0.22, 'sawtooth', 0.26, 70); this.noise(0.18, 0.18, 900); }
   enemyHit(): void { this.tone(500, 0.05, 'square', 0.15, 350); }
@@ -494,7 +492,7 @@ class AudioSystem {
     this.tone(784, 0.08, 'triangle', 0.12);
     this.tone(1175, 0.12, 'triangle', 0.1, undefined, 0.07);
   }
-  transitionWarp(): void { this.tone(200, 0.5, 'sawtooth', 0.16, 1600); this.noise(0.5, 0.15, 3200); }
+  transitionRoute(): void { this.tone(200, 0.5, 'sawtooth', 0.16, 1600); this.noise(0.5, 0.15, 3200); }
   hazardZap(): void { this.tone(1800, 0.09, 'square', 0.13, 300); this.noise(0.1, 0.13, 4000); }
   questAdvance(): void { this.tone(587, 0.09, 'sine', 0.17); this.tone(880, 0.14, 'sine', 0.17, undefined, 0.07); }
 }

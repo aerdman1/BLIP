@@ -87,10 +87,7 @@ export class RewardUI {
   private prevPad: ReturnType<typeof readPad> = null;
   private prevPadX = 0;
 
-  private gameplayScenes = [
-    SCENES.field, SCENES.motel, SCENES.stadium, SCENES.underwater,
-    SCENES.orchard, SCENES.skyline, SCENES.blipstream, SCENES.sweep,
-  ];
+  private gameplayScenes = [SCENES.sweep];
 
   constructor(game: Phaser.Game) {
     this.game = game;
@@ -777,7 +774,7 @@ export class RewardUI {
     const xEdge = x !== 0 && x !== this.prevPadX ? x : 0;
     if (pad) {
       if (this.cacheOpen) {
-        if (this.padJust(pad, PAD.jump) || this.padJust(pad, PAD.interact) || this.padJust(pad, PAD.start)) {
+        if (this.padJust(pad, PAD.primary) || this.padJust(pad, PAD.interact) || this.padJust(pad, PAD.start)) {
           if (this.cacheState === 'summary') this.closeCacheScreen();
           else this.cacheActivate();
         } else if (this.padJust(pad, PAD.select)) {

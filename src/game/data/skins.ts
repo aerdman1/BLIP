@@ -1,5 +1,5 @@
 /**
- * SIGNAL SKINS — single source of truth (see SCOUT_SKINS_PLAN.md).
+ * SIGNAL SKINS — single source of truth for scout sidegrade skins.
  * Each skin recolors CONTACT-47 into a scout and grants that scout's signature
  * ability drawn from their zone mechanic. UNKNOWN / CONTACT-47 is the baseline
  * with no tradeoffs. ALL tuning lives here — Player/CC read, never hardcode.
@@ -14,7 +14,6 @@ export interface SkinMods {
   pulseCooldownMul?: number;
   energyMaxMul?: number;
   energyRegenMul?: number;
-  hoverDrainMul?: number;
   runSpeedMul?: number;
   dashCooldownMul?: number;
   dashSpeedMul?: number;
@@ -30,7 +29,7 @@ export interface SkinAbilities {
   anchorField?: boolean; // ANCHOR — plant a healing/declassify zone
   slowRegen?: boolean; // ANCHOR — heal while still, out of cones
   echoShot?: boolean; // ECHO — pulses bounce once
-  airDash?: boolean; // ROCKET — one extra mid-air dash
+  overdriveDash?: boolean; // ROCKET — dash kills feed the pressure loop
   phaseStrike?: boolean; // ROCKET — dashing through a drone damages it
 }
 
@@ -74,7 +73,7 @@ export const SKINS: SkinDef[] = [
     color: P.scoutWill,
     klass: 'Recon',
     fantasy: 'See the safe path and the enemy’s eyes.',
-    passive: 'Wider, faster scan; revealed platforms & route markers stay revealed until you leave the room.',
+    passive: 'Wider, faster scan; revealed caches and route markers stay visible longer.',
     signature: 'Recon Ping — a scan also outlines every detection cone and aggro radius for a few seconds.',
     tradeoff: 'Pulse damage ×0.9 — a scout, not a fighter.',
     bestIn: 'Chagrin Falls High (stealth) and any hidden-route content.',
@@ -88,12 +87,12 @@ export const SKINS: SkinDef[] = [
     scoutName: 'Chip',
     color: P.scoutChip,
     klass: 'Engineer',
-    fantasy: 'Endless hover, overcharged shots, live off machines.',
-    passive: 'Big energy pool + faster regen + cheaper hover. Standing near signal boxes fast-recharges energy.',
+    fantasy: 'Overcharged shots, machine logic, live off the circuit.',
+    passive: 'Bigger overdrive economy and steadier fire tempo near signal machinery.',
     signature: 'Surge Shot — every 3rd pulse is a SURGE (×2 dmg, instantly trips node switches).',
     tradeoff: 'Dash cooldown ×1.15 — relies on thrusters, not dashes.',
-    bestIn: 'Motel Nowhere (powered-sign platforming) and Blipstream node puzzles.',
-    mods: { energyMaxMul: 1.5, energyRegenMul: 1.4, hoverDrainMul: 0.8, dashCooldownMul: 1.15 },
+    bestIn: 'Motel Circuit and node-charge fights.',
+    mods: { energyMaxMul: 1.5, energyRegenMul: 1.4, dashCooldownMul: 1.15 },
     abilities: { surgeShot: true, machineRecharge: true },
   },
   {
@@ -118,11 +117,11 @@ export const SKINS: SkinDef[] = [
     scoutName: 'Cameron',
     color: P.scoutCameron,
     klass: 'Trickster',
-    fantasy: 'Shots that bounce; master of the Blipstream.',
-    passive: 'Faster pulse cadence. In the Blipstream, node switches stay lit longer.',
-    signature: 'Echo Shot — pulse shots bounce once off geometry.',
+    fantasy: 'Reflection timing and route memory.',
+    passive: 'Faster weapon cadence. Scanned route markers linger longer.',
+    signature: 'Echo Shot — signal shots bounce once off geometry.',
     tradeoff: 'Scan radius ×0.9 — reads patterns, not terrain.',
-    bestIn: 'The Blipstream everywhere and Patterson’s Orchard (route-memory).',
+    bestIn: "Patterson's Orchard and tight route fights.",
     mods: { pulseCooldownMul: 0.9, scanRadiusMul: 0.9 },
     abilities: { echoShot: true },
   },
@@ -134,12 +133,12 @@ export const SKINS: SkinDef[] = [
     color: P.scoutDanny,
     klass: 'Speed',
     fantasy: 'Dash king / glass cannon.',
-    passive: 'Much shorter dash cooldown, faster dash & run, longer i-frames, and an extra mid-air dash.',
+    passive: 'Much shorter dash cooldown, faster dash and movement, longer i-frames.',
     signature: 'Phase-Strike — dashing through a drone damages it and leaves a burning afterimage.',
     tradeoff: '−1 max hull (glass cannon); the Engine reads you 20% faster (you run hot).',
-    bestIn: 'Skyline Array (dash-heavy vertical) and speed challenges.',
+    bestIn: 'Signal Storm and speed challenges.',
     mods: { dashCooldownMul: 0.55, dashSpeedMul: 1.15, runSpeedMul: 1.15, maxHpDelta: -1, classifyFillMul: 1.2 },
-    abilities: { airDash: true, phaseStrike: true },
+    abilities: { overdriveDash: true, phaseStrike: true },
   },
 ];
 
@@ -158,7 +157,7 @@ export interface RelicDef {
 }
 
 export const RELICS: RelicDef[] = [
-  { scoutId: 'will', name: 'the Folded Map', color: P.scoutWill },
+  { scoutId: 'will', name: 'the Route Map', color: P.scoutWill },
   { scoutId: 'chip', name: 'the Power Cell', color: P.scoutChip },
   { scoutId: 'henry', name: 'the Signal Flare', color: P.scoutHenry },
   { scoutId: 'cameron', name: 'the Tuning Fork', color: P.scoutCameron },

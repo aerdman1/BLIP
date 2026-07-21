@@ -27,7 +27,6 @@ const CORE_URLS = [
   '/assets/topdown/td-path.webp',
   '/assets/topdown/td-wall-top.webp',
   '/assets/topdown/td-wall-face.webp',
-  '/qa-status.json',
 ];
 
 async function putIfOk(cache, url) {

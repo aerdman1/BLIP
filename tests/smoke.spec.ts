@@ -1,6 +1,6 @@
 /**
  * SMOKE — app loads, no console errors, canvas exists, menu appears,
- * game starts, Command Center opens, reset save works.
+ * game starts, Command Center opens, route warps work.
  */
 import { expect, test } from '@playwright/test';
 import { api, bootToMenu, startGame, watchConsole } from './helpers';
@@ -46,26 +46,53 @@ test('top-down route transitions preserve SweepScene and advance save zone', asy
   await api(page, `api.enterSweep('surface-z1')`);
   expect(await api(page, `api.getSceneName()`)).toBe('SweepScene');
   expect(await api(page, 'api.getSaveData().currentZone')).toBe('miller-field');
+  await page.keyboard.press('2');
+  await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSweepRuntimeState().weaponId === 'arc');
+  await page.keyboard.press('3');
+  await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSweepRuntimeState().weaponId === 'disc');
+  await page.keyboard.press('R');
+  await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSweepRuntimeState().weaponId === 'pulse');
+  await api(page, `api.setSweepWeapon('arc')`);
+  await api(page, 'api.damageSweepPlayer(2)');
+  expect(await api(page, 'api.getSweepRuntimeState().weaponId')).toBe('arc');
+  expect(await api(page, 'api.getSweepRuntimeState().hp')).toBe(3);
 
-  await api(page, 'api.completeBlipstreamPuzzle()');
+  await api(page, 'api.completeRoute()');
   await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSaveData().currentZone === 'motel-nowhere');
   expect(await api(page, `api.getSceneName()`)).toBe('SweepScene');
+  expect(await api(page, 'api.getSweepRuntimeState().weaponId')).toBe('arc');
+  expect(await api(page, 'api.getSweepRuntimeState().hp')).toBe(3);
 
-  await api(page, 'api.completeBlipstreamPuzzle()');
+  await api(page, 'api.completeRoute()');
   await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSaveData().currentZone === 'tiger-stadium');
   expect(await api(page, `api.getSceneName()`)).toBe('SweepScene');
+  expect(await api(page, 'api.getSweepRuntimeState().weaponId')).toBe('arc');
+  expect(await api(page, 'api.getSweepRuntimeState().hp')).toBe(3);
+
+  await api(page, 'api.completeRoute()');
+  await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSaveData().currentZone === 'pattersons-orchard');
+  expect(await api(page, `api.getSceneName()`)).toBe('SweepScene');
+  expect(await api(page, 'api.getSweepRuntimeState().weaponId')).toBe('arc');
+  expect(await api(page, 'api.getSweepRuntimeState().hp')).toBe(3);
+
+  await api(page, 'api.completeRoute()');
+  await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSaveData().currentZone === 'skyline-array');
+  expect(await api(page, `api.getSceneName()`)).toBe('SweepScene');
+  expect(await api(page, 'api.getSweepRuntimeState().weaponId')).toBe('arc');
+  expect(await api(page, 'api.getSweepRuntimeState().hp')).toBe(3);
 });
 
-test('reset save from the pause menu clears progress', async ({ page }) => {
+test('quit to menu preserves autosave and dev warp buttons jump regions', async ({ page }) => {
   await bootToMenu(page);
   await startGame(page);
   await api(page, `api.enterZone('motel-nowhere')`);
   expect(await api(page, 'api.getSaveData().currentZone')).toBe('motel-nowhere');
   page.on('dialog', (d) => void d.accept());
-  // RESET SAVE now lives in the pause menu (removed from the player-facing top bar)
   await page.keyboard.press('Escape');
-  await page.click('#pause-reset');
-  await page.waitForLoadState('load');
-  await page.waitForFunction(() => !!(window as never as Record<string, unknown>).__BLIP_TEST_API__);
-  expect(await api(page, 'api.getSaveData().currentZone')).toBe('miller-field');
+  await page.click('#pause-quit-menu');
+  await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSceneName() === 'MainMenuScene');
+  expect(await api(page, 'api.getSaveData().currentZone')).toBe('motel-nowhere');
+  await page.click('#menu-warp-pattersons-orchard');
+  await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSceneName() === 'SweepScene');
+  expect(await api(page, 'api.getSaveData().currentZone')).toBe('pattersons-orchard');
 });

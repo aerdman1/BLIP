@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 /**
- * BLIP top-down art pipeline - Phase 3 verification gate.
+ * BLIP top-down art pipeline verification gate.
  *
- * Implements TOPDOWN_VISUAL_PLAN.md "Verification procedures established in
- * this phase". Fails (exit 1) unless:
+ * Fails (exit 1) unless:
  *
  *  1. Every file under public/assets/topdown/ has a row in ASSET_SOURCES.md
  *     (external original) or GENERATED_ASSETS.md (PIL-produced), matched by

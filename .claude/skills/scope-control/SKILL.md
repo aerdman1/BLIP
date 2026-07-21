@@ -1,6 +1,6 @@
 ---
 name: scope-control
-description: Prevents feature creep in BLIP — the vertical slice (Miller Field) ships before anything else. Consult before adding any new system, zone, or content type.
+description: Prevents feature creep in BLIP — polish the connected top-down vertical slice before adding large new regions or systems.
 ---
 
 # Scope Control
@@ -9,7 +9,7 @@ Purpose: prevent runaway feature creep.
 
 ## Rules
 
-- Do NOT add large new regions until the connected top-down route is stable.
+- Do NOT add large new regions until the connected top-down route is genuinely fun, readable, and stable.
 - Do NOT add complex inventory today.
 - Do NOT add crafting.
 - Do NOT add dialogue trees.
@@ -17,7 +17,8 @@ Purpose: prevent runaway feature creep.
 - Do NOT add procedural world generation beyond small reusable patterns.
 - Do NOT add a WebGPU gameplay dependency (detection badge in Command Center only).
 - Do NOT expand story cutscenes today (scout logs are short text popups, not cutscenes).
-- Finish the top-down baseline first: movement/combat → Miller Surface → Motel Circuit → Chagrin town connector → Orchard Maze → Signal Storm → save → Command Center.
+- Current baseline: Miller Surface → Motel Circuit → Chagrin Falls Town → Orchard Maze → Signal Storm is connected and top-down-only. Improve this route before expanding it.
+- Phase Shift, stealth, weapon-specific secrets, and mutation trees should land as scoped, tested passes rather than one giant rewrite.
 
 ## Decision Test
 

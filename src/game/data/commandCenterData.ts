@@ -1,14 +1,23 @@
 /**
  * Command Center copy — mechanics, controls, build checklist, art direction.
- * Keep this file in sync with what is actually implemented (playtest-qa skill).
+ * Keep this file in sync with what is actually implemented.
  */
 
 export const PITCH =
-  'BLIP is a side-scrolling pixel signal adventure: you are CONTACT-47, the thing on the radar, ' +
-  'platforming through dreamlike rural dusk to collect Signal Fragments before the Interpretation Engine finishes deciding what you are.';
+  'BLIP is a top-down pixel signal adventure: you are CONTACT-47, the thing on the radar, ' +
+  'moving through route-connected Chagrin Falls-inspired signal zones before the Interpretation Engine finishes deciding what you are.';
 
 export const TAGLINE = 'You are the thing on the radar.';
-export const SUBTITLE = 'A pixel signal adventure about staying unknown.';
+export const SUBTITLE = 'A top-down pixel signal adventure about staying unknown.';
+
+export const CURRENT_STATUS = [
+  'Top-down-only route-connected arena chain is live: Miller Surface → Motel Circuit → Chagrin Falls Town → Patterson’s Orchard → Signal Storm.',
+  'This is not a seamless single-map world yet. Areas still restart the same Phaser scene through fast breach handoffs.',
+  'One canonical save exists at localStorage blip_save_v1; no alternate save files or file picker are part of the game.',
+  'Region transitions preserve runtime health, equipped weapon, overdrive, boons, inventory/save progress and world flags.',
+  'Current weapon foundation is Pulse Carbine, Arc Blade and Recall Disc. Older weapon names are future mutation ideas, not live standalone weapons.',
+  'Vertical-slice audit says the current world can support a focused polish pass now; defer major map expansion until combat, rewards and objectives are stronger.',
+];
 
 export interface MechanicDef {
   name: string;
@@ -16,23 +25,16 @@ export interface MechanicDef {
 }
 
 export const MECHANICS: MechanicDef[] = [
-  { name: 'Run / Jump / Hover', description: 'Momentum platforming with coyote time and jump buffering. Hold JUMP in the air to hover on thrusters — it drains signal energy, which refills on the ground.' },
-  { name: 'Phase Drift (Dash)', description: 'A short dash with afterimages and brief invulnerability. Dash through bolts, across pits, and out of red cones.' },
-  { name: 'Pulse Shot', description: 'Your only weapon and your puzzle tool: damages drones, cracks the boss core, and activates Blipstream node switches.' },
-  { name: 'Scan Pulse', description: 'An expanding ring that reveals what the Interpretation Engine cannot see: hidden platforms, Will’s route markers, scout caches — and the boss’s weak point.' },
-  { name: 'Detection & Classification', description: 'Red cones do not see you — they decide you. Standing in one fills the classification meter: UNKNOWN → ANOMALY → THREAT. At THREAT, drones believe the label and attack harder. It decays when you stay out of the light.' },
-  { name: 'Blipstream Nodes', description: 'Beam into the inside of the Signal: abstract waveform rooms of glowing platforms, red static and routing logic. Solving a node changes Miller Field outside.' },
-  { name: 'Scout Trails', description: 'The Five Signal Scouts left badges, logs and markers. Scanning strange places reveals their paths; collecting their things unlocks their Command Center files.' },
-  { name: 'Boss: Scan → Expose → Pulse', description: 'The Scarecrow Antenna hides its core. Scan to expose it for a few seconds, then hit it with pulse shots while dodging rotating beams and radial static.' },
-  { name: 'Top-down Scan (combat mode)', description: 'The perspective-shift half of BLIP. The Interpretation Engine "surfaces" you onto its overhead SCAN — the same terrain seen from above — where the pressure becomes twin-stick combat: roam an open space (camera follows), AIM with the mouse, and blast the drones trying to tag you. Slain drones drop pickups (health / SPREAD / RAPID); a "heat" meter ramps the hunt the longer you linger. Reach the BREACH to Fold onward.' },
-  { name: 'The Fold', description: 'BLIP’s signature transition between side-view and top-down. A flash-masked collapse (signal bloom + static + a camera punch) hands off between the two views — fiction: the Engine changing HOW it observes you. The game cold-opens in the top-down Scan, then Folds down into Miller Field.' },
-  { name: 'Charge the Node', description: 'The top-down objective: the central Signal Node must be CHARGED before the BREACH opens. Killing drones charges it — kills right next to the node count double. Turns "walk to the exit" into a real fight for the middle of the arena.' },
-  { name: 'Scout Boons', description: 'The Five Signal Scouts lend you their frequencies mid-fight. Scout-colored boons (dropped by the Elite) grant a run buff in that scout’s style: WILLOW wider scan + reveals every cache · SPARK rapid fire · ANCHOR heal + shield · ECHO spread shot · ROCKET fire-rate overdrive.' },
-  { name: 'Signal Caches (Scan secrets)', description: 'Hidden caches lie buried in the top-down arena, invisible until a SCAN pulse reveals and grabs them for a shard payout — Scan does double duty as a treasure-finder, not just a stun.' },
-  { name: 'The Classifier (Elite)', description: 'A tanky elite drone guards the node and sweeps a telegraphed scan-beam — an amber wind-up locks its aim, then a red beam fires; get caught and your heat spikes hard. Kill it for a guaranteed Scout Boon + shard cache. Dodge the beam with a well-timed dash.' },
-  { name: 'Dash-chain (Phase flow)', description: 'A Phase-Strike kill (dashing through a drone with the ROCKET set) instantly refunds your dash — chain dashes through a whole pack for a euphoric flow, the way the best twin-stick shooters reward aggression.' },
-  { name: 'Weapon Roster (top-down)', description: 'One gun forever is boring — the Scan mode carries a real arsenal, swapped by pickups dropped mid-fight. PULSE (accurate single bolt, the default) · SCATTER (shotgun spray — six short-range pellets) · REPEATER (machine-gun stream, fast + loose) · LANCE (piercing spear that skewers a whole line of drones) · ECHO ARC (ricochet bolt that bounces off walls). Grab a weapon pickup to equip it; PULSE is always your fallback. Scout Boons still layer buffs on top (SPARK→Repeater, ECHO→Arc).' },
-  { name: 'Signal Overdrive (ultimate)', description: 'Your ultimate. The OVERDRIVE meter charges as you kill — combo kills charge it faster. At full, press [E] to detonate: a signal shockwave clears nearby drones instantly, then ~4 seconds of doubled fire-rate. The meter drains on use and rebuilds from the next kills. Save it for when the arena swarms.' },
+  { name: 'Move / Aim / Fire', description: 'The whole game uses one top-down controller: 8-directional movement, mouse or right-stick aim, and responsive combat.' },
+  { name: 'Phase Drift', description: 'A short dash with afterimages and brief invulnerability. Use it to cut through pressure, reposition, and dodge Classifier beams.' },
+  { name: 'Scan Pulse', description: 'An expanding ring that stuns nearby threats, reveals caches and scout marks, and makes hidden signal routes readable.' },
+  { name: 'Route-Connected Areas', description: 'Miller Surface, Motel Circuit, Chagrin Falls Town, Patterson’s Orchard, and Signal Storm are separate top-down arena maps linked by gates, roads, trails, bridges, and signal breaches.' },
+  { name: 'Charge the Node', description: 'Each area centers on a Signal Node. Clearing threats charges it; charged nodes open the next route.' },
+  { name: 'Scout Trails', description: 'The Five Signal Scouts left badges, logs, relics, portraits, and route hints. Their frequencies unlock sidegrade skins and in-run boons.' },
+  { name: 'Signal Caches', description: 'Buried caches become collectible when scanned. They feed shards, cosmetics, trophy progress, and reward archive entries.' },
+  { name: 'The Classifier', description: 'Elite signal drones patrol important areas with telegraphed beams. If the beam catches you, pressure spikes fast.' },
+  { name: 'Weapon Roster', description: 'Pulse Carbine, Arc Blade, and Recall Disc create the current ranged, melee/parry, and positioning playstyles. Weapon pickups show their name and role in-world.' },
+  { name: 'Signal Overdrive', description: 'Kills charge an ultimate shockwave and short rapid-fire window. Save it for swarms or node pushes.' },
 ];
 
 export interface ControlRow {
@@ -41,60 +43,57 @@ export interface ControlRow {
 }
 
 export const CONTROLS_FIELD: ControlRow[] = [
-  { action: 'Move', keys: 'A / D or ← / →' },
-  { action: 'Jump', keys: 'SPACE / W / ↑' },
-  { action: 'Hover', keys: 'hold JUMP in the air' },
-  { action: 'Dash (Phase Drift)', keys: 'SHIFT' },
-  { action: 'Pulse Shot', keys: 'X or LEFT CLICK' },
-  { action: 'Scan Pulse', keys: 'Q or RIGHT CLICK' },
-  { action: 'Interact / Enter Node', keys: 'E' },
-  { action: 'Echo Blink (place / return)', keys: 'F' },
+  { action: 'Move', keys: 'WASD / arrows' },
+  { action: 'Aim', keys: 'Mouse' },
+  { action: 'Fire', keys: 'Left click / X' },
+  { action: 'Switch weapon', keys: '1 / 2 / 3 · mouse wheel · R' },
+  { action: 'Dash', keys: 'SHIFT' },
+  { action: 'Scan Pulse', keys: 'Q / right click' },
+  { action: 'Interact / Overdrive', keys: 'E' },
+  { action: 'Scout Echo', keys: 'F' },
   { action: 'Command Center', keys: 'C or TAB' },
   { action: 'Pause', keys: 'ESC' },
 ];
 
-export const CONTROLS_BLIPSTREAM: ControlRow[] = [
-  { action: 'Move / Jump / Hover / Dash', keys: 'same as field' },
-  { action: 'Activate node switch', keys: 'PULSE SHOT [X]' },
-  { action: 'Exit through the gate', keys: 'E at the open gate' },
+export const CONTROLS_ROUTES: ControlRow[] = [
+  { action: 'Signal routes', keys: 'walk into a charged breach' },
+  { action: 'Area handoff', keys: 'save, health, weapons, inventory and flags persist' },
 ];
 
 export const CONTROLS_GAMEPAD: ControlRow[] = [
   { action: 'Move', keys: 'Left stick / D-pad' },
-  { action: 'Jump / Hover', keys: 'A · ✕ (hold to hover)' },
+  { action: 'Aim', keys: 'Right stick' },
+  { action: 'Fire', keys: 'X / RT · Square / R2' },
+  { action: 'Switch weapon', keys: 'L-stick / R-stick click' },
   { action: 'Dash', keys: 'RB / LB · R1 / L1' },
-  { action: 'Pulse Shot', keys: 'X / RT · ▢ / R2' },
-  { action: 'Scan Pulse', keys: 'Y / LT · △ / L2' },
-  { action: 'Interact / Enter Node', keys: 'B · ○' },
-  { action: 'Echo Blink (place / return)', keys: 'D-pad Up' },
+  { action: 'Scan Pulse', keys: 'Y / LT · Triangle / L2' },
+  { action: 'Interact / Overdrive', keys: 'B · Circle' },
   { action: 'Pause', keys: 'START · OPTIONS' },
   { action: 'Command Center', keys: 'BACK · SHARE' },
-  { action: 'Menus', keys: 'D-pad / stick + A · ✕' },
+  { action: 'Menus', keys: 'D-pad / stick + A · Cross' },
 ];
 
-// On-screen touch controls (tablets). Appear automatically on touch devices;
-// force on/off in Settings ▸ ON-SCREEN CONTROLS.
 export const CONTROLS_TOUCH: ControlRow[] = [
-  { action: 'Move', keys: 'virtual stick (bottom-left)' },
-  { action: 'Jump / Hover', keys: 'JUMP button (hold to hover)' },
-  { action: 'Pulse Shot', keys: '◎ button (hold to auto-fire)' },
-  { action: 'Sonar (Scan)', keys: '((·)) button' },
+  { action: 'Move', keys: 'virtual stick' },
+  { action: 'Fire', keys: 'large FIRE button' },
+  { action: 'Fire / Carbine', keys: '◎ button' },
+  { action: 'Switch weapon', keys: 'WPN button' },
+  { action: 'Scan', keys: '((·)) button' },
   { action: 'Dash', keys: '» button' },
-  { action: 'Interact / Enter Node', keys: 'E button' },
-  { action: 'Pause', keys: '❚❚ pip (top-right)' },
-  { action: 'Top-down fire', keys: 'large FIRE button; auto-aims nearest threat' },
+  { action: 'Interact / Overdrive', keys: 'E button' },
+  { action: 'Pause', keys: 'pause pip' },
 ];
 
-// Top-down "Scan" mode (the Fold flips you here) — twin-stick.
 export const CONTROLS_SWEEP: ControlRow[] = [
-  { action: 'Move (8-directional)', keys: 'WASD / arrows · Left stick' },
-  { action: 'Aim', keys: 'Mouse · Right stick' },
-  { action: 'Fire (auto toward aim)', keys: 'LEFT CLICK / X · RT · ▢' },
-  { action: 'Dash (Phase Drift, i-frames)', keys: 'SHIFT · RB / LB' },
-  { action: 'Scan (clear / stun / reveal caches)', keys: 'Q / RIGHT CLICK · Y / LT' },
-  { action: 'Signal Overdrive (when meter full)', keys: 'E · B / ○' },
+  { action: 'Move', keys: 'WASD / arrows · left stick' },
+  { action: 'Aim', keys: 'Mouse · right stick' },
+  { action: 'Fire', keys: 'Left click / X · RT' },
+  { action: 'Switch weapon', keys: '1 / 2 / 3 · mouse wheel · R · stick-clicks · WPN' },
+  { action: 'Dash', keys: 'SHIFT · shoulder button' },
+  { action: 'Scan', keys: 'Q / right click · Y / LT' },
+  { action: 'Overdrive', keys: 'E · B / Circle' },
   { action: 'Swap weapon', keys: 'walk over a weapon pickup' },
-  { action: 'Reach the BREACH', keys: 'walk into it → the Fold' },
+  { action: 'Advance route', keys: 'enter the open breach' },
   { action: 'Pause', keys: 'ESC · START' },
 ];
 
@@ -102,14 +101,8 @@ export const CONTROLS_DEBUG: ControlRow[] = [
   { action: 'Toggle debug overlay', keys: 'F1' },
   { action: 'Reset current quest', keys: 'F2' },
   { action: 'Give Signal Fragment', keys: 'F3' },
-  { action: 'Jump to Blipstream node', keys: 'F4' },
-  { action: 'Return to side-view (from Blipstream)', keys: 'F5' },
-  { action: 'Cycle skins (unlock all)', keys: 'F6' },
-  { action: 'Warp → Signal Storm (waves arena)', keys: 'F7' },
-  { action: 'Warp → Miller Field (TOP-DOWN)', keys: 'F8' },
-  { action: 'Warp → Miller Field (SIDE-VIEW)', keys: 'F9' },
-  { action: 'Teleport to Breach (preview the Fold)', keys: 'F10' },
-  { action: 'God mode (dev build)', keys: 'G' },
+  { action: 'Cycle skins', keys: 'F6' },
+  { action: 'God mode', keys: 'G' },
 ];
 
 export interface TodoItem {
@@ -117,95 +110,144 @@ export interface TodoItem {
   done: boolean;
 }
 
-// Build TODO — updated as implementation lands. Do not let this go stale.
+export interface SliceSystemItem {
+  name: string;
+  status: 'PLAYABLE' | 'IN DEVELOPMENT' | 'PLANNED' | 'NEEDS ASSETS' | 'NEEDS POLISH' | 'TESTED' | 'DEFERRED';
+  note: string;
+}
+
+export const VERTICAL_SLICE_SYSTEMS: SliceSystemItem[] = [
+  { name: 'Connected top-down route chain', status: 'TESTED', note: 'Separate arena maps linked by fast breach handoffs; not a seamless open map.' },
+  { name: 'Single-save flow', status: 'TESTED', note: 'Main menu has Continue/New Game only; pause has Quit to Menu, which resumes from autosave.' },
+  { name: 'Dev region warps', status: 'PLAYABLE', note: 'Local/test menu warp buttons jump to each current region for fast QA.' },
+  { name: 'Pulse Carbine', status: 'PLAYABLE', note: 'Fast ranged fire; every fifth standard shot pierces.' },
+  { name: 'Arc Blade', status: 'PLAYABLE', note: 'Close-range combo foundation with parry/reflection behavior.' },
+  { name: 'Recall Disc', status: 'PLAYABLE', note: 'Outbound and return damage path for positioning-focused combat.' },
+  { name: 'Fast weapon switching', status: 'PLAYABLE', note: 'Keyboard 1/2/3/R, mouse wheel, gamepad stick-clicks and touch WPN.' },
+  { name: 'Major loot presentation', status: 'NEEDS POLISH', note: 'Weapon pickups show names/roles; full compare/equip/store/salvage flow is not built yet.' },
+  { name: 'Phase Shift', status: 'PLANNED', note: 'Signature teleport/traversal ability; do not treat current Phase Drift dash as final Phase Shift.' },
+  { name: 'Enemy combat roles', status: 'PLANNED', note: 'Add only a few roles that force weapon switching or Phase Shift counterplay.' },
+  { name: 'Signal Tube', status: 'PLANNED', note: 'One simple traversal route first; future branching deferred.' },
+  { name: 'Gravity Well', status: 'PLANNED', note: 'One launch/pull puzzle first; combat combinations deferred.' },
+  { name: 'Phase Door', status: 'PLANNED', note: 'Frequency barrier gated by scan/Phase Shift rules.' },
+  { name: 'Signal Rail', status: 'DEFERRED', note: 'Track in the design, but do not build until the slice needs faster traversal.' },
+  { name: 'Scout Contraptions', status: 'PLANNED', note: 'One story-tied route device or secret opener in the first slice.' },
+  { name: 'Raised / underground spaces', status: 'PLANNED', note: 'Use controlled 2.5D entry/exit states, not full 3D physics.' },
+];
+
+export interface RegionPlanItem {
+  region: string;
+  purpose: string;
+  objective: string;
+  traversal: string;
+  combat: string;
+  secret: string;
+  connection: string;
+  state: string;
+}
+
+export const REGION_VERTICAL_SLICE_PLAN: RegionPlanItem[] = [
+  {
+    region: 'Miller Surface',
+    purpose: 'Onboarding, exploration and first cache read',
+    objective: 'Wake CONTACT-47, recover a Scout cache and charge the first Signal Node.',
+    traversal: 'Road east into the Motel Circuit breach.',
+    combat: 'Pulse Carbine fundamentals against readable drones.',
+    secret: 'Early Scout marker / Phase Door candidate.',
+    connection: 'Miller road exits toward Motel Circuit.',
+    state: 'PLAYABLE; needs objective polish.',
+  },
+  {
+    region: 'Motel Circuit',
+    purpose: 'Scanner avoidance and controlled pressure',
+    objective: 'Infiltrate the motel signal field and disable its node.',
+    traversal: 'Parking-lot route into town streets; Signal Tube candidate.',
+    combat: 'Arc Blade parry timing and scanner beam counterplay.',
+    secret: 'Stealth reward behind a detection route.',
+    connection: 'Motel access road feeds Chagrin Falls Town.',
+    state: 'PLAYABLE; stealth rules need a scoped pass.',
+  },
+  {
+    region: 'Chagrin Falls Town',
+    purpose: 'Cover-based street combat and weapon switching',
+    objective: 'Clear corrupted town streets and recover a prototype weapon signal.',
+    traversal: 'Town gate / bridge path toward Patterson’s Orchard.',
+    combat: 'Mix Pulse pressure, Arc close control and Recall Disc pathing.',
+    secret: 'Recall Disc distant switch / weapon-specific reward.',
+    connection: 'Town edge road leads to orchard route.',
+    state: 'PLAYABLE; needs encounter composition polish.',
+  },
+  {
+    region: "Patterson's Orchard",
+    purpose: 'Traversal puzzle and route memory',
+    objective: 'Redirect the orchard signal and open the storm route.',
+    traversal: 'Gravity Well or raised-barn destination candidate.',
+    combat: 'Recall Disc crowd-control lanes and moving pressure.',
+    secret: 'Hidden Scout shelter or underground signal pocket.',
+    connection: 'Orchard breach opens to Signal Storm.',
+    state: 'PLAYABLE; needs one traversal mechanic.',
+  },
+  {
+    region: 'Signal Storm',
+    purpose: 'Memorable final encounter for the slice',
+    objective: 'Survive the storm, hold the synchronization node and refuse the classification.',
+    traversal: 'Corrupted passage arrival; no menu return during route.',
+    combat: 'Final mix of weapon switching, stagger, parry and overdrive.',
+    secret: 'Post-fight Scout transmission / archive reward.',
+    connection: 'End of current vertical slice.',
+    state: 'PLAYABLE finale base; needs bespoke encounter polish.',
+  },
+];
+
 export const BUILD_TODO: TodoItem[] = [
-  { label: 'Side-view movement (run/jump/hover/dash)', done: true },
-  { label: 'Pulse shot + combat', done: true },
-  { label: 'Scan pulse + hidden platform reveal', done: true },
-  { label: 'Detection cones + classification meter', done: true },
-  { label: 'Scanner drones (patrol/aggro/shoot)', done: true },
-  { label: 'Miller Field level + parallax dusk background', done: true },
-  { label: 'Quest system — THE FIRST CONTACT', done: true },
-  { label: 'Blipstream Node A (waveform puzzle room)', done: true },
-  { label: 'Crop-circle door unlock from node', done: true },
-  { label: 'Mini-boss: The Scarecrow Antenna', done: true },
-  { label: 'HYBRID: top-down Scan combat mode (SweepScene)', done: true },
-  { label: 'HYBRID: the Fold transition (side-view ⇄ top-down)', done: true },
-  { label: 'HYBRID: Z1 cold-open — top-down Surface → Fold → Miller Field (HD visual overhaul: hi-res backbuffer, y-sorted 2.5D, CC0 photoscan terrain, DOM HUD)', done: true },
-  { label: 'HYBRID: Z2 fuse box → top-down circuit → Fold back (powers wing)', done: true },
-  { label: 'HYBRID: top-down/alt beats — Z3 rec-pool dive + Z4 maze crop-draw (Fold → maze-z4); Z5–Z6 planned', done: true },
-  { label: "Zone 4 — Patterson's Orchard: apple climb + shifting corn maze + cider cellar + Fold to maze-z4 + crop-circle bloom + FULL Harvest Pattern boss (read-glyph strike windows + low-HP harvest sweeps) + orchard music", done: true },
-  { label: 'TOP-DOWN: twin-stick aim fix (mouse) + gamepad left-stick 2D move', done: true },
-  { label: 'TOP-DOWN: god-mode [G] + debug warps F8/F9/F10 (top-down / side-view / breach)', done: true },
-  { label: 'TOP-DOWN: skins/abilities carry over (mods + Surge Shot + Phase-Strike)', done: true },
-  { label: 'TOP-DOWN: 5 features — Charge Node, Scout Boons, Scan Caches, Elite Classifier, Dash-chain', done: true },
-  { label: 'TOP-DOWN: AAA visual overhaul — 1.4× camera, layered dark terrain, reshaded props/actors, depth/lighting, HP bars', done: true },
-  { label: 'TOP-DOWN: weapon roster (Pulse/Scatter/Repeater/Lance/Echo Arc) + pickup swaps', done: true },
-  { label: 'TOP-DOWN: Signal Overdrive ultimate [E] — kill-charged shockwave + rapid-fire', done: true },
-  { label: 'TOP-DOWN: integrated pixel combat HUD (weapon, objective, enemies, combo, Overdrive, prompts, banner)', done: true },
-  { label: 'Signal Fragment pickup', done: true },
-  { label: 'Save/load (localStorage) + legacy migration', done: true },
-  { label: 'Will badge + WILLOW scout log', done: true },
-  { label: 'Chip SPARK signal box', done: true },
-  { label: 'Command Center dashboard', done: true },
-  { label: 'WebAudio procedural SFX + mute', done: true },
-  { label: 'Debug overlay + debug keys', done: true },
-  { label: 'AI QA pipeline (Playwright + qa-loop)', done: true },
-  { label: 'Crisp HTML console UI — warm midnight pass', done: true },
-  { label: 'Dev dashboard: Level Atlas + Bestiary + Arsenal + standalone /command-center.html', done: true },
-  { label: 'Gamepad support (Xbox / PlayStation) + menu navigation', done: true },
-  { label: 'Settings page (volume, CRT, shake, controls, pad status)', done: true },
-  { label: 'Mobile/tablet hardening: compact gameplay chrome, no forced portrait blocker, smaller touch controls, iPhone/iPad Sweep layout pass', done: true },
-  { label: 'PWA install/offline support: manifest + iOS home-screen metadata + service worker static cache', done: true },
-  { label: 'Signal Skins: skin system + Wardrobe (all 5 scouts)', done: true },
-  { label: 'Signal Sets: badge/log/relic collectibles (Will + Chip in Miller Field)', done: true },
-  { label: 'Scout Echo encounters (unlock payoff + characters)', done: true },
-  { label: 'Per-skin signature abilities + classification tie-in', done: true },
-  { label: 'Scout characters you meet — kid sprite + name tag over head', done: true },
-  { label: 'Signal Portrait cards + Command Center gallery (drop art in public/assets/portraits)', done: true },
-  { label: 'Henry/Cameron/Danny Signal Sets + portraits', done: true },
-  { label: 'Scan-stun: a scan pulse freezes drones (Dead Cells double-duty verbs)', done: true },
-  { label: 'Scan-secrets + Scout Field Notes (scan hidden spots → shards / notebook pages) + CC gallery', done: true },
-  { label: 'Echo Blink (ECHO decoy blink, F key) — earned from Cameron/ECHO Signal Set', done: true },
-  { label: 'Music beat hook (EVT.musicBeat) → Motel neon flicker + lamp-sweep ambience', done: true },
-  { label: 'Borrowed-ideas capture pass → Level Plans + Progression Plan (LEVEL-PENDING tags)', done: true },
-  { label: 'Controller button remapping (Settings ▸ Controller — rebind + reset)', done: true },
-  { label: 'More Blipstream nodes — optional side rooms in zones 2–5 (Breaker Run, Reflection, Pattern, Tuning)', done: true },
-  { label: 'Custom shader post-FX — superseded: the CSS CRT overlay shipped instead', done: true },
-  { label: 'All 5 zones playable (Miller Field → Skyline Array finale + EndingScene)', done: true },
+  { label: 'Top-down-only scene registry', done: true },
+  { label: 'Unified top-down player controller', done: true },
+  { label: 'Unified top-down camera', done: true },
+  { label: 'Route-connected Miller Surface → Motel Circuit → Town → Orchard → Signal Storm arena chain', done: true },
+  { label: 'Shared save state across area transitions', done: true },
+  { label: 'Single-save main menu flow: Continue / New Game only', done: true },
+  { label: 'Signal Node charge objective', done: true },
+  { label: 'Enemy waves, elites, pickups, caches and overdrive', done: true },
+  { label: 'Three-weapon foundation: Pulse Carbine, Arc Blade, Recall Disc', done: true },
+  { label: 'In-world weapon pickup names and role descriptions', done: true },
+  { label: 'Vertical-slice scope audit documented', done: true },
+  { label: 'Command Center world-area tracking', done: true },
+  { label: 'Touch, keyboard, mouse and gamepad controls', done: true },
+  { label: 'Signal Skins, Signal Sets, portraits and reward archive', done: true },
+  { label: 'Smoke test for boot, play, Command Center, full route transition, quit-to-menu and dev warps', done: true },
+  { label: 'Fast weapon switching across keyboard, mouse wheel, gamepad and touch', done: true },
+  { label: 'Next: Phase Shift as a scoped combat/exploration mechanic', done: false },
+  { label: 'Next: region-specific objectives, stealth section and weapon-specific secret', done: false },
+  { label: 'Next: weapon mutation tree and equip/store/salvage decisions', done: false },
 ];
 
 export const ART_DIRECTION: string[] = [
-  'Dreamlike Rural Pixel Sci-Fi: lush dusk fields, huge dithered clouds, lonely radio towers, a floating island nobody acknowledges.',
-  'Internal resolution 480×270, integer-ish upscale with image-rendering: pixelated. Every texture is generated in code at boot (no image assets).',
-  'Palette is locked in src/game/config.ts: dusk blues/cyan sky, moss-green ground, cyan/green = signal & friendly, red/orange = danger & classification.',
-  'Scout colors: Will cyan · Chip orange · Henry green · Cameron purple · Danny red.',
-  'Silhouettes and glow instead of detail. Motion sells everything: hover bob, cloud drift, scan ripples, afterimages, screen shake, glitch flashes.',
-  'Blipstream rooms are the visual inverse of the field: black space, waveform bars, routing wires, red static.',
+  'Dreamlike Rural Pixel Sci-Fi: dusk streets, wooded routes, signal-lit terrain, lonely towers, motel neon, orchard paths, and town landmarks.',
+  'The playable world renders through the top-down Phaser scene with y-sorted actors, readable cover, environmental obstacles, and signal-colored affordances.',
+  'Palette remains warm midnight with electric-lime signal, amber chrome, red classification danger, and Scout identity colors.',
+  'Most Chagrin Falls structures are exterior obstacles, cover, streets, alleys, landmarks, and route boundaries.',
+  'Silhouettes, shadow, glow, scan ripples, afterimages, screen shake, and glitch flashes sell motion without needing heavy asset churn.',
 ];
 
 export const HUMAN_PLAYTEST_CHECKLIST: string[] = [
-  'Is movement fun? (run/jump/hover/dash timing)',
-  'Is the scan mechanic understandable without reading anything?',
-  'Is Will’s badge discoverable but not too obvious?',
-  'Is the Blipstream puzzle fun or confusing?',
-  'Is the Scarecrow Antenna too easy / too hard?',
-  'Does classification (red cones) read as a threat you manage?',
-  'Is the story tone working — mysterious but warm?',
-  'Is the Command Center useful?',
-  'Does the game feel unique?',
-  'Does it remain playable on iPhone and iPad in landscape and portrait?',
-  'Can the installed PWA launch after airplane-mode/offline reload once it has been opened online?',
+  'Does the top-down movement feel responsive on keyboard, mouse, touch, and gamepad?',
+  'Do Pulse Carbine, Arc Blade, and Recall Disc feel meaningfully different?',
+  'Do major weapon pickups explain what they are before collection?',
+  'Do area transitions read as one route instead of a level-select sequence?',
+  'Does save/continue preserve the current area and player progress?',
+  'Are Signal Nodes, breaches, caches, enemies, and pickups readable without extra text?',
+  'Does the Command Center describe only the current top-down structure?',
+  'Does the game remain playable on iPhone and iPad in landscape and portrait?',
+  'Does the installed PWA launch after an offline reload once it has been opened online?',
 ];
 
 export const WEB_TECH_NOTES: string[] = [
-  'Phaser 3 WebGL renderer with automatic Canvas fallback (Phaser.AUTO).',
-  'All art procedural: Graphics → generateTexture + canvas noise textures at boot.',
-  'WebAudio-synthesized SFX (oscillators + noise buffers) — zero audio assets.',
-  'CRT/scanline/vignette via CSS overlays — zero-cost, fails nowhere.',
-  'localStorage saves (blip_save_v1) with automatic legacy-key migration from the pre-rename build.',
-  'PWA install/offline: manifest.webmanifest + PNG/SVG icons + /sw.js static cache. iPad/iPhone users can Add to Home Screen; first online load warms the cache for offline play.',
-  'Mobile/tablet gameplay chrome: compact mode hides desktop shell during play, keeps touch controls large enough, and no longer blocks portrait with a rotate gate.',
-  'WebGPU: detection badge only — NOT in the render path (see scope-control skill).',
-  'Static Vite build → Vercel-ready, no server runtime.',
+  'Phaser 3 WebGL renderer with automatic Canvas fallback.',
+  'Hybrid procedural art and authored top-down assets loaded at boot.',
+  'WebAudio-synthesized SFX with no required audio asset pipeline.',
+  'CRT/scanline/vignette via CSS overlays.',
+  'Single-run localStorage save with legacy-key migration.',
+  'PWA install/offline: manifest, icons and static service worker cache.',
+  'Responsive shell UI with touch controls for phone and tablet play.',
+  'Static Vite build ready for GitHub/Vercel deployment.',
 ];

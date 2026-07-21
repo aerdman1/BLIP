@@ -100,7 +100,7 @@ const ICONS: Record<string, (color: string) => string> = {
     });
   }, c),
 
-  /* pulse shot */
+  /* Pulse Carbine shot */
   pulse: (c) => draw((r, p) => {
     r(6, 6, 4, 4, p.base); r(6, 6, 2, 2, p.light); r(7, 2, 2, 3, p.base, 0.7); r(7, 11, 2, 3, p.base, 0.7); r(2, 7, 3, 2, p.base, 0.7); r(11, 7, 3, 2, p.base, 0.7);
   }, c),

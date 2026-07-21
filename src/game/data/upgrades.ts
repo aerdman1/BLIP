@@ -1,6 +1,6 @@
 /**
- * Ability / upgrade roadmap — now with EARN-metadata (PROGRESSION_PLAN.md).
- * Three earn-channels: 'boss' (one signature per zone), 'shop' (Chip's Workbench,
+ * Ability / upgrade ledger.
+ * Three earn-channels: 'boss' (one signature per area), 'shop' (Chip's Workbench,
  * spend Signal Shards), 'scout-set' (complete a scout's 3-piece set). The base
  * kit is always owned. Costs/tuning live in config.PROGRESSION; the Command
  * Center renders this table live — keep `status` honest as things land.
@@ -23,27 +23,25 @@ export interface UpgradeDef {
 
 export const UPGRADES: UpgradeDef[] = [
   // --- base kit (always owned) ---
-  { id: 'run', name: 'Locomotion', description: 'Ground movement with real acceleration.', status: 'IMPLEMENTED', source: 'base kit', unlockType: 'base' },
-  { id: 'jump', name: 'Hop Vector', description: 'Variable-height jump with coyote time.', status: 'IMPLEMENTED', source: 'base kit', unlockType: 'base' },
-  { id: 'hover', name: 'Hover Cell', description: 'Hold jump in the air to feather your fall. Drains energy.', status: 'IMPLEMENTED', source: 'base kit', unlockType: 'base' },
+  { id: 'move', name: 'Signal Drive', description: 'Eight-direction top-down movement with responsive acceleration.', status: 'IMPLEMENTED', source: 'base kit', unlockType: 'base' },
   { id: 'dash', name: 'Phase Drift', description: 'Short dash with afterimages and brief invulnerability.', status: 'IMPLEMENTED', source: 'base kit', unlockType: 'base' },
-  { id: 'pulse-shot', name: 'Pulse Shot', description: 'Fast signal bolt. Hurts drones, activates node switches.', status: 'IMPLEMENTED', source: 'base kit', unlockType: 'base' },
-  { id: 'scan-pulse', name: 'Scan Pulse', description: 'Expanding ring that reveals hidden platforms, routes and weak points.', status: 'IMPLEMENTED', source: 'base kit', unlockType: 'base' },
+  { id: 'pulse-shot', name: 'Pulse Carbine', description: 'Fast ranged signal fire with every fifth shot piercing clustered enemies.', status: 'IMPLEMENTED', source: 'base kit', unlockType: 'base' },
+  { id: 'scan-pulse', name: 'Scan Pulse', description: 'Expanding ring that reveals caches, routes and weak points.', status: 'IMPLEMENTED', source: 'base kit', unlockType: 'base' },
+  { id: 'overdrive', name: 'Signal Overdrive', description: 'Kill-charged shockwave plus rapid-fire window.', status: 'IMPLEMENTED', source: 'base kit', unlockType: 'base' },
 
   // --- Channel A: signature abilities (one per zone, from the boss) ---
-  { id: 'pulse-resonance', name: 'Pulse Resonance', description: '+1 pulse damage against exposed boss cores.', status: 'IMPLEMENTED', source: 'Fragment 1 — Scarecrow Antenna', unlockType: 'boss', zone: 'miller-field' },
-  { id: 'emp-burst', name: 'EMP Burst', description: 'Your SCAN also fires an EMP shockwave — stuns enemies and clears their bolts in a radius.', status: 'IMPLEMENTED', source: 'Fragment 2 — The Vacancy Sign', unlockType: 'boss', zone: 'motel-nowhere' },
-  { id: 'ghost-protocol', name: 'Ghost Protocol', description: 'Passive stealth — detection builds far slower, and for a beat after a dash you are unreadable.', status: 'IMPLEMENTED', source: 'Fragment 3 — The Weather Balloon', unlockType: 'boss', zone: 'tiger-stadium' },
-  { id: 'pulse-ricochet', name: 'Pulse Ricochet', description: 'PULSE shots bounce off geometry and chain-deflect to nearby enemies.', status: 'IMPLEMENTED', source: 'Fragment 4 — The Harvest Pattern', unlockType: 'boss', zone: 'pattersons-orchard' },
+  { id: 'pulse-resonance', name: 'Pulse Resonance', description: '+1 carbine damage against exposed signal cores.', status: 'IMPLEMENTED', source: 'Miller Surface node', unlockType: 'boss', zone: 'miller-field' },
+  { id: 'emp-burst', name: 'EMP Burst', description: 'Your SCAN also fires an EMP shockwave that stuns enemies and clears bolts in a radius.', status: 'IMPLEMENTED', source: 'Motel Circuit node', unlockType: 'boss', zone: 'motel-nowhere' },
+  { id: 'ghost-protocol', name: 'Ghost Protocol', description: 'Passive stealth — detection builds far slower, and for a beat after a dash you are unreadable.', status: 'IMPLEMENTED', source: 'Chagrin Falls Town node', unlockType: 'boss', zone: 'tiger-stadium' },
+  { id: 'pulse-ricochet', name: 'Carbine Ricochet', description: 'Carbine shots bounce off geometry and chain-deflect to nearby enemies.', status: 'IMPLEMENTED', source: 'Patterson’s Orchard node', unlockType: 'boss', zone: 'pattersons-orchard' },
   { id: 'scan-memory', name: 'Scan Memory', description: 'Your SCAN remembers — the ring lingers and everything it touched keeps a glowing echo marker for several seconds.', status: 'IMPLEMENTED', source: 'Patterson’s Orchard (secondary)', unlockType: 'boss', zone: 'pattersons-orchard' },
-  { id: 'phase-drift-plus', name: 'Phase Drift+', description: 'Longer, faster dash that phases clean through enemy bolts — plus one extra mid-air dash for high routes.', status: 'IMPLEMENTED', source: 'Skyline Array (secondary)', unlockType: 'boss', zone: 'skyline-array' },
-  { id: 'refuse-label', name: 'Refuse the Label', description: 'The finale power: for a beat, reject whatever the Engine decided you are — clear your classification and pass through the read it tried to pin on you.', status: 'IMPLEMENTED', source: 'Fragment 5 — The Listening Station', unlockType: 'boss', zone: 'skyline-array' },
+  { id: 'phase-drift-plus', name: 'Phase Drift+', description: 'Longer, faster dash that phases clean through enemy bolts.', status: 'IMPLEMENTED', source: 'Signal Storm (secondary)', unlockType: 'boss', zone: 'skyline-array' },
+  { id: 'refuse-label', name: 'Refuse the Label', description: 'For a beat, reject whatever the Engine decided you are and clear the read it tried to pin on you.', status: 'IMPLEMENTED', source: 'Signal Storm node', unlockType: 'boss', zone: 'skyline-array' },
 
   // --- Channel B: Chip's Workbench (spend Signal Shards) ---
-  { id: 'hover-cell-plus', name: 'Hover Cell+', description: 'Longer hover, slower energy drain.', status: 'IMPLEMENTED', source: 'Chip’s Workbench', unlockType: 'shop', cost: 120 },
   { id: 'wide-scan', name: 'Wide Scan', description: 'Bigger Scan Pulse radius — reveal and EMP reach further.', status: 'IMPLEMENTED', source: 'Chip’s Workbench', unlockType: 'shop', cost: 120 },
   { id: 'max-hull-plus', name: 'Reinforced Hull', description: '+1 hull segment — take one more hit.', status: 'IMPLEMENTED', source: 'Chip’s Workbench', unlockType: 'shop', cost: 90 },
-  { id: 'pulse-rapid', name: 'Rapid Pulse', description: 'Faster Pulse Shot cadence — fire more often.', status: 'IMPLEMENTED', source: 'Chip’s Workbench', unlockType: 'shop', cost: 110 },
+  { id: 'pulse-rapid', name: 'Carbine Capacitor', description: 'Faster Pulse Carbine cadence — fire more often.', status: 'IMPLEMENTED', source: 'Chip’s Workbench', unlockType: 'shop', cost: 110 },
   { id: 'dash-recharge', name: 'Drift Capacitor', description: 'Shorter Phase Drift cooldown — dash again sooner.', status: 'IMPLEMENTED', source: 'Chip’s Workbench', unlockType: 'shop', cost: 100 },
 
   // --- Channel C: scout Signal-Set completion ---

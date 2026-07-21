@@ -1,6 +1,6 @@
 /**
- * Data-driven quest walker for "THE FIRST CONTACT".
- * A module singleton so quest state survives Field ⇄ Blipstream scene switches.
+ * Data-driven quest walker for the connected top-down route.
+ * A module singleton so quest state survives area handoffs.
  * Every advance autosaves and re-emits the HUD objective.
  */
 import { EVT } from '../config';
@@ -12,7 +12,7 @@ import { audio } from './AudioSystem';
 class QuestSystem {
   quest: QuestDef = THE_FIRST_CONTACT;
   private stepIndex = 0;
-  /** slice-scope counters */
+  /** route-scope counters */
   dronesDestroyed = 0;
 
   /** point the walker at a specific quest (call before init on scene entry) */
@@ -26,7 +26,7 @@ class QuestSystem {
     this.quest = findQuest(save.currentQuest);
     const idx = this.quest.steps.findIndex((s) => s.id === save.questStep);
     this.stepIndex = idx >= 0 ? idx : 0;
-    this.dronesDestroyed = save.flags.dronesCleared ? 2 : 0;
+    this.dronesDestroyed = save.flags.millerNodeCharged ? 2 : 0;
     this.emitObjective();
   }
 
@@ -62,8 +62,8 @@ class QuestSystem {
     return true;
   }
 
-  /** Debug/tests: jump directly to a step (no autosave of skipped steps). */
-  jumpTo(stepId: string): boolean {
+  /** Debug/tests: move directly to a step without autosaving skipped steps. */
+  moveToStep(stepId: string): boolean {
     const idx = this.quest.steps.findIndex((s) => s.id === stepId);
     if (idx < 0) return false;
     this.stepIndex = idx;

@@ -6,7 +6,7 @@
  */
 import './commandCenter.css';
 import type Phaser from 'phaser';
-import { BUILD_VERSION, EVT, SWEEP, TILE } from '../game/config';
+import { BUILD_VERSION, EVT, SWEEP } from '../game/config';
 import { GAME_BIBLE } from '../game/data/gameBible';
 import {
   BESTIARY_ALL_ENEMIES,
@@ -20,9 +20,6 @@ import {
   type BestiarySystemEntry,
   type CustomArtInfo,
 } from '../game/data/bestiaryData';
-// bestiaryExport pulls in JSZip — loaded on demand (see runExportButton) so it
-// never ships in the base game bundle for players who never open dev exports.
-import { MILLER_FIELD, MOTEL_NOWHERE, NODE_A, PATTERSONS_ORCHARD, POOL_MIRROR, TIGER_STADIUM, cellAt, type LevelDef } from '../game/data/levels';
 import { SWEEP_ARENAS, type SweepArena } from '../game/data/sweepArenas';
 import { SCOUTS, SCOUT_LOGS } from '../game/data/scouts';
 import { FIELD_NOTES } from '../game/data/fieldNotes';
@@ -38,36 +35,27 @@ import { devState } from '../game/systems/DevState';
 import {
   ART_DIRECTION,
   BUILD_TODO,
-  CONTROLS_BLIPSTREAM,
+  CONTROLS_ROUTES,
   CONTROLS_DEBUG,
   CONTROLS_FIELD,
   CONTROLS_GAMEPAD,
   CONTROLS_SWEEP,
   CONTROLS_TOUCH,
+  CURRENT_STATUS,
   HUMAN_PLAYTEST_CHECKLIST,
   MECHANICS,
   PITCH,
+  REGION_VERTICAL_SLICE_PLAN,
   SUBTITLE,
   TAGLINE,
+  VERTICAL_SLICE_SYSTEMS,
   WEB_TECH_NOTES,
   type ControlRow,
 } from '../game/data/commandCenterData';
 import { THE_FIRST_CONTACT } from '../game/data/quests';
+import { WEAPONS } from '../game/data/sweepWeapons';
 import { bus } from '../game/systems/EventBus';
 import { getSave, resetSave, saveAsJson } from '../game/systems/SaveSystem';
-
-interface QaStatus {
-  status: string;
-  lastRun: string | null;
-  iteration: number;
-  result: string;
-  categories: Record<string, string>;
-  bugsFound: string[];
-  bugsFixed: string[];
-  remaining: string[];
-  screenshots: string[];
-  note?: string;
-}
 
 const esc = (s: string): string =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -80,15 +68,12 @@ export class CommandCenter {
   private lastZone = 'Boot';
   private lastObjective = THE_FIRST_CONTACT.steps[0].objective;
   private refreshTimer: number | null = null;
-  private qa: QaStatus | null = null;
   private readonly standalone: boolean;
-  private readonly game?: Phaser.Game;
   private atlasesDrawn = false;
 
   constructor(root: HTMLElement, opts?: { standalone?: boolean; game?: Phaser.Game }) {
     this.root = root;
     this.standalone = opts?.standalone === true;
-    this.game = opts?.game;
     this.buildStatic();
     bus.on(EVT.sceneChanged, (d) => {
       const s = d as { scene: string; zone?: string };
@@ -115,7 +100,6 @@ export class CommandCenter {
       this.drawAtlases();
     }
     this.refresh();
-    void this.loadQa();
     this.refreshTimer = window.setInterval(() => this.refresh(), 1200);
     if (section) {
       const target = this.root.querySelector(`#cc-${section}`);
@@ -212,7 +196,7 @@ export class CommandCenter {
     (this.root.querySelector('#cc-close') as HTMLButtonElement | null)?.addEventListener('click', () => {
       bus.emit(EVT.ccClose, {});
     });
-    (this.root.querySelector('#cc-reset-save') as HTMLButtonElement).addEventListener('click', () => {
+    (this.root.querySelector('#cc-clear-local-save') as HTMLButtonElement).addEventListener('click', () => {
       if (window.confirm('Erase all BLIP progress?')) {
         resetSave();
         window.location.reload();
@@ -244,45 +228,6 @@ export class CommandCenter {
       bus.emit(EVT.skinSelected, { id: skin.id, name: skin.name, color: skin.color, live: true });
       this.refresh();
     });
-    // bestiary export actions — delegated (buttons live inside a static-rendered panel)
-    this.root.addEventListener('click', (ev) => {
-      const exportBtn = (ev.target as HTMLElement).closest('.cc-export-enemy') as HTMLButtonElement | null;
-      if (exportBtn) {
-        void this.runExportButton(exportBtn, async () => {
-          const entry = BESTIARY_ALL_ENEMIES.find((e) => e.id === exportBtn.dataset.exportEnemy);
-          if (!entry) return;
-          const { exportEnemyAsset } = await import('./bestiaryExport');
-          await exportEnemyAsset(entry, this.game);
-        });
-        return;
-      }
-      const briefBtn = (ev.target as HTMLElement).closest('#cc-export-brief') as HTMLButtonElement | null;
-      if (briefBtn) {
-        void this.runExportButton(briefBtn, async () => {
-          const { exportEnemyArtBrief } = await import('./bestiaryExport');
-          await exportEnemyArtBrief(BESTIARY_ALL_ENEMIES, BESTIARY_HAZARDS, this.buildCommit(), this.buildGeneratedAt(), this.game);
-        });
-      }
-    });
-  }
-
-  private async runExportButton(btn: HTMLButtonElement, run: () => Promise<void>): Promise<void> {
-    const original = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = '⬇ EXPORTING…';
-    try {
-      await run();
-    } catch (err) {
-      console.error('[BLIP] Bestiary export failed', err);
-      btn.textContent = '✕ EXPORT FAILED — SEE CONSOLE';
-      window.setTimeout(() => {
-        btn.textContent = original;
-        btn.disabled = false;
-      }, 2200);
-      return;
-    }
-    btn.textContent = original;
-    btn.disabled = false;
   }
 
   private buildCommit(): string {
@@ -327,14 +272,16 @@ export class CommandCenter {
       <p class="cc-pitch">${esc(PITCH)}</p>
       <div class="cc-grid-2">
         <div class="cc-stat"><label>BUILD</label><b>v${BUILD_VERSION}</b></div>
-        <div class="cc-stat"><label>PLAYABLE STATUS</label><b class="ok">VERTICAL SLICE — MILLER FIELD</b></div>
+        <div class="cc-stat"><label>PLAYABLE STATUS</label><b class="ok">ROUTE-CONNECTED ARENA FOUNDATION</b></div>
         <div class="cc-stat"><label>CURRENT SCENE</label><b id="cc-scene">—</b></div>
         <div class="cc-stat"><label>CURRENT ZONE</label><b id="cc-zone">—</b></div>
         <div class="cc-stat"><label>ACTIVE QUEST</label><b>${esc(THE_FIRST_CONTACT.name).toUpperCase()}</b></div>
         <div class="cc-stat"><label>CURRENT OBJECTIVE</label><b id="cc-objective">—</b></div>
         <div class="cc-stat"><label>SAVE STATUS</label><b id="cc-saved-at">—</b></div>
         <div class="cc-stat"><label>SIGNAL FRAGMENTS</label><b id="cc-fragments" class="ok">0 / ?</b></div>
-      </div>`
+      </div>
+      <h3>CURRENT IMPLEMENTATION SNAPSHOT</h3>
+      <ul class="cc-check">${CURRENT_STATUS.map((s) => `<li>☑ ${esc(s)}</li>`).join('')}</ul>`
     );
   }
 
@@ -451,8 +398,8 @@ export class CommandCenter {
         ${this.controlTable('KEYBOARD + MOUSE', CONTROLS_FIELD)}
         ${this.controlTable('GAMEPAD — XBOX · PLAYSTATION', CONTROLS_GAMEPAD)}
         ${this.controlTable('TOUCH — iPAD / TABLET', CONTROLS_TOUCH)}
-        ${this.controlTable('TOP-DOWN / SCAN (twin-stick)', CONTROLS_SWEEP)}
-        ${this.controlTable('BLIPSTREAM ROOMS', CONTROLS_BLIPSTREAM)}
+        ${this.controlTable('TOP-DOWN COMBAT', CONTROLS_SWEEP)}
+        ${this.controlTable('AREA ROUTES', CONTROLS_ROUTES)}
         ${this.controlTable('DEBUG KEYS', CONTROLS_DEBUG)}
       </div>`
     );
@@ -553,7 +500,6 @@ export class CommandCenter {
       <p class="cc-kv"><label>STATUS</label> <span class="cc-chip ${statusCls}">${esc(e.implementationStatus)}</span></p>
       ${e.knownIssues.length ? `<h4>KNOWN VISUAL ISSUES</h4><ul class="cc-list cc-issues">${e.knownIssues.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>` : '<h4>KNOWN VISUAL ISSUES</h4><p class="cc-note">None flagged.</p>'}
       <p class="cc-note">SOURCE: ${e.sourceRefs.map((r) => esc(r)).join(' · ')}</p>
-      <button class="cc-btn cc-export-enemy cc-dev-only" data-export-enemy="${esc(e.id)}">⬇ ASSET EXPORT</button>
     </article>`;
   }
 
@@ -614,9 +560,6 @@ export class CommandCenter {
         <span class="cc-chip ok">CUSTOM ART LIVE: ${shippedCount}</span>
         <span class="cc-chip bad">NEEDS CUSTOM ART: ${needsArtCount}</span>
       </div>
-      <div class="cc-actions cc-dev-only" style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 18px">
-        <button id="cc-export-brief" class="cc-btn">⬇ EXPORT ENEMY ART BRIEF</button>
-      </div>
       <h3>1 · ENEMIES — REQUIRE VISUAL ASSETS (${BESTIARY_ALL_ENEMIES.length})</h3>
       <div class="cc-cards cc-bestiary-grid">${BESTIARY_ALL_ENEMIES.map((e) => this.enemyCard(e)).join('')}</div>
       <h3>2 · FIXED HAZARDS / ENVIRONMENTAL THREATS (${BESTIARY_HAZARDS.length})</h3>
@@ -630,10 +573,14 @@ export class CommandCenter {
   }
 
   private sectionArsenal(): string {
+    const weaponRows = Object.values(WEAPONS).map((w) => [
+      w.name,
+      w.role,
+      `${w.damage} dmg · ${w.cooldownMs}ms cadence · ${w.speed ? `${w.speed}px/s` : 'melee arc'}`,
+    ] as [string, string, string]);
     const rows: Array<[string, string, string]> = [
       ['Move', `${SWEEP.moveSpeed}px/s · accel ${SWEEP.accel}`, `drag ${SWEEP.drag} · camera zoom ${SWEEP.cameraZoom}`],
       ['Phase Drift', `${SWEEP.dashSpeed}px/s for ${SWEEP.dashMs}ms`, `cooldown ${SWEEP.dashCooldownMs}ms · dash-chain refund ${SWEEP.dashRefundOnPhaseKill ? 'on' : 'off'}`],
-      ['Pulse Shot', `${SWEEP.shotDmg} dmg · ${SWEEP.shotSpeed}px/s`, `cooldown ${SWEEP.fireCooldownMs}ms · max ${SWEEP.maxShots} live shots`],
       ['Scan Pulse', `radius ${SWEEP.scanRadius}px`, `${SWEEP.scanDmg} dmg · reveals hidden Signal Caches`],
       ['Signal Node', `${SWEEP.nodeChargeDefault} charge target`, `${SWEEP.nodeChargePerKill} per kill · double within ${SWEEP.nodeChargeRadius}px`],
       ['Signal Overdrive', `${SWEEP.overdriveDurationMs}ms duration`, `shock radius ${SWEEP.overdriveShockRadius}px · ${SWEEP.overdriveShockDmg} dmg`],
@@ -643,144 +590,24 @@ export class CommandCenter {
     return this.panel(
       'arsenal',
       'ARSENAL — CONTACT-47 TUNING',
-      `<p class="cc-note">The live top-down movement/combat kit with numbers from <span class="key">config.ts → SWEEP</span>. Future abilities live in PROGRESSION ▸ upgrade roadmap.</p>
+      `<p class="cc-note">The live top-down movement/combat kit. Weapons read from <span class="key">sweepWeapons.ts</span>; movement, node, cache and overdrive numbers read from <span class="key">config.ts → SWEEP</span>.</p>
+      <h3>LIVE WEAPONS</h3>
+      <table class="cc-table">${weaponRows
+        .map(([a, b, c]) => `<tr><td><b>${esc(a)}</b></td><td>${esc(b)}</td><td class="key">${esc(c)}</td></tr>`)
+        .join('')}</table>
+      <h3>CORE KIT</h3>
       <table class="cc-table">${rows
         .map(([a, b, c]) => `<tr><td><b>${esc(a)}</b></td><td class="key">${esc(b)}</td><td>${esc(c)}</td></tr>`)
         .join('')}</table>`
     );
   }
 
-  /** paint the level grids onto the atlas canvases */
+  /** paint the route-connected top-down area grids onto the atlas canvases */
   private drawAtlases(): void {
-    this.paintLevel('cc-atlas-miller', MILLER_FIELD, true, (ctx, cell) => this.paintMillerTopology(ctx, cell));
-    this.paintLevel('cc-atlas-motel', MOTEL_NOWHERE, true);
-    this.paintLevel('cc-atlas-stadium', TIGER_STADIUM, true);
-    this.paintLevel('cc-atlas-orchard', PATTERSONS_ORCHARD, true);
-    this.paintLevel('cc-atlas-pool', POOL_MIRROR, false);
-    this.paintLevel('cc-atlas-node', NODE_A, false);
-    // top-down Sweep arenas (the Fold's combat maps)
     Object.values(SWEEP_ARENAS).forEach((a) => this.paintSweepArena(`cc-sweep-${a.id}`, a));
   }
 
-  private paintLevel(
-    canvasId: string,
-    def: LevelDef,
-    markArena: boolean,
-    overlay?: (ctx: CanvasRenderingContext2D, cell: number) => void
-  ): void {
-    const canvas = this.root.querySelector('#' + canvasId) as HTMLCanvasElement | null;
-    if (!canvas) return;
-    const CELL = 5;
-    canvas.width = def.cols * CELL;
-    canvas.height = def.rowCount * CELL;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.fillStyle = '#0a1120';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const colorFor = (ch: string, col: number, row: number): string | null => {
-      switch (ch) {
-        case '#':
-          return cellAt(def, col, row - 1) === '#' ? '#4a3a2b' : '#3f9a5f';
-        case '=':
-          return '#57b06b';
-        case 'H':
-          return '#a8ff3e';
-        case 'h':
-          return '#35d5ff';
-        case 'm':
-          return '#2b93b8';
-        case 'b':
-          return '#9feaff';
-        case 'P':
-          return '#fff3c9';
-        case 'd':
-          return '#d84a42';
-        case 's':
-          return '#f2a93b';
-        case 'x':
-          return '#ffb03b';
-        case 'f':
-          return '#5a4630';
-        case 't':
-          return '#8d97c4';
-        case 'n':
-          return '#a8ff3e';
-        case 'g':
-          return '#7c5cff';
-        case 'W': // Will's Folded Map relic
-          return '#9feaff';
-        case '-':
-          return '#a8ff3e';
-        case '~':
-          return '#7cdc6a';
-        case '!':
-          return '#d84a42';
-        case 'o':
-          return '#fff3c9';
-        case 'E':
-          return '#7cfc9b';
-        // ---- Motel Nowhere (Zone 2) ----
-        case 'A': // neon platform — circuit A
-          return '#3df0ff';
-        case 'B': // neon platform — circuit B (dead wing)
-          return '#ffb03b';
-        case 'C': // neon platform — circuit C
-          return '#ff4d8d';
-        case '1':
-        case '3': // power switches
-          return '#fff3c9';
-        case 'L': // security lamp
-          return '#f2a93b';
-        case 'F': // fuse box (Blipstream entrance)
-          return '#ffb03b';
-        case 'V': // The Vacancy Sign boss
-          return '#ff4d8d';
-        case 'c': // Chip's SPARK badge
-          return '#ffb03b';
-        case 'K': // Chip's Power Cell relic
-          return '#ffe9a8';
-        case 'M': // motel arrow sign
-          return '#ff4d8d';
-        case 'D': // diner window
-          return '#ffca6a';
-        case 'I': // ice machine
-          return '#3df0ff';
-        case 'p': // puddle
-          return '#241d33';
-        // ---- Patterson's Orchard (Zone 4) ----
-        case '%': // respawning fruit platform
-          return '#4bd06a';
-        case 'Q': // corn-maze wall (phase A / B shown together)
-          return '#b89a4a';
-        case 'Y': // apple-tree pillar
-          return '#2f6b3e';
-        case 'R': // white barn + green roof
-          return '#e8e2d0';
-        default:
-          return null;
-      }
-    };
-
-    def.rows.forEach((row, r) => {
-      for (let c = 0; c < row.length; c++) {
-        const color = colorFor(row[c], c, r);
-        if (!color) continue;
-        ctx.fillStyle = color;
-        ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
-      }
-    });
-
-    if (markArena) {
-      const a = def.meta.arena;
-      ctx.fillStyle = 'rgba(216, 74, 66, 0.12)';
-      ctx.fillRect((a.leftPx / TILE) * CELL, 0, ((a.rightPx - a.leftPx) / TILE) * CELL, canvas.height);
-    }
-
-    overlay?.(ctx, CELL);
-  }
-
-  /* --------------------- top-down connected world areas -------------------- */
+  /* --------------------- top-down route-connected areas -------------------- */
 
   private sectionSweepArenas(): string {
     const cards = Object.values(SWEEP_ARENAS)
@@ -793,9 +620,9 @@ export class CommandCenter {
       .join('');
     return this.panel(
       'sweeparenas',
-      'TOP-DOWN WORLD AREAS',
+      'TOP-DOWN ROUTE AREAS',
       `
-      <p class="cc-note">The current BLIP world is top-down only. These connected twin-stick areas are hand-authored from rooms, corridors, roads, alleys, trails, bridges, and signal barriers.
+      <p class="cc-note">The current BLIP world is top-down only. These are route-connected arena maps, not one seamless open map yet. Fast breach handoffs preserve save and runtime player state so the chain plays as one route.
       <span style="color:#a8ff3e">◉</span> signal node · <span style="color:#7cfc9b">◉</span> breach (exit) · <span style="color:#f2a93b">◉</span> elite Classifier · <span style="color:#d84a42">◉</span> drones · <span style="color:#7c5cff">◉</span> caches · <span style="color:#fff3c9">◉</span> spawn.</p>
       ${cards}
       <p class="cc-note"><b>town-z3</b> is the first Chagrin Falls connector pass: exterior buildings, town streets, bridge lanes, and stadium-edge cover without enterable interiors.</p>`,
@@ -841,166 +668,6 @@ export class CommandCenter {
     dot(arena.spawn, '#fff3c9');
   }
 
-  /**
-   * Route topology overlay for Miller Field 3.0 — draws the main serpentine
-   * path, the two optional lower routes, Will's upper secret climb, and the
-   * descent/climb/rejoin/secret/boss/checkpoint/softlock markers on top of the
-   * live grid. Coordinates are (col, row) tile centers of the actual layout.
-   */
-  private paintMillerTopology(ctx: CanvasRenderingContext2D, CELL: number): void {
-    const P = (col: number, row: number): [number, number] => [col * CELL + CELL / 2, row * CELL + CELL / 2];
-    const H = MILLER_FIELD.rowCount * CELL;
-
-    const line = (pts: Array<[number, number]>, color: string, width: number, dash: number[] = []): void => {
-      ctx.save();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = width;
-      ctx.lineJoin = 'round';
-      ctx.lineCap = 'round';
-      ctx.setLineDash(dash);
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 3;
-      ctx.beginPath();
-      pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
-      ctx.stroke();
-      ctx.restore();
-    };
-    const tri = (col: number, row: number, up: boolean, color: string): void => {
-      const [x, y] = P(col, row);
-      const s = CELL;
-      ctx.save();
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      if (up) {
-        ctx.moveTo(x, y - s);
-        ctx.lineTo(x - s * 0.85, y + s * 0.65);
-        ctx.lineTo(x + s * 0.85, y + s * 0.65);
-      } else {
-        ctx.moveTo(x, y + s);
-        ctx.lineTo(x - s * 0.85, y - s * 0.65);
-        ctx.lineTo(x + s * 0.85, y - s * 0.65);
-      }
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.55)';
-      ctx.lineWidth = 0.5;
-      ctx.stroke();
-      ctx.restore();
-    };
-    const circle = (col: number, row: number, color: string, rad: number, inner = false): void => {
-      const [x, y] = P(col, row);
-      ctx.save();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.3;
-      ctx.beginPath();
-      ctx.arc(x, y, rad, 0, Math.PI * 2);
-      ctx.stroke();
-      if (inner) {
-        ctx.beginPath();
-        ctx.arc(x, y, rad * 0.42, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      ctx.restore();
-    };
-    const square = (col: number, row: number, color: string): void => {
-      const [x, y] = P(col, row);
-      const s = CELL * 0.82;
-      ctx.save();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.1;
-      ctx.strokeRect(x - s, y - s, s * 2, s * 2);
-      ctx.fillStyle = color;
-      ctx.fillRect(x - 0.7, y - 0.7, 1.4, 1.4);
-      ctx.restore();
-    };
-    const spark = (col: number, row: number, color: string): void => {
-      const [x, y] = P(col, row);
-      const s = CELL * 1.25;
-      ctx.save();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.4;
-      ctx.lineCap = 'round';
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 3;
-      for (let i = 0; i < 4; i++) {
-        const a = (i * Math.PI) / 4;
-        ctx.beginPath();
-        ctx.moveTo(x - Math.cos(a) * s, y - Math.sin(a) * s);
-        ctx.lineTo(x + Math.cos(a) * s, y + Math.sin(a) * s);
-        ctx.stroke();
-      }
-      ctx.restore();
-    };
-
-    // ---- softlock danger: the ravine void (cols 105-113, below the shelf) ----
-    ctx.save();
-    ctx.fillStyle = 'rgba(255,64,48,0.12)';
-    ctx.fillRect(105 * CELL, 31 * CELL, 8 * CELL, H - 31 * CELL);
-    ctx.strokeStyle = 'rgba(255,90,72,0.55)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([2, 2]);
-    ctx.strokeRect(105 * CELL, 31 * CELL, 8 * CELL, H - 31 * CELL);
-    ctx.restore();
-
-    // ---- routes ----
-    // MAIN serpentine path (white dashed): high → dip → meadow → plateau →
-    // drone lowlands → radio ridge → ravine → mound → door → boss bowl → gate
-    line(
-      [
-        [4, 9], [14, 9], [16, 13], [20, 18], [27, 23], // descend into the scan-dip
-        [35, 13], [42, 13], // scan-climb out to the high meadow
-        [50, 15], [58, 15], // scanner plateau
-        [60, 19], [78, 25], // drop into the drone lowlands (open east floor)
-        [91, 23], [95, 16], [100, 13], // terraced climb to the radio ridge
-        [104, 13], [109, 15], [117, 17], // ravine crossing on the mid pillar
-        [122, 15], [128, 9], [132, 7], [136, 7], // node mound + crop-circle door
-        [147, 19], [170, 19], // boss bowl → road → gate
-      ].map(([c, r]) => P(c, r)),
-      '#f4f4f4',
-      2.2,
-      [CELL * 1.5, CELL]
-    );
-    // LOWER route A (blue): the basin pit beneath the drone valley
-    line(
-      [[60, 19], [63, 25], [68, 29], [74, 29], [78, 25]].map(([c, r]) => P(c, r)),
-      '#35a7ff',
-      1.8
-    );
-    // LOWER route B (blue): fall into the ravine → recovery shelf → climb the lip
-    line(
-      [[105, 14], [108, 29], [111, 25], [109, 22], [112, 19], [117, 17]].map(([c, r]) => P(c, r)),
-      '#35a7ff',
-      1.8
-    );
-    // UPPER secret (cyan): Will's tall hidden climb to the WILLOW badge
-    line(
-      [
-        [84, 25], [85, 23], [86, 21], [85, 19], [86, 17], [85, 15], [86, 13], [85, 11], [86, 9], [85, 7], [87, 5],
-      ].map(([c, r]) => P(c, r)),
-      '#35d5ff',
-      1.8
-    );
-
-    // ---- markers ----
-    // descents ▼
-    for (const [c, r] of [[15, 11], [59, 17], [105, 12], [137, 6]] as Array<[number, number]>) tri(c, r, false, '#ff7a3b');
-    // climbs ▲
-    for (const [c, r] of [[31, 19], [94, 18], [110, 23], [126, 11]] as Array<[number, number]>) tri(c, r, true, '#a8ff3e');
-    tri(85, 14, true, '#35d5ff'); // Will's secret climb
-    // rejoin ◯ (lower routes fold back into the main path)
-    circle(80, 24, '#f4f4f4', CELL);
-    circle(116, 16, '#f4f4f4', CELL);
-    // secret ✳ (Will's WILLOW badge, top of the upper climb)
-    spark(87, 5, '#ffd54a');
-    // boss ◎
-    circle(147, 18, '#ff5040', CELL * 1.4, true);
-    // checkpoints ▣ (QA teleport anchors = the real beat waypoints)
-    for (const [c, r] of [
-      [4, 7], [27, 21], [38, 11], [76, 23], [86, 23], [132, 5], [150, 17],
-    ] as Array<[number, number]>)
-      square(c, r, '#fff3c9');
-  }
-
   private sectionDebug(): string {
     return this.panel(
       'debug',
@@ -1016,7 +683,7 @@ export class CommandCenter {
       <div class="cc-chips" id="cc-flags"></div>
       <h3>RAW SAVE (localStorage: blip_save_v1)</h3>
       <pre class="cc-json" id="cc-save-json"></pre>
-      <button id="cc-reset-save" class="cc-btn danger">↺ RESET SAVE DATA</button>`,
+      <button id="cc-clear-local-save" class="cc-btn danger">↺ CLEAR LOCAL SAVE DATA</button>`,
       'cc-dev-only'
     );
   }
@@ -1027,7 +694,27 @@ export class CommandCenter {
       'BUILD TODO',
       `<ul class="cc-check">${BUILD_TODO.map(
         (t) => `<li class="${t.done ? 'done' : ''}">${t.done ? '☑' : '☐'} ${esc(t.label)}</li>`
-      ).join('')}</ul>`,
+      ).join('')}</ul>
+      <h3>VERTICAL SLICE SYSTEM STATUS</h3>
+      <table class="cc-table cc-status-table">
+        ${VERTICAL_SLICE_SYSTEMS.map(
+          (s) => `<tr><td><b>${esc(s.name)}</b></td><td class="key">${esc(s.status)}</td><td>${esc(s.note)}</td></tr>`
+        ).join('')}
+      </table>
+      <h3>REGION PURPOSE MAP</h3>
+      <table class="cc-table cc-region-plan">
+        <tr><th>REGION</th><th>PURPOSE</th><th>OBJECTIVE</th><th>TRAVERSAL / COMBAT / SECRET</th><th>CONNECTION</th><th>STATE</th></tr>
+        ${REGION_VERTICAL_SLICE_PLAN.map(
+          (r) => `<tr>
+            <td><b>${esc(r.region)}</b></td>
+            <td>${esc(r.purpose)}</td>
+            <td>${esc(r.objective)}</td>
+            <td>${esc(r.traversal)}<br>${esc(r.combat)}<br>${esc(r.secret)}</td>
+            <td>${esc(r.connection)}</td>
+            <td class="key">${esc(r.state)}</td>
+          </tr>`
+        ).join('')}
+      </table>`,
       'cc-dev-only'
     );
   }
@@ -1038,8 +725,13 @@ export class CommandCenter {
       'AI QA / PLAYTEST LAB',
       `
       <p class="cc-note">A core goal of this project: build and polish the game through AI-driven development —
-      automated playtests, screenshot review, self-fixing loops — before any human has to test it.</p>
-      <div id="cc-qa-panel"><p class="cc-note">Loading QA status…</p></div>
+      automated checks and browser smoke tests before any human has to test it.</p>
+      <div class="cc-grid-2">
+        <div class="cc-stat"><label>TYPECHECK</label><b class="ok">npm run typecheck</b></div>
+        <div class="cc-stat"><label>BUILD</label><b class="ok">npm run build</b></div>
+        <div class="cc-stat"><label>SMOKE</label><b class="ok">npm run test:e2e</b></div>
+        <div class="cc-stat"><label>FULL GATE</label><b class="ok">npm run qa:full</b></div>
+      </div>
       <h3>HUMAN PLAYTEST CHECKLIST (what automation can't answer)</h3>
       <ul class="cc-check">${HUMAN_PLAYTEST_CHECKLIST.map((c) => `<li>☐ ${esc(c)}</li>`).join('')}</ul>
       <p class="cc-note">Run locally: <span class="key">npm run qa:full</span> · <span class="key">npm run qa:loop</span></p>`,
@@ -1213,7 +905,7 @@ export class CommandCenter {
         if (!notes.has(n.id)) {
           return `<article class="cc-card note unknown" style="--sw:${sw}">
             <header><b>UNREAD PAGE</b><span class="cc-chip">${scout ? esc(scout.callsign) : 'SCOUT'}</span></header>
-            <p>A folded notebook page. Scan where the ${scout ? esc(scout.colorName) : ''} trace runs strongest.</p>
+            <p>A marked notebook page. Scan where the ${scout ? esc(scout.colorName) : ''} trace runs strongest.</p>
           </article>`;
         }
         return `<article class="cc-card note" style="--sw:${sw}">
@@ -1281,7 +973,7 @@ export class CommandCenter {
         deaths: st.deaths,
         'enemies defeated': st.enemiesDefeated,
         'scans used': st.scansUsed,
-        'pulse shots': st.pulseShotsFired,
+        'weapon shots': st.weaponShotsFired,
         'time played': `${Math.floor(st.timePlayedSec / 60)}m ${st.timePlayedSec % 60}s`,
       })
         .map(([k, v]) => `<div class="cc-stat"><label>${esc(k.toUpperCase())}</label><b>${esc(String(v))}</b></div>`)
@@ -1297,43 +989,5 @@ export class CommandCenter {
     const jsonEl = this.root.querySelector('#cc-save-json');
     if (jsonEl) jsonEl.textContent = saveAsJson();
 
-    this.renderQa();
-  }
-
-  private async loadQa(): Promise<void> {
-    try {
-      const res = await fetch('/qa-status.json', { cache: 'no-store' });
-      if (res.ok) this.qa = (await res.json()) as QaStatus;
-    } catch {
-      this.qa = null;
-    }
-    this.renderQa();
-  }
-
-  private renderQa(): void {
-    const el = this.root.querySelector('#cc-qa-panel');
-    if (!el) return;
-    if (!this.qa) {
-      el.innerHTML = `<div class="cc-stat"><label>STATUS</label><b class="warn">NO QA DATA — run npm run qa:loop</b></div>`;
-      return;
-    }
-    const q = this.qa;
-    const badgeCls = q.status === 'READY FOR HUMAN PLAYTESTING' ? 'ok' : q.status === 'NEEDS FIXES' ? 'bad' : 'warn';
-    el.innerHTML = `
-      <div class="cc-grid-2">
-        <div class="cc-stat"><label>STATUS</label><b class="${badgeCls}">${esc(q.status)}</b></div>
-        <div class="cc-stat"><label>LAST RUN</label><b>${q.lastRun ? esc(new Date(q.lastRun).toLocaleString()) : '—'}</b></div>
-        <div class="cc-stat"><label>RESULT</label><b class="${q.result === 'PASS' ? 'ok' : 'bad'}">${esc(q.result)}</b></div>
-        <div class="cc-stat"><label>ITERATION</label><b>${q.iteration}</b></div>
-      </div>
-      <h3>AUTOMATED CHECKS</h3>
-      <div class="cc-chips">${Object.entries(q.categories)
-        .map(([k, v]) => `<span class="cc-chip ${v === 'PASS' ? 'ok' : v === 'FAIL' ? 'bad' : ''}">${esc(k)}: ${esc(v)}</span>`)
-        .join('')}</div>
-      ${q.bugsFound.length ? `<h3>FINDINGS</h3><ul class="cc-list">${q.bugsFound.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>` : ''}
-      ${q.bugsFixed.length ? `<h3>FIXED THIS ITERATION</h3><ul class="cc-list">${q.bugsFixed.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>` : ''}
-      ${q.remaining.length ? `<h3>REMAINING</h3><ul class="cc-list">${q.remaining.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>` : ''}
-      ${q.screenshots.length ? `<h3>SNAPSHOTS</h3><div class="cc-chips">${q.screenshots.map((s) => `<span class="cc-chip">${esc(s)}</span>`).join('')}</div>` : ''}
-      ${q.note ? `<p class="cc-note">${esc(q.note)}</p>` : ''}`;
   }
 }

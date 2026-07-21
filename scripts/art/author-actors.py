@@ -44,7 +44,7 @@ SS = 4  # supersample factor - draw big, downsample, get clean HD edges
 LIGHT = np.array([-0.62, -0.62, 0.48])
 LIGHT /= np.linalg.norm(LIGHT)
 
-# Intended on-screen sizes (TOPDOWN_VISUAL_PLAN Phase 3); authored at 2x.
+# Intended on-screen sizes; authored at 2x.
 SPECS = {"player": 28, "drone": 22, "elite": 40, "node": 56}
 
 # --- palette, matched to src/game/config.ts (read-only reference) ------------

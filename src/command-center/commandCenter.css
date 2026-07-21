@@ -277,8 +277,11 @@
 
 /* ---------- tables / lists ---------- */
 .cc-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+.cc-table th { color: var(--text-dim); font-weight: 800; text-align: left; border-bottom: 1px solid rgba(53, 255, 213, 0.25); padding: 5px 8px 5px 0; }
 .cc-table td { border-bottom: 1px solid rgba(18, 51, 46, 0.6); padding: 5px 8px 5px 0; vertical-align: top; }
 .cc-table .key, .key { color: var(--signal); white-space: nowrap; }
+.cc-status-table td:first-child { width: 22%; }
+.cc-region-plan td, .cc-region-plan th { white-space: normal; }
 
 .cc-check { list-style: none; margin: 6px 0; padding: 0; font-size: 10px; line-height: 1.9; }
 .cc-check li.done { color: var(--green); }
@@ -311,7 +314,7 @@
   font-weight: 700;
 }
 
-/* ---------- level plans / roadmap ---------- */
+/* ---------- build roadmap ---------- */
 .cc-plan-list { display: flex; flex-direction: column; gap: 12px; }
 .cc-plan {
   border: 1px solid var(--line);
@@ -356,7 +359,7 @@
   .cc-plan-cols { grid-template-columns: 1fr; }
 }
 
-/* ---------- level atlas (dev birdseye) ---------- */
+/* ---------- connected-area atlas (dev birdseye) ---------- */
 .cc-atlas-wrap {
   border: 1px solid var(--line);
   background: #060b14;

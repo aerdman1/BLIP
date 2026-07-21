@@ -1,6 +1,6 @@
 # BLIP — Project Instructions
 
-**Always follow the local BLIP project skills/instructions before implementing features. BLIP is now a playable, Vercel-ready, top-down procedural pixel-art game. The old side-scrolling campaign is removed from live access; current work must build on the connected top-down world.**
+**Always follow the local BLIP project skills/instructions before implementing features. BLIP is a playable, Vercel-ready, top-down procedural pixel-art game. Current work must build on the route-connected top-down arena chain.**
 
 ## Non-Negotiable Production Deploy Rule
 
@@ -21,17 +21,17 @@
 | Skill | Path | Governs |
 |---|---|---|
 | BLIP Game Director | `.claude/skills/blip-game-director/SKILL.md` | Vision, tone, story, naming — consult before ANY feature |
-| Phaser Top-Down Runtime | `.claude/skills/phaser-pixel-platformer/SKILL.md` | Engine, rendering, code architecture rules |
+| Phaser Top-Down Runtime | `.claude/skills/phaser-topdown-runtime/SKILL.md` | Engine, rendering, code architecture rules |
 | Procedural Pixel Art | `.claude/skills/procedural-pixel-art/SKILL.md` | All art/textures/palette decisions |
-| Blipstream Puzzle | `.claude/skills/blipstream-puzzle/SKILL.md` | Blipstream Node room design |
 | Playtest / QA | `.claude/skills/playtest-qa/SKILL.md` | Playability checklist + AI QA pipeline rules |
 | Scope Control | `.claude/skills/scope-control/SKILL.md` | What NOT to build today |
 | BLIP Progression | `.claude/skills/blip-progression/SKILL.md` | Earn-loop wiring — abilities, Signal Shards/Workbench, ERD dev panel, test hooks |
 
 ## Quick Facts
 
-- Game: **BLIP** — "You are the thing on the radar." Player: **CONTACT-47**. Puzzle dimension: **Blipstream**. Villain/system: **The Interpretation Engine**. Story heart: **The Five Signal Scouts** (Will, Chip, Henry, Cameron, Danny).
-- Current playable route is top-down only: Miller Surface (`surface-z1`) → Motel Circuit (`circuit-z2`) → Chagrin Falls town/stadium connector (`town-z3`) → Patterson's Orchard maze (`maze-z4`) → Signal Storm (`anomaly-01`). Preserve the Five Signal Scouts and classification theme while porting story/progression out of the old side-view structure.
+- Game: **BLIP** — "You are the thing on the radar." Player: **CONTACT-47**. Route system: **Signal Nodes**. Villain/system: **The Interpretation Engine**. Story heart: **The Five Signal Scouts** (Will, Chip, Henry, Cameron, Danny).
+- Current playable route: Miller Surface (`surface-z1`) → Motel Circuit (`circuit-z2`) → Chagrin Falls town/stadium connector (`town-z3`) → Patterson's Orchard maze (`maze-z4`) → Signal Storm (`anomaly-01`). These are separate top-down arena maps connected by fast breach handoffs with shared save/runtime state, not a seamless open map yet. Preserve the Five Signal Scouts and classification theme while polishing the route.
+- Current combat foundation: Pulse Carbine, Arc Blade and Recall Disc with fast switching. Phase Shift, Signal Tubes, Gravity Wells, Phase Doors and stronger region objectives are tracked for scoped vertical-slice passes, not broad expansion.
 - Top-down pixel action game. Internal resolution 480×270, pixel-perfect upscale, with selected arenas using the higher-detail top-down render path. Phaser 3 + Arcade physics + Vite 5 (Node 18 pin) + TypeScript.
 - All art is procedural (generated textures). All tuning constants in `src/game/config.ts`. All content data in `src/game/data/`.
 - Save: localStorage `blip_save_v1` (migrates legacy `beamline_save_v1` if found).

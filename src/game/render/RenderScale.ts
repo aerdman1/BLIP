@@ -7,12 +7,10 @@
  * REGION IS UNCHANGED. No gameplay tuning (aimRange, scanRadius, follow lerp,
  * arena bounds) shifts; you simply get d² times the samples.
  *
- * Side-view scenes never leave 480×270.
- *
  * DANGER — a leaked resize. If restoreBase() is missed on any exit path, the
  * next scene lays out 480-coordinate content inside a 1440×810 buffer and
  * renders tiny in the top-left. restoreBase() is therefore called from
- * SweepScene's SHUTDOWN (the one hook covering breach / death / quit / dev warp)
+ * SweepScene's SHUTDOWN (the one hook covering route transitions / death / quit)
  * AND defensively from Boot + MainMenu.
  */
 import Phaser from 'phaser';
@@ -68,8 +66,7 @@ export function restoreBase(scene: Phaser.Scene): void {
  * Give a texture LINEAR filtering so it upscales smoothly instead of blocky.
  * `pixelArt: true` only sets the DEFAULT filter; this overrides per texture.
  *
- * ONLY EVER call this on `td-*` keys. glow8 / px / spark / ring are shared with
- * every side-view scene — filtering those would silently change seven zones.
+ * ONLY EVER call this on `td-*` keys. Shared procedural keys stay pixel-filtered.
  */
 export function linearTd(scene: Phaser.Scene, key: string): void {
   if (!key.startsWith('td-')) {

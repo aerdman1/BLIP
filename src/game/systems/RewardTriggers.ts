@@ -41,21 +41,21 @@ export function installRewardTriggers(): void {
         awardOnce('milestone:first-scan', () => grantCache('small-signal'));
       }
 
-      // --- Miller Field beats ---
+      // --- connected-world milestones ---
       if (f.willBadgeCollected) {
         rewards.unlockTrophy('will-route');
         awardOnce('flag:will-badge', () => grantCache('small-signal'));
       }
-      if (f.dronesCleared) {
+      if (f.millerNodeCharged) {
         rewards.unlockTrophy('drones-cleared');
-        awardOnce('flag:drones-cleared', () => grantCache('small-signal'));
+        awardOnce('flag:miller-node', () => grantCache('small-signal'));
       }
-      if (f.nodeACompleted || f.poolNodeSolved || f.orchardMazeSolved) {
-        rewards.unlockTrophy('blipstream-solved');
-        awardOnce('flag:blipstream', () => grantCache('scout'));
+      if (f.motelNodeCharged || f.townNodeCharged || f.orchardNodeCharged || f.stormNodeCharged) {
+        rewards.unlockTrophy('signal-node-routed');
+        awardOnce('flag:route-node', () => grantCache('scout'));
       }
       if (f.firstFragmentCollected) rewards.unlockTrophy('first-fragment');
-      if (f.bossDefeated) rewards.unlockTrophy('scarecrow-down'); // grants a scout cache via trophy.reward
+      if (f.millerNodeCharged) rewards.unlockTrophy('scarecrow-down'); // grants a scout cache via trophy.reward
 
       // --- every Signal Fragment collected → a Scout Cache ---
       for (let n = 1; n <= s.signalFragments; n++) {

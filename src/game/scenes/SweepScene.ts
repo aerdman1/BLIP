@@ -1,8 +1,7 @@
 /**
- * BLIP's top-down game world. Areas remain data-driven arenas internally, but
- * traversal breaches now connect to the next top-down area instead of returning
- * to the removed side-view campaign.
- *  - 'waves': hold against escalating waves (F7 dev warp / future run mode).
+ * BLIP's top-down game world. Areas remain data-driven arenas internally, and
+ * traversal breaches connect to the next top-down area.
+ *  - 'waves': hold against escalating waves.
  * Isolated scene (own physics world, gravity 0). Aim with the mouse (or right stick),
  * fire yourself. Tuning in config.SWEEP.
  */
@@ -33,6 +32,20 @@ import { TdLighting } from '../topdown/TdLighting';
 import { ActorRig, SignalNodeRig } from '../topdown/TdActors';
 
 type PickupType = 'health' | 'weapon' | 'boon';
+
+interface SweepWorldHandoff {
+  hp: number;
+  weaponId: string;
+  overdrive: number;
+  boonScanMul: number;
+  boonFireMul: number;
+  shardsEarned: number;
+  killCount: number;
+  shotCount: number;
+}
+
+const WORLD_HANDOFF_KEY = 'sweepWorldHandoff';
+const WEAPON_LOADOUT = ['pulse', 'arc', 'disc'] as const;
 
 const SCOUT_TINT: Record<string, number> = {
   will: P.scoutWill,
@@ -96,6 +109,7 @@ export class SweepScene extends Phaser.Scene {
   private fireAt = 0;
   private shotCount = 0;
   private weapon: SweepWeapon = WEAPONS.pulse;
+  private weaponIndex = 0;
   private boonScanMul = 1; // WILLOW boon
   private boonFireMul = 1; // ROCKET boon
   private caches: Phaser.GameObjects.Image[] = [];
@@ -177,6 +191,7 @@ export class SweepScene extends Phaser.Scene {
     this.gameOverShown = false;
     this.isPaused = false;
     this.weapon = WEAPONS.pulse;
+    this.weaponIndex = 0;
     this.boonScanMul = 1;
     this.boonFireMul = 1;
     this.caches = [];
@@ -236,6 +251,7 @@ export class SweepScene extends Phaser.Scene {
     const spawnY = (this.arena.spawn.ty + 0.5) * T;
     this.player = new BlipCraft(this, spawnX, spawnY, this.fx);
     (this.player.body as Phaser.Physics.Arcade.Body).setCollideWorldBounds(true);
+    this.applyWorldHandoff();
     this.cameras.main.startFollow(this.player, true, 0.16, 0.16);
     if (this.td) {
       // sits just behind the player, invisible until a drone overlaps him
@@ -280,7 +296,7 @@ export class SweepScene extends Phaser.Scene {
 
     bus.emit(EVT.sceneChanged, { scene: SCENES.sweep, zone: this.arena.label });
     bus.emit(EVT.hudHp, { hp: this.player.hp, max: this.player.maxHp });
-    audio.playMusic('blipstream');
+    audio.playMusic('signal');
     const uiWasActive = this.scene.isActive(SCENES.ui);
     if (!uiWasActive) this.scene.launch(SCENES.ui);
     const enterHud = () => {
@@ -293,6 +309,7 @@ export class SweepScene extends Phaser.Scene {
     if (!uiWasActive) this.time.delayedCall(40, enterHud);
 
     this.input.keyboard?.on('keydown-ESC', this.togglePause, this);
+    this.input.on('wheel', this.onWeaponWheel, this);
     this.unsubs.push(bus.on(EVT.uiResume, () => this.setPaused(false)));
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown, this);
 
@@ -515,7 +532,7 @@ export class SweepScene extends Phaser.Scene {
       .setDepth(12);
   }
 
-  /** the Node is fully charged — light the breach and let the player Fold onward */
+  /** the Node is fully charged — light the breach and let the player route onward */
   private openBreach(): void {
     if (this.breachOpen) return;
     this.breachOpen = true;
@@ -637,7 +654,7 @@ export class SweepScene extends Phaser.Scene {
     this.bossAddsSpawned = false;
   }
 
-  /** the Maze Heart is destroyed — the triumphant climax before the Fold onward. */
+  /** the Maze Heart is destroyed — the triumphant climax before the route opens. */
   private onBossDefeated(x: number, y: number): void {
     this.bossActive = false;
     this.eliteBeam?.clear();
@@ -662,7 +679,7 @@ export class SweepScene extends Phaser.Scene {
     this.revealCaches(this.nodePos.x, this.nodePos.y, 99999); // grant every remaining cache
     bus.emit(EVT.toast, { text: 'THE MAZE HEART FALLS — THE PATTERN IS YOURS', color: 'green' });
     this.showBanner('THE MAZE HEART FALLS');
-    this.openBreach(); // now the breach lights → reach it to Fold onward to the Orchard
+    this.openBreach(); // now the breach lights -> reach it to route onward to the Orchard
   }
 
   /* --------------------------- caches (secrets) -------------------------- */
@@ -815,9 +832,9 @@ export class SweepScene extends Phaser.Scene {
         bus.emit(EVT.toast, { text: 'WILLOW — “I marked the whole field for you.”', color: 'cyan' });
         break;
       case 'chip':
-        this.setWeapon(WEAPONS.repeater);
+        this.setWeapon(WEAPONS.pulse);
         this.fx.floatText(p.x, p.y - 10, 'SPARK', P.scoutChip);
-        bus.emit(EVT.toast, { text: 'SPARK — “Built you a repeater. Go go go!”', color: 'orange' });
+        bus.emit(EVT.toast, { text: 'SPARK — “Carbine tuned. Go go go!”', color: 'orange' });
         break;
       case 'henry':
         p.heal(99);
@@ -828,7 +845,7 @@ export class SweepScene extends Phaser.Scene {
       case 'cameron':
         this.setWeapon(WEAPONS.arc);
         this.fx.floatText(p.x, p.y - 10, 'ECHO', P.scoutCameron);
-        bus.emit(EVT.toast, { text: 'ECHO — “Echo Arc. It bounces. Watch.”', color: 'cyan' });
+        bus.emit(EVT.toast, { text: 'ECHO — “Arc Blade. Get close, then cut through.”', color: 'cyan' });
         break;
       case 'danny':
         this.boonFireMul *= SWEEP.boonFireMul;
@@ -898,7 +915,60 @@ export class SweepScene extends Phaser.Scene {
   /* ------------------------------- firing -------------------------------- */
   setWeapon(wp: SweepWeapon): void {
     this.weapon = wp;
+    const idx = WEAPON_LOADOUT.findIndex((id) => id === wp.id);
+    if (idx >= 0) this.weaponIndex = idx;
     bus.emit(EVT.toast, { text: `WEAPON: ${wp.name}`, color: 'green' });
+    this.showBanner(wp.name);
+    this.emitHudStats();
+  }
+
+  debugSetWeapon(id: string): boolean {
+    const wp = WEAPONS[id];
+    if (!wp) return false;
+    this.setWeapon(wp);
+    return true;
+  }
+
+  debugSwitchWeapon(delta = 1): boolean {
+    this.switchWeapon(delta);
+    return true;
+  }
+
+  debugDamagePlayer(amount = 1): boolean {
+    if (!this.player?.active) return false;
+    this.player.hp = Math.max(1, this.player.hp - Math.max(0, amount));
+    bus.emit(EVT.hudHp, { hp: this.player.hp, max: this.player.maxHp });
+    return true;
+  }
+
+  debugRuntimeState(): { hp: number; maxHp: number; weaponId: string; weaponIndex: number; overdrive: number; shardsEarned: number } | null {
+    if (!this.player?.active) return null;
+    return {
+      hp: this.player.hp,
+      maxHp: this.player.maxHp,
+      weaponId: this.weapon.id,
+      weaponIndex: this.weaponIndex,
+      overdrive: this.overdrive,
+      shardsEarned: this.shardsEarned,
+    };
+  }
+
+  private switchWeapon(delta: number): void {
+    const next = (this.weaponIndex + delta + WEAPON_LOADOUT.length) % WEAPON_LOADOUT.length;
+    this.selectWeaponIndex(next);
+  }
+
+  private selectWeaponIndex(index: number): void {
+    const id = WEAPON_LOADOUT[index];
+    if (!id || this.weaponIndex === index) return;
+    this.setWeapon(WEAPONS[id]);
+    audio.uiToggle();
+    this.fx.sparks(this.player.x, this.player.y, this.weapon.glow, 5);
+  }
+
+  private onWeaponWheel(_pointer: Phaser.Input.Pointer, _objects: unknown[], _dx: number, dy: number): void {
+    if (this.isPaused || this.gameOverShown || this.exiting || uiOverlayActive()) return;
+    this.switchWeapon(dy > 0 ? 1 : -1);
   }
 
   private fire(now: number): void {
@@ -906,7 +976,12 @@ export class SweepScene extends Phaser.Scene {
     const cd = wp.cooldownMs * (activeSkin().mods.pulseCooldownMul ?? 1) * this.boonFireMul * (this.odActive ? SWEEP.overdriveFireMul : 1);
     this.fireAt = now + cd;
     this.shotCount++;
+    if (wp.id === 'arc') {
+      this.swingArcBlade(wp);
+      return;
+    }
     const surge = activeSkin().abilities.surgeShot === true && this.shotCount % 3 === 0; // SPARK Surge Shot
+    const charged = wp.id === 'pulse' && this.shotCount % 5 === 0;
     const base = this.player.aimAngle;
     const mx = this.player.muzzleX;
     const my = this.player.muzzleY;
@@ -916,12 +991,15 @@ export class SweepScene extends Phaser.Scene {
       const b = fireFrom(this.playerShots, mx, my, Math.cos(a) * wp.speed, Math.sin(a) * wp.speed, wp.lifeMs);
       if (b) {
         const uni = wp.scale ?? 1; // heavy shells (RUPTURE) read bigger
-        b.setTint(surge ? P.warning : wp.tint);
-        b.setScale((wp.scaleX ?? 1) * uni, uni);
-        b.setData('dmg', wp.damage * (surge ? 2 : 1));
-        b.setData('pierce', wp.pierce === true);
+        b.setTint(charged || surge ? P.warning : wp.tint);
+        b.setScale((charged ? 2.2 : (wp.scaleX ?? 1)) * uni, (charged ? 1.25 : 1) * uni);
+        b.setData('dmg', wp.damage * (surge || charged ? 2 : 1));
+        b.setData('pierce', wp.pierce === true || charged);
         b.setData('bounce', wp.bounce ?? 0);
         b.setData('hits', null);
+        b.setData('recallDisc', wp.id === 'disc');
+        b.setData('returnAt', now + 420);
+        b.setData('discPhase', 'out');
         // reset per-shot specials every fire — the pool reuses sprites, so stale
         // homing/explode data from a previous weapon must be cleared.
         b.setData('homing', wp.homing ? (wp.homingRate ?? 5) : 0);
@@ -934,6 +1012,60 @@ export class SweepScene extends Phaser.Scene {
     this.tweens.add({ targets: mf, scale: 0.15, alpha: 0, duration: 90, onComplete: () => mf.destroy() });
     this.fx.sparks(mx, my, wp.glow, surge ? 4 : 2);
     audio.pulseShot();
+  }
+
+  private swingArcBlade(wp: SweepWeapon): void {
+    const base = this.player.aimAngle;
+    const range = 58;
+    const arc = Math.PI * 0.72;
+    const px = this.player.x;
+    const py = this.player.y;
+    const blade = this.add.graphics().setDepth(26);
+    blade.lineStyle(4, wp.glow, 0.8);
+    blade.beginPath();
+    blade.arc(px, py, range, base - arc / 2, base + arc / 2, false);
+    blade.strokePath();
+    blade.lineStyle(1, P.white, 0.65);
+    blade.lineBetween(px, py, px + Math.cos(base) * range, py + Math.sin(base) * range);
+    this.tweens.add({ targets: blade, alpha: 0, duration: 130, onComplete: () => blade.destroy() });
+    this.fx.sparks(px + Math.cos(base) * 24, py + Math.sin(base) * 24, wp.glow, 6);
+    this.fx.shake(0.003, 80);
+    audio.pulseShot();
+
+    let hit = false;
+    (this.enemies.getChildren() as SweepEnemy[]).forEach((en) => {
+      if (!en.active) return;
+      const d = Phaser.Math.Distance.Between(px, py, en.x, en.y);
+      const a = Math.atan2(en.y - py, en.x - px);
+      const inside = d <= range && Math.abs(Phaser.Math.Angle.Wrap(a - base)) <= arc / 2;
+      if (!inside) return;
+      hit = true;
+      this.impactFx(en.x, en.y, wp.glow);
+      if (en.applyHit(wp.damage, px, py, 340)) this.killEnemy(en);
+    });
+
+    let reflected = 0;
+    (this.enemyShots.getChildren() as Projectile[]).forEach((bolt) => {
+      if (!bolt.active) return;
+      const d = Phaser.Math.Distance.Between(px, py, bolt.x, bolt.y);
+      const a = Math.atan2(bolt.y - py, bolt.x - px);
+      if (d > range || Math.abs(Phaser.Math.Angle.Wrap(a - base)) > arc / 2) return;
+      bolt.kill();
+      const rb = fireFrom(this.playerShots, bolt.x, bolt.y, Math.cos(base) * 420, Math.sin(base) * 420, 650);
+      if (rb) {
+        rb.setTint(wp.glow).setScale(1.2);
+        rb.setData('dmg', 1);
+        rb.setData('pierce', true);
+        rb.setData('bounce', 0);
+        rb.setData('hits', null);
+        rb.setData('recallDisc', false);
+        rb.setData('homing', 0);
+        rb.setData('explode', null);
+      }
+      reflected++;
+    });
+    if (hit || reflected) audio.enemyHit();
+    if (reflected) this.fx.floatText(px, py - 12, `PARRY x${reflected}`, wp.glow);
   }
 
   /* ---------------------------- collisions ------------------------------- */
@@ -987,6 +1119,26 @@ export class SweepScene extends Phaser.Scene {
   private steerHomingShots(dt: number): void {
     (this.playerShots.getChildren() as Projectile[]).forEach((b) => {
       if (!b.active) return;
+      if (b.getData('recallDisc') === true) {
+        const body = b.body as Phaser.Physics.Arcade.Body;
+        const phase = b.getData('discPhase') as string;
+        const far = Phaser.Math.Distance.Between(b.x, b.y, this.player.x, this.player.y) > 190;
+        if (phase !== 'return' && (this.time.now >= ((b.getData('returnAt') as number) ?? 0) || far)) {
+          b.setData('discPhase', 'return');
+          b.setData('hits', null);
+        }
+        if (b.getData('discPhase') === 'return') {
+          const speed = Math.hypot(body.velocity.x, body.velocity.y) || this.weapon.speed || 310;
+          const want = Math.atan2(this.player.y - b.y, this.player.x - b.x);
+          body.setVelocity(Math.cos(want) * speed, Math.sin(want) * speed);
+          b.setRotation(want);
+          if (Phaser.Math.Distance.Between(b.x, b.y, this.player.x, this.player.y) < 18) {
+            this.fx.sparks(this.player.x, this.player.y, P.warning, 3);
+            b.kill();
+          }
+        }
+        return;
+      }
       const rate = (b.getData('homing') as number) ?? 0;
       if (!rate) return;
       let best: SweepEnemy | null = null;
@@ -1024,6 +1176,12 @@ export class SweepScene extends Phaser.Scene {
 
   /** a bolt hit a wall: ricochet if it has bounces left, else die */
   private onShotHitWall(b: Projectile): void {
+    if (b.getData('recallDisc') === true) {
+      b.setData('discPhase', 'return');
+      b.setData('hits', null);
+      this.fx.sparks(b.x, b.y, P.warning, 3);
+      return;
+    }
     const explode = b.getData('explode') as { radius: number; damage: number } | null;
     if (explode) {
       this.explodeShot(b.x, b.y, explode);
@@ -1081,7 +1239,7 @@ export class SweepScene extends Phaser.Scene {
       this.shardsEarned += SWEEP.eliteCacheShards;
       this.fx.floatText(ex, ey - 10, '+CACHE', P.warning);
     } else if (Math.random() < (this.arena.dropChance ?? SWEEP.dropChance)) {
-      // per-arena override lets ONLY the finale Fold be extra loot-generous
+      // per-arena override lets only the finale route clear be extra loot-generous
       this.dropPickup(ex, ey);
     }
   }
@@ -1139,10 +1297,24 @@ export class SweepScene extends Phaser.Scene {
     pk.setTint(wp.tint).setScale(1.5).setDepth(12).setData('ptype', 'weapon').setData('wid', wid);
     (pk.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
     const glow = this.add.image(x, y, TEX.glow8).setDepth(11).setTint(wp.tint).setBlendMode(Phaser.BlendModes.ADD).setScale(1.4).setAlpha(0.4);
+    const label = this.add
+      .text(x, y - 25, `${wp.name}\n${wp.role}`, {
+        fontFamily: 'monospace',
+        fontSize: '7px',
+        fontStyle: 'bold',
+        color: css(P.cream),
+        align: 'center',
+        backgroundColor: 'rgba(5,8,14,0.78)',
+        padding: { x: 4, y: 3 },
+      })
+      .setOrigin(0.5)
+      .setResolution(2)
+      .setDepth(13);
     pk.setData('glow', glow);
+    pk.setData('label', label);
     this.tweens.add({ targets: [pk], scale: { from: 1.3, to: 1.7 }, duration: 520, yoyo: true, repeat: -1 });
     this.tweens.add({ targets: glow, alpha: { from: 0.25, to: 0.55 }, duration: 640, yoyo: true, repeat: -1 });
-    if (!persist) this.time.delayedCall(14000, () => { if (pk.active) { glow.destroy(); pk.destroy(); } });
+    if (!persist) this.time.delayedCall(14000, () => { if (pk.active) { glow.destroy(); label.destroy(); pk.destroy(); } });
   }
 
   /** seed the finale's guaranteed weapon pickups (arena.weaponSpawns) so gun variety is assured. */
@@ -1158,6 +1330,7 @@ export class SweepScene extends Phaser.Scene {
     if (!pk.active) return;
     const type = pk.getData('ptype') as PickupType;
     (pk.getData('glow') as Phaser.GameObjects.Image | undefined)?.destroy();
+    (pk.getData('label') as Phaser.GameObjects.Text | undefined)?.destroy();
     this.impactFx(this.player.x, this.player.y, P.signalGreen); // collect pop
     if (type === 'boon') {
       const scout = pk.getData('scout') as string;
@@ -1196,6 +1369,10 @@ export class SweepScene extends Phaser.Scene {
     this.input2.update();
     if (this.input2.pauseJustDown && !this.isPaused && !uiOverlayActive() && !this.gameOverShown) this.setPaused(true);
     if (this.isPaused || this.gameOverShown || this.exiting) return;
+    const weaponSlot = this.input2.weaponSlotJustDown;
+    if (weaponSlot !== null) this.selectWeaponIndex(weaponSlot);
+    else if (this.input2.weaponNextJustDown) this.switchWeapon(1);
+    else if (this.input2.weaponPrevJustDown) this.switchWeapon(-1);
     const now = this.time.now;
     const dt = delta / 1000;
     if (this.td) this.updateTdVisuals(dt);
@@ -1215,7 +1392,7 @@ export class SweepScene extends Phaser.Scene {
       const ang = this.nearestEnemyAngle();
       if (ang !== null) this.player.setAim(ang);
       this.reticle.setPosition(this.player.x + Math.cos(this.player.aimAngle) * 64, this.player.y + Math.sin(this.player.aimAngle) * 64);
-      firing = touchInput.shootHeld || touchInput.jumpHeld;
+      firing = touchInput.shootHeld || touchInput.primaryHeld;
     } else {
       const p = this.input.activePointer;
       // the camera FOLLOWS the player across the arena, so activePointer.worldX/Y
@@ -1243,9 +1420,9 @@ export class SweepScene extends Phaser.Scene {
     this.steerHomingShots(dt);
 
     if (this.traverse) {
-      // reach the (open) breach → Fold onward. Locked until the Node is charged.
+      // reach the open breach and route onward. Locked until the Node is charged.
       if (this.breachOpen && this.player.alive && Phaser.Math.Distance.Between(this.player.x, this.player.y, this.breachPos.x, this.breachPos.y) < 22) {
-        this.foldOnward();
+        this.routeOnward();
       }
     } else {
       // waves mode
@@ -1353,22 +1530,57 @@ export class SweepScene extends Phaser.Scene {
     }
   }
 
-  /** DEV: jump straight to the breach so the route transition fires next update. */
-  debugSkipToBreach(): void {
+  private captureWorldHandoff(): SweepWorldHandoff {
+    return {
+      hp: this.player.hp,
+      weaponId: this.weapon.id,
+      overdrive: this.overdrive,
+      boonScanMul: this.boonScanMul,
+      boonFireMul: this.boonFireMul,
+      shardsEarned: this.shardsEarned,
+      killCount: this.killCount,
+      shotCount: this.shotCount,
+    };
+  }
+
+  private applyWorldHandoff(): void {
+    const handoff = this.registry.get(WORLD_HANDOFF_KEY) as SweepWorldHandoff | undefined;
+    this.registry.remove(WORLD_HANDOFF_KEY);
+    if (!handoff) return;
+    this.player.hp = Phaser.Math.Clamp(handoff.hp, 1, this.player.maxHp);
+    this.weapon = WEAPONS[handoff.weaponId] ?? WEAPONS.pulse;
+    const idx = WEAPON_LOADOUT.findIndex((id) => id === this.weapon.id);
+    this.weaponIndex = idx >= 0 ? idx : 0;
+    this.overdrive = Phaser.Math.Clamp(handoff.overdrive, 0, SWEEP.overdriveMax);
+    this.boonScanMul = handoff.boonScanMul > 0 ? handoff.boonScanMul : 1;
+    this.boonFireMul = handoff.boonFireMul > 0 ? handoff.boonFireMul : 1;
+    this.shardsEarned = Math.max(0, handoff.shardsEarned);
+    this.killCount = Math.max(0, handoff.killCount);
+    this.shotCount = Math.max(0, handoff.shotCount);
+  }
+
+  /** DEV: move straight to the breach so the route transition fires next update. */
+  debugRouteToBreach(): void {
     if (!this.traverse || !this.player || this.exiting) return;
-    if (!this.breachOpen) this.openBreach(); // force it so the Fold can fire
+    if (!this.breachOpen) this.openBreach();
     this.player.setPosition(this.breachPos.x, this.breachPos.y);
     (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
   }
 
   /** traverse complete — move to the next connected top-down area. */
-  private foldOnward(): void {
+  private routeOnward(): void {
     if (this.exiting) return;
     this.exiting = true;
-    addShards(this.arena.clearBonus ?? SWEEP.shardsClearBonus); // finale Fold pays out more
+    const clearBonus = this.arena.clearBonus ?? SWEEP.shardsClearBonus;
+    addShards(clearBonus);
+    this.shardsEarned += clearBonus;
     if (this.arena.completeZoneOnExit) {
       updateSave((s) => {
         if (!s.completedZones.includes(this.arena.completeZoneOnExit!)) s.completedZones.push(this.arena.completeZoneOnExit!);
+        if (this.arena.completeZoneOnExit === 'miller-field') s.flags.millerNodeCharged = true;
+        if (this.arena.completeZoneOnExit === 'motel-nowhere') s.flags.motelNodeCharged = true;
+        if (this.arena.completeZoneOnExit === 'tiger-stadium') s.flags.townNodeCharged = true;
+        if (this.arena.completeZoneOnExit === 'pattersons-orchard') s.flags.orchardNodeCharged = true;
       });
     }
     const nextArena = this.arena.nextArena;
@@ -1377,6 +1589,7 @@ export class SweepScene extends Phaser.Scene {
     this.fx.flash(P.white, 160);
     this.time.delayedCall(360, () => {
       if (nextArena) {
+        this.registry.set(WORLD_HANDOFF_KEY, this.captureWorldHandoff());
         this.registry.set('sweepArenaId', nextArena);
         this.registry.set('gameOverRetryScene', SCENES.sweep);
         this.registry.set('gameOverRetryArenaId', nextArena);
@@ -1398,6 +1611,7 @@ export class SweepScene extends Phaser.Scene {
     this.showBanner('SIGNAL HELD');
     updateSave((s) => {
       if (!s.completedZones.includes('skyline-array')) s.completedZones.push('skyline-array');
+      s.flags.stormNodeCharged = true;
     });
     this.time.delayedCall(1200, () => this.exitToMenu());
   }
@@ -1418,7 +1632,7 @@ export class SweepScene extends Phaser.Scene {
   }
 
   private exitToMenu(): void {
-    audio.transitionWarp();
+    audio.transitionRoute();
     this.fx.staticBurst(400);
     this.fx.flash(P.white, 160);
     this.time.delayedCall(350, () => {
@@ -1491,7 +1705,7 @@ export class SweepScene extends Phaser.Scene {
 
   private onShutdown(): void {
     // Restore the 480x270 backbuffer. THIS IS LOAD-BEARING: SHUTDOWN is the one
-    // hook that covers every exit path (breach, death, quit-to-menu, dev warp).
+    // hook that covers every exit path (breach, death, quit-to-menu).
     // Miss it and the next scene lays out 480-coord content in a 1440x810 buffer.
     restoreBase(this);
     this.tdPlayerRim?.destroy();
@@ -1510,5 +1724,6 @@ export class SweepScene extends Phaser.Scene {
     this.unsubs.forEach((u) => u());
     this.unsubs = [];
     this.input.keyboard?.off('keydown-ESC', this.togglePause, this);
+    this.input.off('wheel', this.onWeaponWheel, this);
   }
 }

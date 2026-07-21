@@ -1,67 +1,63 @@
 /**
- * window.__BLIP_TEST_API__ — automation hooks for the AI QA pipeline.
- * Enabled ONLY in dev builds or with ?test=1. Never required for gameplay.
- * Playwright drives quest flow through this instead of guessing from pixels.
+ * window.__BLIP_TEST_API__ — automation hooks for the top-down BLIP runtime.
+ * Enabled only in dev builds or with ?test=1.
  */
 import type Phaser from 'phaser';
-import { EVT, FRAGMENT_TOTAL, PAD, SCENES } from '../config';
-import { ZONE_ROUTES } from '../data/zones';
+import { EVT, SCENES } from '../config';
 import { bus } from './EventBus';
-import { getSave, recordSetPiece, resetSave, selectSkin, unlockSkin, updateSave } from './SaveSystem';
+import { getSave, resetSave, selectSkin, unlockSkin, updateSave } from './SaveSystem';
 import { quests } from './QuestSystem';
-import { setSimulatedPad, type PadSnapshot } from './PadSim';
-import { skinById } from '../data/skins';
 import { rewards } from './RewardSystem';
 import type { CacheType } from '../data/caches';
-
-// registered live scenes (import types only — avoids runtime cycles)
-import type { FieldScene } from '../scenes/FieldScene';
-import type { MotelScene } from '../scenes/MotelScene';
-import type { StadiumScene } from '../scenes/StadiumScene';
-import type { UnderwaterScene } from '../scenes/UnderwaterScene';
-import type { OrchardScene } from '../scenes/OrchardScene';
-import type { SkylineArrayScene } from '../scenes/SkylineArrayScene';
-import type { BlipstreamScene } from '../scenes/BlipstreamScene';
+import { skinById } from '../data/skins';
 import type { MainMenuScene } from '../scenes/MainMenuScene';
 
-/** semantic virtual-controller input for the headless drive harness (setInput/play).
- *  Axes are -1..1; booleans are held until the next setInput/clearInput. */
 export interface VirtualInput {
-  moveX?: number; // -1 left … 1 right (side-view walk + top-down X)
-  moveY?: number; // -1 up … 1 down (top-down only)
-  aimX?: number; // -1..1 right-stick X → top-down aim
-  aimY?: number; // -1..1 right-stick Y → top-down aim
+  moveX?: number;
+  moveY?: number;
+  aimX?: number;
+  aimY?: number;
   fire?: boolean;
-  jump?: boolean;
   dash?: boolean;
   scan?: boolean;
   interact?: boolean;
 }
 
 interface SceneRegistry {
-  field?: FieldScene;
-  motel?: MotelScene;
-  stadium?: StadiumScene;
-  underwater?: UnderwaterScene;
-  orchard?: OrchardScene;
-  skyline?: SkylineArrayScene;
-  blipstream?: BlipstreamScene;
   menu?: MainMenuScene;
 }
 
 const scenes: SceneRegistry = {};
 let gameRef: Phaser.Game | null = null;
 
-export function registerScene(
-  key: keyof SceneRegistry,
-  scene: FieldScene | MotelScene | StadiumScene | UnderwaterScene | OrchardScene | SkylineArrayScene | BlipstreamScene | MainMenuScene
-): void {
-  (scenes as Record<string, unknown>)[key] = scene;
-}
+const ARENA_BY_ZONE: Record<string, string> = {
+  'miller-field': 'surface-z1',
+  'motel-nowhere': 'circuit-z2',
+  'tiger-stadium': 'town-z3',
+  'pattersons-orchard': 'maze-z4',
+  'skyline-array': 'anomaly-01',
+};
 
-/** the live overworld scene — the side-view playable zones */
-function overworld(): FieldScene | MotelScene | StadiumScene | OrchardScene | SkylineArrayScene | undefined {
-  return scenes.skyline ?? scenes.orchard ?? scenes.stadium ?? scenes.motel ?? scenes.field;
+const ZONE_BY_ARENA = Object.fromEntries(Object.entries(ARENA_BY_ZONE).map(([zone, arena]) => [arena, zone]));
+
+const QUEST_BY_ZONE: Record<string, string> = {
+  'miller-field': 'the-first-contact',
+  'motel-nowhere': 'the-long-night',
+  'tiger-stadium': 'friday-night-lights',
+  'pattersons-orchard': 'the-endless-harvest',
+  'skyline-array': 'the-sky-listens',
+};
+
+const FIRST_STEP_BY_ZONE: Record<string, string> = {
+  'miller-field': 'wake',
+  'motel-nowhere': 'arrive',
+  'tiger-stadium': 'enterStadium',
+  'pattersons-orchard': 'enterOrchard',
+  'skyline-array': 'enterSkyline',
+};
+
+export function registerScene(key: keyof SceneRegistry, scene: MainMenuScene): void {
+  scenes[key] = scene;
 }
 
 export function unregisterScene(key: keyof SceneRegistry): void {
@@ -77,114 +73,45 @@ export function isTestApiEnabled(): boolean {
   }
 }
 
-const CHECKPOINTS: Record<string, { x: number; y: number }> = {
-  // Miller Field 3.0 (176×40 grid)
-  spawn: { x: 72, y: 150 }, // spawn ridge (row 10 surface)
-  dip: { x: 448, y: 372 }, // dip floor (row 24)
-  highMeadow: { x: 592, y: 210 }, // meadow east rim (row 14)
-  drones: { x: 1216, y: 400 }, // east valley floor (row 26) — open horizontal line to both drones
-  badge: { x: 1360, y: 404 }, // badge field, base of Will's climb (row 26)
-  door: { x: 2080, y: 118 }, // node mound top, near the door (row 8)
-  node: { x: 2112, y: 118 }, // beside the Blipstream portal (row 8)
-  bossArena: { x: 2304, y: 308 }, // boss bowl floor (row 20), 3 tiles WEST of the boss core → face east to shoot it
-  // Motel Nowhere (Zone 2)
-  motelSpawn: { x: 72, y: 270 },
-  motelLot: { x: 328, y: 272 },
-  motelDiner: { x: 712, y: 196 },
-  motelFuse: { x: 800, y: 196 },
-  motelWing: { x: 1000, y: 272 },
-  motelBoss: { x: 1300, y: 104 },
-};
-
-/* --- semantic "beats" for fun-loop telemetry. px x-ranges mirror data/levels.ts.
- *     getCurrentBeat() maps the player's position to a named beat so QA reports can
- *     say WHERE something felt bad, not just an x-coordinate. --- */
-const MILLER_BEATS: Array<{ name: string; x0: number; x1: number }> = [
-  { name: 'spawn-ridge', x0: 0, x1: 240 },
-  { name: 'scan-dip', x0: 240, x1: 528 },
-  { name: 'high-meadow', x0: 528, x1: 688 },
-  { name: 'scanner-plateau', x0: 688, x1: 944 },
-  { name: 'drone-lowlands', x0: 944, x1: 1456 },
-  { name: 'radio-ridge', x0: 1456, x1: 1680 },
-  { name: 'ravine', x0: 1680, x1: 1936 },
-  { name: 'node-mound', x0: 1936, x1: 2208 },
-  { name: 'boss-arena', x0: 2208, x1: 2496 },
-  { name: 'road-east', x0: 2496, x1: 2816 },
-];
-const MOTEL_BEATS: Array<{ name: string; x0: number; x1: number }> = [
-  { name: 'motel-lot', x0: 0, x1: 624 },
-  { name: 'diner-climb', x0: 624, x1: 800 },
-  { name: 'fuse-box', x0: 800, x1: 944 },
-  { name: 'dead-wing', x0: 944, x1: 1200 },
-  { name: 'motel-boss-arena', x0: 1200, x1: 1536 },
-];
-
-function beatFor(scene: string, x: number, y: number): string {
-  if (scene === SCENES.blipstream) return 'blipstream-node';
-  if (scene === SCENES.underwater) return 'underwater-node';
-  if (scene === SCENES.menu) return 'title';
-  if (scene === SCENES.gameOver) return 'game-over';
-  if (scene === SCENES.stadium) return 'stadium';
-  if (scene === SCENES.orchard) return 'orchard';
-  if (scene === SCENES.motel) return MOTEL_BEATS.find((b) => x >= b.x0 && x < b.x1)?.name ?? 'motel';
-  if (scene === SCENES.field) {
-    // Will's optional secret climb overlaps the badge field in x but sits high up
-    if (x >= 1328 && x <= 1472 && y < 360) return 'will-climb';
-    return MILLER_BEATS.find((b) => x >= b.x0 && x < b.x1)?.name ?? 'miller-field';
-  }
-  return scene;
-}
-
-/** teleportToBeat() targets: a named beat → checkpoint / quest-step / free xy. */
-const BEAT_TP: Record<string, { cp?: string; step?: string; xy?: [number, number] }> = {
-  'spawn-ridge': { cp: 'spawn' }, spawn: { cp: 'spawn' },
-  'scan-dip': { cp: 'dip' }, dip: { cp: 'dip' },
-  'high-meadow': { cp: 'highMeadow' },
-  'scanner-plateau': { xy: [800, 248] },
-  'drone-lowlands': { cp: 'drones' }, drones: { cp: 'drones' },
-  'will-climb': { cp: 'badge' }, badge: { cp: 'badge' },
-  'radio-ridge': { xy: [1600, 216] },
-  ravine: { xy: [1668, 205] }, // west lip of the ravine (col 104 surface) — NOT the void gap
-  'node-mound': { cp: 'node' }, node: { cp: 'node' },
-  'crop-door': { cp: 'door' }, door: { cp: 'door' },
-  'boss-arena': { cp: 'bossArena', step: 'bossFight' },
-  'road-east': { xy: [2600, 308] },
-  'motel-lot': { cp: 'motelLot' },
-  'diner-climb': { cp: 'motelDiner' },
-  'fuse-box': { cp: 'motelFuse' },
-  'dead-wing': { cp: 'motelWing' },
-  'motel-boss-arena': { cp: 'motelBoss' },
-};
-
-/** a scene the API may drive: running OR paused (e.g. Command Center open) */
-function driveable(s: { scene: Phaser.Scenes.ScenePlugin } | undefined): boolean {
-  return !!s && (s.scene.isActive() || s.scene.isPaused());
-}
-
 function activeSceneName(): string {
   if (!gameRef) return 'none';
-  const order = [SCENES.gameOver, SCENES.sweep, SCENES.blipstream, SCENES.underwater, SCENES.field, SCENES.motel, SCENES.stadium, SCENES.orchard, SCENES.skyline, SCENES.menu, SCENES.boot];
+  const order = [SCENES.gameOver, SCENES.sweep, SCENES.menu, SCENES.boot];
   for (const key of order) {
-    // a scene paused by a shell modal (tutorial card, Command Center) is still
-    // the scene the player is "in" — count it as active
     if (gameRef.scene.isActive(key) || gameRef.scene.isPaused(key)) return key;
   }
-  // sleeping field counts as background
   return gameRef.scene.getScenes(true)[0]?.scene.key ?? 'none';
 }
 
-const ARENA_BY_ZONE: Record<string, string> = {
-  'miller-field': 'surface-z1',
-  'motel-nowhere': 'circuit-z2',
-  'tiger-stadium': 'town-z3',
-  'pattersons-orchard': 'maze-z4',
-  'skyline-array': 'anomaly-01',
-};
-
 function stopGameplayScenes(game: Phaser.Game): void {
-  [SCENES.menu, SCENES.field, SCENES.motel, SCENES.stadium, SCENES.orchard, SCENES.skyline, SCENES.underwater, SCENES.blipstream, SCENES.sweep, SCENES.gameOver].forEach((k) => {
-    if (game.scene.isActive(k) || game.scene.isPaused(k)) game.scene.stop(k);
+  [SCENES.menu, SCENES.sweep, SCENES.gameOver].forEach((key) => {
+    if (game.scene.isActive(key) || game.scene.isPaused(key)) game.scene.stop(key);
   });
+}
+
+function sweepScene(): Phaser.Scene | null {
+  if (!gameRef) return null;
+  if (!gameRef.scene.isActive(SCENES.sweep) && !gameRef.scene.isPaused(SCENES.sweep)) return null;
+  return gameRef.scene.getScene(SCENES.sweep);
+}
+
+function startSweep(arenaId: string, zoneId = ZONE_BY_ARENA[arenaId] ?? 'miller-field'): boolean {
+  if (!gameRef) return false;
+  const quest = QUEST_BY_ZONE[zoneId] ?? 'the-first-contact';
+  const step = FIRST_STEP_BY_ZONE[zoneId] ?? 'wake';
+  updateSave((s) => {
+    s.currentZone = zoneId;
+    s.currentQuest = quest;
+    s.questStep = step;
+  });
+  quests.load(quest);
+  quests.init();
+  if (quests.stepId !== step) quests.moveToStep(step);
+  stopGameplayScenes(gameRef);
+  gameRef.registry.set('sweepArenaId', arenaId);
+  gameRef.registry.set('gameOverRetryScene', SCENES.sweep);
+  gameRef.registry.set('gameOverRetryArenaId', arenaId);
+  gameRef.scene.start(SCENES.sweep, { arenaId, zoneId });
+  return true;
 }
 
 export function installTestAPI(game: Phaser.Game): void {
@@ -203,49 +130,25 @@ export function installTestAPI(game: Phaser.Game): void {
     }),
 
     getPlayerState: () => {
-      if (gameRef && (gameRef.scene.isActive(SCENES.sweep) || gameRef.scene.isPaused(SCENES.sweep))) {
-        const sweep = gameRef.scene.getScene(SCENES.sweep) as unknown as {
-          player?: Phaser.GameObjects.Sprite & { hp?: number; maxHp?: number; alive?: boolean; aimAngle?: number; godMode?: boolean };
-        };
-        const p = sweep.player;
-        const body = p?.body as Phaser.Physics.Arcade.Body | null;
-        if (!p || !p.active) return null;
-        return {
-          x: Math.round(p.x),
-          y: Math.round(p.y),
-          vx: Math.round(body?.velocity.x ?? 0),
-          vy: Math.round(body?.velocity.y ?? 0),
-          hp: p.hp ?? 0,
-          energy: 0,
-          grounded: true,
-          facing: (p.aimAngle ?? 0) > Math.PI / 2 || (p.aimAngle ?? 0) < -Math.PI / 2 ? -1 : 1,
-          god: p.godMode ?? false,
-          echoActive: false,
-          echoX: Math.round(p.x),
-          echoY: Math.round(p.y),
-        };
-      }
-      const s = driveable(scenes.blipstream)
-        ? scenes.blipstream
-        : driveable(scenes.underwater)
-          ? scenes.underwater
-          : overworld();
-      const p = s?.player;
-      if (!p || !p.active) return null;
-      const body = p.body as Phaser.Physics.Arcade.Body | null;
+      const sweep = sweepScene() as (Phaser.Scene & {
+        player?: Phaser.GameObjects.Sprite & { hp?: number; maxHp?: number; alive?: boolean; aimAngle?: number; godMode?: boolean };
+      }) | null;
+      const player = sweep?.player;
+      if (!player || !player.active) return null;
+      const body = player.body as Phaser.Physics.Arcade.Body | null;
       return {
-        x: Math.round(p.x),
-        y: Math.round(p.y),
+        x: Math.round(player.x),
+        y: Math.round(player.y),
         vx: Math.round(body?.velocity.x ?? 0),
         vy: Math.round(body?.velocity.y ?? 0),
-        hp: p.hp,
-        energy: Math.round(p.energy),
-        grounded: body?.blocked.down ?? false,
-        facing: p.facing,
-        god: p.godMode,
-        echoActive: p.isEchoActive,
-        echoX: Math.round(p.echoPos.x),
-        echoY: Math.round(p.echoPos.y),
+        hp: player.hp ?? 0,
+        energy: 0,
+        grounded: true,
+        facing: (player.aimAngle ?? 0) > Math.PI / 2 || (player.aimAngle ?? 0) < -Math.PI / 2 ? -1 : 1,
+        god: player.godMode ?? false,
+        echoActive: false,
+        echoX: Math.round(player.x),
+        echoY: Math.round(player.y),
       };
     },
 
@@ -258,563 +161,120 @@ export function installTestAPI(game: Phaser.Game): void {
 
     getSaveData: () => getSave(),
     getDebugFlags: () => getSave().flags,
-    getRewardState: () => getSave().rewards,
-    grantCache: (type: CacheType): boolean => {
-      rewards.grantCache(type, { silent: true });
+    getRewardState: () => rewards.state(),
+
+    grantCache: (cacheType: CacheType = 'small-signal', count = 1): boolean => {
+      for (let i = 0; i < count; i++) rewards.grantCache(cacheType);
       return true;
     },
-    openCache: (type: CacheType) => rewards.openCache(type),
+    openCache: (cacheType: CacheType = 'small-signal') => rewards.openCache(cacheType),
     forceOwnReward: (id: string): boolean => {
-      updateSave((s) => {
-        if (!s.rewards.owned.includes(id)) s.rewards.owned.push(id);
-      });
-      return true;
+      rewards.grantReward(id);
+      return rewards.owns(id);
     },
     equipReward: (id: string): boolean => {
       rewards.equip(id);
-      return getSave().rewards.equipped[Object.keys(getSave().rewards.equipped).find((k) => getSave().rewards.equipped[k] === id) ?? ''] === id;
+      return true;
     },
 
     startGame: (continueRun = false): boolean => {
-      if (driveable(scenes.menu)) {
-        scenes.menu?.startGame(continueRun);
+      if (scenes.menu) {
+        scenes.menu.startGame(continueRun);
         return true;
       }
-      return false;
+      return startSweep('surface-z1', 'miller-field');
     },
-
-    /** deterministic zone entry for tests: set the save + start the scene
-     *  directly (no menu camera-fade, which can hang under headless rAF). */
-    enterZone: (zoneId: string): boolean => {
-      if (!gameRef) return false;
-      const route = ZONE_ROUTES[zoneId];
-      const FIRST_STEP: Record<string, string> = { 'motel-nowhere': 'arrive', 'tiger-stadium': 'arrive', 'pattersons-orchard': 'arrive' };
-      const quest = route?.quest ?? 'the-first-contact';
-      const firstStep = FIRST_STEP[zoneId] ?? 'wake';
-      updateSave((s) => {
-        s.currentZone = zoneId;
-        s.currentQuest = quest;
-        s.questStep = firstStep;
-        s.completedQuestSteps = [];
-      });
-      quests.load(quest);
-      quests.restart();
-      gameRef.registry.set('sweepArenaId', ARENA_BY_ZONE[zoneId] ?? 'surface-z1');
-      gameRef.registry.set('gameOverRetryScene', SCENES.sweep);
-      gameRef.registry.set('gameOverRetryArenaId', ARENA_BY_ZONE[zoneId] ?? 'surface-z1');
-      stopGameplayScenes(gameRef);
-      gameRef.scene.start(SCENES.sweep);
+    enterZone: (zoneId: string): boolean => startSweep(ARENA_BY_ZONE[zoneId] ?? 'surface-z1', zoneId),
+    enterSweep: (arenaId = 'surface-z1'): boolean => startSweep(arenaId),
+    completeRoute: (): boolean => {
+      const sweep = sweepScene() as (Phaser.Scene & { debugRouteToBreach?: () => void }) | null;
+      if (!sweep?.debugRouteToBreach) return false;
+      sweep.debugRouteToBreach();
       return true;
     },
-
-    /** deterministic top-down arena entry for retry/death routing QA. */
-    enterSweep: (arenaId = 'surface-z1'): boolean => {
-      if (!gameRef) return false;
-      updateSave((s) => {
-        s.currentZone = 'miller-field';
-        s.currentQuest = 'the-first-contact';
-      });
-      gameRef.registry.set('sweepArenaId', arenaId);
-      gameRef.registry.set('gameOverRetryScene', SCENES.sweep);
-      gameRef.registry.set('gameOverRetryArenaId', arenaId);
-      stopGameplayScenes(gameRef);
-      gameRef.scene.start(SCENES.sweep);
-      return true;
+    setSweepWeapon: (id = 'arc'): boolean => {
+      const sweep = sweepScene() as (Phaser.Scene & { debugSetWeapon?: (id: string) => boolean }) | null;
+      return sweep?.debugSetWeapon?.(id) ?? false;
+    },
+    switchSweepWeapon: (delta = 1): boolean => {
+      const sweep = sweepScene() as (Phaser.Scene & { debugSwitchWeapon?: (delta: number) => boolean }) | null;
+      return sweep?.debugSwitchWeapon?.(delta) ?? false;
+    },
+    damageSweepPlayer: (amount = 1): boolean => {
+      const sweep = sweepScene() as (Phaser.Scene & { debugDamagePlayer?: (amount: number) => boolean }) | null;
+      return sweep?.debugDamagePlayer?.(amount) ?? false;
+    },
+    getSweepRuntimeState: () => {
+      const sweep = sweepScene() as (Phaser.Scene & { debugRuntimeState?: () => unknown }) | null;
+      return sweep?.debugRuntimeState?.() ?? null;
     },
 
-    /** force a Sweep death through the real GameOver path. */
-    killSweepPlayer: (): boolean => {
-      if (!gameRef || !(gameRef.scene.isActive(SCENES.sweep) || gameRef.scene.isPaused(SCENES.sweep))) return false;
-      const sc = gameRef.scene.getScene(SCENES.sweep) as unknown as {
-        player?: { hp: number };
-        onDeath?: () => void;
-      };
-      if (!sc?.player || typeof sc.onDeath !== 'function') return false;
-      sc.player.hp = 0;
-      sc.onDeath();
-      return true;
-    },
-
-    teleportToCheckpoint: (id: string): boolean => {
-      const cp = CHECKPOINTS[id];
-      const f = overworld();
-      if (!cp || !f || !driveable(f)) return false;
-      f.player.setPosition(cp.x, cp.y);
-      (f.player.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
-      return true;
-    },
-
-    listCheckpoints: (): string[] => Object.keys(CHECKPOINTS),
-
-    /** free-position teleport for level QA (probes geometry between checkpoints) */
-    teleportTo: (x: number, y: number): boolean => {
-      const f = overworld();
-      if (!f || !driveable(f)) return false;
-      f.player.setPosition(x, y);
-      (f.player.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
-      return true;
-    },
-
-    giveAbility: (id: string): void => {
-      updateSave((s) => {
-        if (!s.unlockedAbilities.includes(id)) s.unlockedAbilities.push(id);
-      });
-    },
-
-    setQuestStep: (stepId: string): boolean => {
-      const ok = quests.jumpTo(stepId);
-      if (!ok) return false;
-      const f = scenes.field;
-      // steps past the puzzle imply an opened door — mirror the world state
-      if (quests.isAtOrPast('bossFight')) {
-        updateSave((s) => {
-          s.flags.nodeACompleted = true;
-          s.flags.doorOpened = true;
-        });
-        if (driveable(f)) {
-          f?.door.setOpenInstant();
-          f?.portal.setCompleted();
-        }
-      }
-      return true;
-    },
-
-    resetSave: (): void => {
-      // restart quest memory FIRST — its autosave would otherwise re-create
-      // the storage key we are about to wipe
+    resetSave: (): boolean => {
       quests.restart();
       resetSave();
-    },
-
-    toggleGodMode: (enabled: boolean): boolean => {
-      const s = driveable(scenes.blipstream) ? scenes.blipstream : overworld();
-      if (!s?.player) return false;
-      s.player.godMode = enabled;
-      return enabled;
-    },
-
-    completeBlipstreamPuzzle: (): boolean => {
-      if (gameRef && (gameRef.scene.isActive(SCENES.sweep) || gameRef.scene.isPaused(SCENES.sweep))) {
-        const sweep = gameRef.scene.getScene(SCENES.sweep) as unknown as { debugSkipToBreach?: () => void };
-        sweep.debugSkipToBreach?.();
-        return true;
-      }
-      if (driveable(scenes.blipstream)) {
-        scenes.blipstream?.solveAndExit();
-        return true;
-      }
-      if (driveable(scenes.underwater)) {
-        scenes.underwater?.solveAndExit();
-        return true;
-      }
-      if (driveable(scenes.field)) {
-        scenes.field?.applyNodeSolved();
-        return true;
-      }
-      if (driveable(scenes.motel)) {
-        scenes.motel?.applyWingPowered();
-        return true;
-      }
-      if (driveable(scenes.stadium)) {
-        scenes.stadium?.applyPoolSolved();
-        return true;
-      }
-      if (driveable(scenes.orchard)) {
-        scenes.orchard?.applyCropDrawn();
-        return true;
-      }
-      return false;
-    },
-
-    spawnBoss: (): boolean => {
-      if (driveable(scenes.motel) && scenes.motel) {
-        scenes.motel.spawnBoss();
-        return true;
-      }
-      if (driveable(scenes.stadium) && scenes.stadium) {
-        scenes.stadium.spawnBoss();
-        return true;
-      }
-      if (driveable(scenes.orchard) && scenes.orchard) {
-        scenes.orchard.spawnBoss();
-        return true;
-      }
-      const f = scenes.field;
-      if (!driveable(f) || !f) return false;
-      if (!f.door.isOpen) f.door.setOpenInstant();
-      f.spawnBoss();
       return true;
     },
 
-    getBossState: (): { state: string; hp: number; exposed: boolean; telegraphing: boolean } | null => {
-      const b = overworld()?.boss;
-      if (!b) return null;
-      return { state: b.state, hp: b.hp, exposed: b.exposed, telegraphing: (b as unknown as { telegraphing?: boolean }).telegraphing ?? false };
+    toggleGodMode: (enabled = true): boolean => {
+      const sweep = sweepScene() as (Phaser.Scene & { player?: { godMode?: boolean } }) | null;
+      if (sweep?.player) sweep.player.godMode = enabled;
+      bus.emit(EVT.godMode, { on: enabled });
+      return true;
     },
 
-    /** Zone 2 debug: neon-circuit power + detection state (null outside Motel) */
-    getMotelDebug: () => (driveable(scenes.motel) ? scenes.motel?.debugState ?? null : null),
-
-    /** Zone 3 debug: classification + threat-ladder stage / spotter / flood / cover */
-    getStadiumDebug: () => (driveable(scenes.stadium) ? scenes.stadium?.debugState ?? null : null),
-
-    /** shortcut for CC tests: award a scout badge through the same save path as pickup */
-    giveScoutBadge: (scoutId: string, logId: string): void => {
-      updateSave((s) => {
-        if (scoutId === 'will') s.flags.willBadgeCollected = true;
-        if (!s.discoveredScoutBadges.includes(scoutId)) s.discoveredScoutBadges.push(scoutId);
-        if (logId && !s.discoveredScoutLogs.includes(logId)) s.discoveredScoutLogs.push(logId);
-      });
+    unlockSkin: (id: string): boolean => {
+      if (!skinById(id)) return false;
+      unlockSkin(id);
+      return true;
     },
-
-    /* ---- Signal Skins ---- */
-    getSkinState: () => {
-      const s = getSave();
-      return { selected: s.selectedSkin, unlocked: s.unlockedSkins, sets: s.signalSets };
-    },
-    unlockSkin: (id: string): void => unlockSkin(id),
-    unlockAllSkins: (): void => ['will', 'chip', 'henry', 'cameron', 'danny'].forEach(unlockSkin),
     selectSkin: (id: string): boolean => {
       selectSkin(id);
-      const applied = getSave().selectedSkin === id;
-      if (applied) {
-        const skin = skinById(id);
-        bus.emit(EVT.skinSelected, { id: skin.id, name: skin.name, color: skin.color, live: true });
-      }
-      return applied;
-    },
-    recordSetPiece: (scoutId: string, piece: 'badge' | 'log' | 'relic'): boolean => recordSetPiece(scoutId, piece),
-    completeSet: (scoutId: string): boolean => {
-      const f = overworld();
-      if (!driveable(f) || !f) return false;
-      f.apiCompleteSet(scoutId);
-      return getSave().unlockedSkins.includes(scoutId);
-    },
-    scan: (): void => {
-      const f = overworld();
-      if (driveable(f) && f) (f as unknown as { apiScan?: () => void }).apiScan?.();
-    },
-    echoToggle: (): void => {
-      const f = overworld();
-      if (driveable(f) && f) (f as unknown as { apiEchoToggle?: () => void }).apiEchoToggle?.();
-    },
-    getDroneStates: (): Array<{ x: number; y: number; stunned: boolean }> => {
-      const f = overworld();
-      return driveable(f) && f
-        ? (f as unknown as { apiDroneStates?: () => Array<{ x: number; y: number; stunned: boolean }> }).apiDroneStates?.() ?? []
-        : [];
-    },
-
-    damageBoss: (amount: number): boolean => {
-      const b = overworld()?.boss;
-      if (!b) return false;
-      b.debugDamage(amount);
       return true;
     },
 
-    collectFragment: (): boolean => {
-      const f = overworld();
-      if (!driveable(f) || !f) return false;
-      f.apiCollectFragment();
+    openCommandCenter: (): boolean => {
+      bus.emit(EVT.ccOpen, {});
+      return true;
+    },
+    closeCommandCenter: (): boolean => {
+      bus.emit(EVT.ccClose, {});
+      return true;
+    },
+    dismissTransmission: (): boolean => {
+      bus.emit(EVT.transmissionClosed, {});
       return true;
     },
 
-    /** Zone 3: dive into the rec pool (→ UnderwaterScene) deterministically */
-    divePool: (): boolean => {
-      if (driveable(scenes.stadium) && scenes.stadium) {
-        scenes.stadium.enterUnderwater(true);
-        return true;
-      }
-      return false;
-    },
-
-    openCommandCenter: (): void => bus.emit(EVT.ccOpen, {}),
-    closeCommandCenter: (): void => bus.emit(EVT.ccClose, {}),
-    dismissTransmission: (): void => bus.emit(EVT.transmissionClosed, { force: true }),
-
-    /* ---- QA fun-loop inspectors (read-only) + beat navigation ---- */
     getCameraState: () => {
-      const sweep = gameRef && (gameRef.scene.isActive(SCENES.sweep) || gameRef.scene.isPaused(SCENES.sweep))
-        ? (gameRef.scene.getScene(SCENES.sweep) as Phaser.Scene)
+      const sweep = sweepScene();
+      const cam = sweep?.cameras.main;
+      return cam
+        ? { scrollX: Math.round(cam.scrollX), scrollY: Math.round(cam.scrollY), zoom: cam.zoom }
         : null;
-      const s = sweep ?? (driveable(scenes.blipstream)
-        ? scenes.blipstream
-        : driveable(scenes.underwater)
-          ? scenes.underwater
-          : overworld());
-      const cam = s?.cameras?.main;
-      if (!cam) return null;
-      const dz = cam.deadzone;
-      const b = cam.getBounds();
-      return {
-        scrollX: Math.round(cam.scrollX),
-        scrollY: Math.round(cam.scrollY),
-        midX: Math.round(cam.midPoint.x),
-        midY: Math.round(cam.midPoint.y),
-        zoom: cam.zoom,
-        followOffsetX: Math.round(cam.followOffset.x),
-        followOffsetY: Math.round(cam.followOffset.y),
-        deadzone: dz ? { x: Math.round(dz.x), y: Math.round(dz.y), width: Math.round(dz.width), height: Math.round(dz.height) } : null,
-        worldView: { x: Math.round(cam.worldView.x), y: Math.round(cam.worldView.y), width: Math.round(cam.worldView.width), height: Math.round(cam.worldView.height) },
-        worldWidth: Math.round(b.width),
-        worldHeight: Math.round(b.height),
-      };
     },
-
-    getCurrentBeat: (): string => {
-      const p = api.getPlayerState();
-      return beatFor(activeSceneName(), p?.x ?? 0, p?.y ?? 0);
-    },
-
-    getLevelProgress: () => {
-      const p = api.getPlayerState();
-      const save = getSave();
-      const cam = overworld()?.cameras?.main;
-      const worldW = cam ? Math.round(cam.getBounds().width) : 0;
-      const x = p?.x ?? 0;
-      return {
-        zone: save.currentZone,
-        quest: quests.quest.id,
-        step: quests.stepId,
-        beat: api.getCurrentBeat(),
-        playerX: x,
-        worldWidth: worldW,
-        percent: worldW > 0 ? Math.round((x / worldW) * 100) : 0,
-        completedSteps: save.completedQuestSteps,
-        fragments: save.signalFragments,
-        flags: save.flags,
-      };
-    },
-
-    getCollectiblesState: () => {
-      const save = getSave();
-      return {
-        fragments: save.signalFragments,
-        fragmentTotal: FRAGMENT_TOTAL,
-        discoveredBadges: save.discoveredScoutBadges,
-        discoveredLogs: save.discoveredScoutLogs,
-        willBadgeCollected: save.flags.willBadgeCollected,
-        firstFragmentCollected: save.flags.firstFragmentCollected,
-        revealedHiddenPath: save.flags.revealedHiddenPath,
-        signalSets: save.signalSets,
-        unlockedSkins: save.unlockedSkins,
-      };
-    },
-
-    getCheckpointState: () => {
-      const f = overworld();
-      const save = getSave();
-      const p = api.getPlayerState();
-      let nearest: string | null = null;
-      let best = Infinity;
-      if (p) {
-        for (const [id, cp] of Object.entries(CHECKPOINTS)) {
-          const d = Math.abs(cp.x - p.x) + Math.abs(cp.y - p.y);
-          if (d < best) {
-            best = d;
-            nearest = id;
-          }
-        }
-      }
-      const ls = (f as unknown as { apiLastSafe?: { x: number; y: number } })?.apiLastSafe;
-      return {
-        lastSafe: ls ? { x: Math.round(ls.x), y: Math.round(ls.y) } : null,
-        nearestCheckpoint: nearest,
-        deaths: save.playerStats.deaths,
-      };
-    },
-
-    /** semantic beat navigation: maps a beat name → checkpoint / quest-step / free xy */
-    teleportToBeat: (name: string): boolean => {
-      const spec = BEAT_TP[name];
-      if (!spec) return false;
-      if (spec.step) api.setQuestStep(spec.step);
-      if (spec.cp) return api.teleportToCheckpoint(spec.cp);
-      if (spec.xy) return api.teleportTo(spec.xy[0], spec.xy[1]);
-      return false;
-    },
-
-    enableGodMode: (): boolean => api.toggleGodMode(true),
-    disableGodMode: (): boolean => api.toggleGodMode(false),
-
-    /** one-call bundle of every inspector — the fun-loop telemetry snapshot */
-    collectDebugSnapshot: () => ({
-      scene: activeSceneName(),
-      fps: gameRef ? Math.round(gameRef.loop.actualFps) : 0,
-      player: api.getPlayerState(),
-      camera: api.getCameraState(),
-      quest: api.getQuestState(),
-      level: api.getLevelProgress(),
-      beat: api.getCurrentBeat(),
-      boss: api.getBossState(),
-      collectibles: api.getCollectiblesState(),
-      checkpoint: api.getCheckpointState(),
-    }),
-
-    /**
-     * Gamepad simulation for automated tests (Playwright cannot emulate HID
-     * pads). The snapshot feeds PlayerInput + shell navigation exactly like a
-     * real controller. Pass null to disconnect.
-     * Example: api.simulatePad({ connected:true, axes:[1,0], buttons:{0:true} })
-     */
-    simulatePad: (state: PadSnapshot | null): void => setSimulatedPad(state),
-
-    /* ================= HEADLESS DRIVE HARNESS =================================
-     * The preview/AI tab runs in the BACKGROUND, where the browser suspends
-     * requestAnimationFrame — so Phaser's own loop can't advance and you can't
-     * "watch" the game run. advanceFrames() drives the loop BY HAND with a fixed
-     * timestep: deterministic, focus-independent. Combine with setInput() (a
-     * virtual controller) to actually PLAY the game end-to-end from automation.
-     *   api.setInput({ moveX: 1, fire: true }); api.advanceFrames(90);
-     *   api.play({ dash: true }, 12);            // one dash, ~0.2s of frames
-     * ========================================================================= */
-
-    /** Advance the game loop N frames at a fixed dt, ignoring browser rAF throttling.
-     *  Returns how many frames ran + fps + any error thrown mid-loop (which would
-     *  otherwise be swallowed inside the loop). Hard 8s real-time wall as a backstop. */
-    advanceFrames: (frames = 60, dtMs = 1000 / 60): { framesRun: number; fps: number; scene: string; error: string | null } => {
-      if (!gameRef) return { framesRun: 0, fps: 0, scene: 'none', error: 'no game' };
-      const loop = gameRef.loop as unknown as { step: (t: number) => void };
-      let t = performance.now();
-      let run = 0;
-      let error: string | null = null;
-      const startReal = performance.now();
-      try {
-        for (let i = 0; i < frames; i++) {
-          t += dtMs;
-          loop.step(t);
-          run++;
-          if (performance.now() - startReal > 8000) {
-            error = `time-wall (8s) after ${run} frames`;
-            break;
-          }
-        }
-      } catch (e) {
-        error = (e as Error)?.message ?? String(e);
-      }
-      return { framesRun: run, fps: Math.round(gameRef.loop.actualFps), scene: activeSceneName(), error };
-    },
-
-    /** Virtual controller: semantic input → a FRESH pad snapshot (a new object so
-     *  just-pressed edges register). Held until the next setInput/clearInput. Edge
-     *  actions (dash/scan/jump/interact) fire once per press — set true, step a
-     *  frame, then set false to press again. */
-    setInput: (input: VirtualInput): void => {
-      const buttons: Record<number, boolean> = {};
-      if (input.fire) {
-        buttons[PAD.shoot] = true;
-        buttons[PAD.shootAlt] = true;
-      }
-      if (input.jump) buttons[PAD.jump] = true;
-      if (input.dash) buttons[PAD.dash] = true;
-      if (input.scan) buttons[PAD.scan] = true;
-      if (input.interact) buttons[PAD.interact] = true;
-      setSimulatedPad({
-        connected: true,
-        axes: [input.moveX ?? 0, input.moveY ?? 0, input.aimX ?? 0, input.aimY ?? 0],
-        buttons,
-        id: 'blip-ai-virtual-pad',
-      });
-    },
-
-    /** release every virtual input (neutral sticks, no buttons) */
-    clearInput: (): void => setSimulatedPad({ connected: true, axes: [0, 0, 0, 0], buttons: {}, id: 'blip-ai-virtual-pad' }),
-
-    /** The core "play" primitive: apply input, advance N frames, return a snapshot
-     *  of what happened (works in side-view AND top-down scenes). */
-    play: (input: VirtualInput, frames = 60, dtMs = 1000 / 60) => {
-      api.setInput(input);
-      const r = api.advanceFrames(frames, dtMs);
-      return { ...r, player: api.getPlayerState() ?? api.getSweepState() };
-    },
-
-    /** Stage N enemies at `radius` around the player, spread over all angles.
-     *  Exists to force the worst-case close-combat framing for visual review;
-     *  it moves existing enemies, it does not spawn or buff anything. */
-    stageSweepEnemies: (count: number, radius: number): boolean => {
-      if (!gameRef || !gameRef.scene.isActive(SCENES.sweep)) return false;
-      const sc = gameRef.scene.getScene(SCENES.sweep) as unknown as {
-        player?: { x: number; y: number };
-        enemies?: { getChildren: () => Array<{ active: boolean; setPosition: (x: number, y: number) => void }> };
-      };
-      const p = sc.player;
-      const list = sc.enemies?.getChildren().filter((e) => e.active) ?? [];
-      if (!p) return false;
-      const n = Math.min(count, list.length);
-      for (let i = 0; i < n; i++) {
-        const a = (i / n) * Math.PI * 2;
-        list[i].setPosition(p.x + Math.cos(a) * radius, p.y + Math.sin(a) * radius);
-      }
-      return true;
-    },
-
-    /** Put the player next to the Signal Node — scale/composition reference. */
-    warpToNode: (): boolean => {
-      if (!gameRef || !gameRef.scene.isActive(SCENES.sweep)) return false;
-      const sc = gameRef.scene.getScene(SCENES.sweep) as unknown as {
-        player?: { setPosition: (x: number, y: number) => void };
-        nodePos?: { x: number; y: number };
-      };
-      if (!sc.player || !sc.nodePos) return false;
-      sc.player.setPosition(sc.nodePos.x - 54, sc.nodePos.y + 46);
-      return true;
-    },
-
-    /** Top-down HD visual state — asserts the render contract the visual
-     *  overhaul depends on (backbuffer density, framing, texture integrity).
-     *  Read-only; exists so e2e can verify what a screenshot cannot. */
-    getTdVisualState: () => {
-      if (!gameRef) return null;
-      const active = gameRef.scene.isActive(SCENES.sweep) || gameRef.scene.isPaused(SCENES.sweep);
-      const sc = active
-        ? (gameRef.scene.getScene(SCENES.sweep) as unknown as {
-            td?: boolean;
-            cameras: { main: { zoom: number } };
-            textures: { getTextureKeys: () => string[]; get: (k: string) => { key: string } | null };
-          } | null)
-        : null;
-      const missing: string[] = [];
-      if (sc?.td) {
-        for (const key of sc.textures.getTextureKeys()) {
-          if (!key.startsWith('td-')) continue;
-          const t = sc.textures.get(key);
-          if (!t || t.key === '__MISSING') missing.push(key);
-        }
-      }
-      return {
-        bufferW: gameRef.scale.width,
-        bufferH: gameRef.scale.height,
-        inSweep: !!active,
-        hd: !!sc?.td,
-        zoom: sc ? +sc.cameras.main.zoom.toFixed(4) : null,
-        missingTextures: missing,
-      };
-    },
-
-    /** Top-down (SweepScene) player state — getPlayerState() covers the side-view
-     *  scenes; this covers the Sweep/Fold combat where the player is a BlipCraft. */
     getSweepState: () => {
-      if (!gameRef || !(gameRef.scene.isActive(SCENES.sweep) || gameRef.scene.isPaused(SCENES.sweep))) return null;
-      const sc = gameRef.scene.getScene(SCENES.sweep) as unknown as {
-        player?: { x: number; y: number; hp: number; alive: boolean; aimAngle?: number; active: boolean; body: Phaser.Physics.Arcade.Body | null };
-        enemies?: { countActive?: (a: boolean) => number };
-      } | null;
-      const p = sc?.player;
-      if (!p || !p.active) return null;
-      const body = p.body;
-      return {
-        scene: 'sweep',
-        x: Math.round(p.x),
-        y: Math.round(p.y),
-        vx: Math.round(body?.velocity.x ?? 0),
-        vy: Math.round(body?.velocity.y ?? 0),
-        hp: p.hp,
-        alive: p.alive,
-        aimAngle: +(p.aimAngle ?? 0).toFixed(2),
-        enemies: sc?.enemies?.countActive?.(true) ?? 0,
-      };
+      const sweep = sweepScene() as (Phaser.Scene & {
+        arena?: { id: string; name: string };
+        player?: { x: number; y: number; hp?: number; active?: boolean };
+        enemies?: { countActive?: (active?: boolean) => number };
+      }) | null;
+      return sweep
+        ? {
+            arena: sweep.arena?.id ?? null,
+            name: sweep.arena?.name ?? null,
+            player: sweep.player
+              ? { x: Math.round(sweep.player.x), y: Math.round(sweep.player.y), hp: sweep.player.hp ?? 0, active: sweep.player.active ?? true }
+              : null,
+            enemies: sweep.enemies?.countActive?.(true) ?? 0,
+          }
+        : null;
     },
+    getTdVisualState: () => ({
+      scene: activeSceneName(),
+      width: gameRef?.scale.width ?? 0,
+      height: gameRef?.scale.height ?? 0,
+    }),
   };
 
-  (window as unknown as Record<string, unknown>).__BLIP_TEST_API__ = api;
+  (window as unknown as { __BLIP_TEST_API__?: typeof api }).__BLIP_TEST_API__ = api;
 }

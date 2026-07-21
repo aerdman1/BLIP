@@ -12,10 +12,10 @@
     "test": "npm run typecheck && npm run build",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
-    "test:playtest": "playwright test tests/playtest.spec.ts",
-    "qa:playtest": "playwright test tests/qa-playtest.spec.ts",
+    "test:playtest": "playwright test tests/smoke.spec.ts",
+    "qa:playtest": "playwright test tests/smoke.spec.ts",
     "qa:full": "npm run typecheck && npm run build && npm run test:e2e",
-    "qa:loop": "node scripts/qa-loop.mjs",
+    "qa:loop": "npm run qa:full",
     "deploy": "bash scripts/deploy.sh",
     "verify:prod": "bash scripts/verify-production.sh",
     "ship": "bash scripts/ship.sh"

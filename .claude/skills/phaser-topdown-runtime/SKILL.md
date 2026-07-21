@@ -1,9 +1,9 @@
 ---
-name: phaser-pixel-platformer
+name: phaser-topdown-runtime
 description: Guides all Phaser implementation decisions for BLIP — low-res virtual canvas, top-down Arcade physics, grid collision, data-driven objects, centralized constants, Vercel-ready build. Consult before writing or changing any game engine code.
 ---
 
-# Phaser Pixel Platformer
+# Phaser Top-Down Runtime
 
 Purpose: guide all Phaser implementation decisions.
 
@@ -21,8 +21,8 @@ Purpose: guide all Phaser implementation decisions.
 
 ## Code Rules
 
-- Keep game objects simple and **data-driven** (levels, quests, zones, scouts, upgrades, command-center copy all live in `src/game/data/`).
-- Centralize ALL tuning constants in `src/game/config.ts`: movement, jump, hover, dash, enemy speeds, damage, cooldowns, and colors. Never scatter magic numbers.
+- Keep game objects simple and **data-driven** (connected arenas, quests, scouts, upgrades, weapons, rewards, and command-center copy all live in `src/game/data/`).
+- Centralize ALL tuning constants in `src/game/config.ts`: movement, dash, enemy speeds, damage, cooldowns, and colors. Never scatter magic numbers.
 - Centralize texture keys in `AssetKeys` (config.ts) so procedural art can be swapped for real assets later.
 - Destroy/clean up listeners, timers, and groups on scene shutdown. Cap bullets/enemies/particles.
 - Cross-scene + shell communication goes through the singleton EventBus (`src/game/systems/EventBus.ts`).

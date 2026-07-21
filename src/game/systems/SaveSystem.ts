@@ -1,67 +1,41 @@
 /**
- * BLIP save system — 3 save slots in localStorage (slot 0 = `blip_save_v1` for
- * back-compat; slots 1–2 = `blip_save_v1_slot1/2`). One slot is active at a
- * time; getSave/updateSave/resetSave all operate on the active slot, so game
- * code is slot-agnostic. Migrates the legacy `beamline_save_v1` key into slot 0.
- * All writes emit EVT.saveUpdated on the bus.
+ * BLIP save system — one canonical localStorage save at `blip_save_v1`.
+ * Migrates the legacy `beamline_save_v1` key into that single save. All writes
+ * emit EVT.saveUpdated on the bus.
  */
-import { ACTIVE_SLOT_KEY, BUILD_VERSION, EVT, LEGACY_SAVE_KEY, SAVE_KEY, SLOT_COUNT, SLOT_NAMES_KEY } from '../config';
+import { BUILD_VERSION, EVT, LEGACY_SAVE_KEY, SAVE_KEY } from '../config';
 import { SKINS } from '../data/skins';
 import { UPGRADES } from '../data/upgrades';
 import { bus } from './EventBus';
 
 export interface SaveFlags {
-  introSweepCleared: boolean; // cold-open top-down Surface arena finished; continue can enter Miller Field
-  revealedHiddenPath: boolean;
+  millerNodeCharged: boolean;
+  motelNodeCharged: boolean;
+  townNodeCharged: boolean;
+  orchardNodeCharged: boolean;
+  stormNodeCharged: boolean;
   willBadgeCollected: boolean;
-  chipBoxScanned: boolean;
-  dronesCleared: boolean;
-  nodeACompleted: boolean;
-  doorOpened: boolean;
-  bossDefeated: boolean;
+  chipBadgeCollected: boolean;
+  henryBadgeCollected: boolean;
+  cameronBadgeCollected: boolean;
+  dannyBadgeCollected: boolean;
   firstFragmentCollected: boolean;
-  // Zone 2 — Motel Nowhere
-  motelWingPowered: boolean; // Chip's circuit routed → dead wing lights up
-  motelBadgeCollected: boolean; // SPARK badge picked up
-  motelBossDefeated: boolean; // The Vacancy Sign down
-  motelFragmentCollected: boolean; // Signal Fragment #2 secured
-  // Zone 3 — Chagrin Falls High (Tiger Stadium)
-  poolNodeSolved: boolean; // rec-pool reflection route completed → boss path opens
-  tigerBadgeCollected: boolean; // Henry / ANCHOR badge picked up
-  tigerRelicCollected: boolean; // Signal Flare relic recovered
-  tigerBossDefeated: boolean; // The Weather Balloon down
-  tigerFragmentCollected: boolean; // Signal Fragment #3 secured
-  // Zone 4 — Patterson's Orchard
-  orchardMazeSolved: boolean; // the top-down maze crop circle drawn → gate open
-  orchardCropBloomed: boolean; // the crop-circle bloom played
-  cameronBadgeCollected: boolean; // Cameron / ECHO badge picked up
-  cameronLoftFound: boolean; // Tuning Fork relic recovered (maze heart)
-  harvestPatternDefeated: boolean; // The Harvest Pattern down
-  orchardFragmentCollected: boolean; // Signal Fragment #4 secured
-  // Zone 5 — Skyline Array (THE FINALE; "The Broadcast" merged in)
-  skylineFreqWill: boolean; // WILLOW frequency lent (beat cleared)
-  skylineFreqChip: boolean; // SPARK frequency lent
-  skylineFreqHenry: boolean; // ANCHOR frequency lent
-  skylineFreqCameron: boolean; // ECHO frequency lent
-  skylineFreqDanny: boolean; // ROCKET frequency lent (the top-down Sweep beat)
-  skylineSummitTuned: boolean; // first-person "tune the sky" convergence done → final gate
-  crackedGogglesCollected: boolean; // Danny's Cracked Goggles relic (ROCKET set)
-  dannyBadgeCollected: boolean; // ROCKET badge picked up
-  listeningStationDefeated: boolean; // the mirror boss down
-  skylineFragmentCollected: boolean; // Signal Fragment #5 secured
-  endingSeen: boolean; // the finale ending card has been viewed
-  // Optional Blipstream side nodes (one per zone 2–5) — pure side content
-  blipMotelSolved: boolean; // "Breaker Run" routed → motel signal bridge lit
-  blipStadiumSolved: boolean; // "Reflection" synced → stadium signal bridge lit
-  blipOrchardSolved: boolean; // "Pattern" crossed → orchard signal bridge lit
-  blipSkylineSolved: boolean; // "Tuning" matched → skyline signal bridge lit
+  motelFragmentCollected: boolean;
+  tigerFragmentCollected: boolean;
+  orchardFragmentCollected: boolean;
+  skylineFragmentCollected: boolean;
+  motelBossDefeated: boolean;
+  tigerBossDefeated: boolean;
+  harvestPatternDefeated: boolean;
+  listeningStationDefeated: boolean;
+  endingSeen: boolean;
 }
 
 export interface PlayerStats {
   deaths: number;
   enemiesDefeated: number;
   scansUsed: number;
-  pulseShotsFired: number;
+  weaponShotsFired: number;
   timePlayedSec: number;
 }
 
@@ -136,51 +110,32 @@ const defaultSave = (): SaveData => ({
   questStep: 'wake',
   completedQuestSteps: [],
   signalFragments: 0,
-  unlockedAbilities: ['run', 'jump', 'hover', 'dash', 'pulse-shot', 'scan-pulse'],
+  unlockedAbilities: ['move', 'dash', 'pulse-shot', 'scan-pulse', 'overdrive'],
   completedZones: [],
   discoveredScoutBadges: [],
   discoveredScoutLogs: [],
-  playerStats: { deaths: 0, enemiesDefeated: 0, scansUsed: 0, pulseShotsFired: 0, timePlayedSec: 0 },
+  playerStats: { deaths: 0, enemiesDefeated: 0, scansUsed: 0, weaponShotsFired: 0, timePlayedSec: 0 },
   flags: {
-    introSweepCleared: false,
-    revealedHiddenPath: false,
+    millerNodeCharged: false,
+    motelNodeCharged: false,
+    townNodeCharged: false,
+    orchardNodeCharged: false,
+    stormNodeCharged: false,
     willBadgeCollected: false,
-    chipBoxScanned: false,
-    dronesCleared: false,
-    nodeACompleted: false,
-    doorOpened: false,
-    bossDefeated: false,
+    chipBadgeCollected: false,
+    henryBadgeCollected: false,
+    cameronBadgeCollected: false,
+    dannyBadgeCollected: false,
     firstFragmentCollected: false,
-    motelWingPowered: false,
-    motelBadgeCollected: false,
     motelBossDefeated: false,
     motelFragmentCollected: false,
-    poolNodeSolved: false,
-    tigerBadgeCollected: false,
-    tigerRelicCollected: false,
     tigerBossDefeated: false,
     tigerFragmentCollected: false,
-    orchardMazeSolved: false,
-    orchardCropBloomed: false,
-    cameronBadgeCollected: false,
-    cameronLoftFound: false,
     harvestPatternDefeated: false,
     orchardFragmentCollected: false,
-    skylineFreqWill: false,
-    skylineFreqChip: false,
-    skylineFreqHenry: false,
-    skylineFreqCameron: false,
-    skylineFreqDanny: false,
-    skylineSummitTuned: false,
-    crackedGogglesCollected: false,
-    dannyBadgeCollected: false,
     listeningStationDefeated: false,
     skylineFragmentCollected: false,
     endingSeen: false,
-    blipMotelSolved: false,
-    blipStadiumSolved: false,
-    blipOrchardSolved: false,
-    blipSkylineSolved: false,
   },
   unlockedSkins: ['contact47'],
   selectedSkin: 'contact47',
@@ -196,77 +151,6 @@ const defaultSave = (): SaveData => ({
 
 let cache: SaveData | null = null;
 
-/* -------------------------------- slot plumbing ---------------------------- */
-
-/** localStorage key for a slot (slot 0 keeps the original key for back-compat) */
-function slotKey(i: number): string {
-  return i === 0 ? SAVE_KEY : `${SAVE_KEY}_slot${i}`;
-}
-
-let activeSlot = readActiveSlot();
-
-function readActiveSlot(): number {
-  try {
-    const raw = localStorage.getItem(ACTIVE_SLOT_KEY);
-    const n = raw ? parseInt(raw, 10) : 0;
-    return Number.isInteger(n) && n >= 0 && n < SLOT_COUNT ? n : 0;
-  } catch {
-    return 0;
-  }
-}
-
-export function getActiveSlot(): number {
-  return activeSlot;
-}
-
-/* ------------------------------- slot names -------------------------------- */
-// Player-chosen names live in their own localStorage map (keyed by slot index),
-// decoupled from the save blob so a fresh new-game write can't wipe them.
-
-const MAX_SLOT_NAME = 14;
-
-function readSlotNames(): Record<string, string> {
-  try {
-    const raw = localStorage.getItem(SLOT_NAMES_KEY);
-    const parsed = raw ? JSON.parse(raw) : null;
-    return parsed && typeof parsed === 'object' ? (parsed as Record<string, string>) : {};
-  } catch {
-    return {};
-  }
-}
-
-/** The player-chosen name for a slot, or '' if unnamed. */
-export function getSlotName(i: number): string {
-  const name = readSlotNames()[String(i)];
-  return typeof name === 'string' ? name.trim() : '';
-}
-
-/** Set (or, with an empty string, clear) a slot's name. Trimmed + length-clamped. */
-export function setSlotName(i: number, name: string): void {
-  // eslint-disable-next-line no-control-regex
-  const clean = name.replace(/[\x00-\x1f\x7f]/g, '').trim().slice(0, MAX_SLOT_NAME);
-  const map = readSlotNames();
-  if (clean) map[String(i)] = clean;
-  else delete map[String(i)];
-  try {
-    localStorage.setItem(SLOT_NAMES_KEY, JSON.stringify(map));
-  } catch {
-    /* storage unavailable — name is best-effort */
-  }
-}
-
-/** Switch the active slot (used by the menu slot picker). Clears the cache. */
-export function setActiveSlot(i: number): void {
-  if (i < 0 || i >= SLOT_COUNT) return;
-  activeSlot = i;
-  cache = null;
-  try {
-    localStorage.setItem(ACTIVE_SLOT_KEY, String(i));
-  } catch {
-    /* ignore */
-  }
-}
-
 function readRaw(key: string): Partial<SaveData> | null {
   try {
     const raw = localStorage.getItem(key);
@@ -278,21 +162,32 @@ function readRaw(key: string): Partial<SaveData> | null {
 
 function writeRaw(data: SaveData): void {
   try {
-    localStorage.setItem(slotKey(activeSlot), JSON.stringify(data));
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
   } catch {
     // storage unavailable (private mode etc.) — play session still works in memory
   }
 }
 
+function readStoredSave(): Partial<SaveData> | null {
+  return readRaw(SAVE_KEY) ?? readRaw(LEGACY_SAVE_KEY);
+}
+
 /** Deep-ish merge onto defaults so old/partial saves never crash new builds. */
 function hydrate(partial: Partial<SaveData>): SaveData {
   const base = defaultSave();
+  const savedStats = partial.playerStats as (Partial<PlayerStats> & { pulseShotsFired?: number }) | undefined;
+  const { pulseShotsFired, ...cleanSavedStats } = savedStats ?? {};
+  const playerStats = {
+    ...base.playerStats,
+    ...cleanSavedStats,
+    weaponShotsFired: cleanSavedStats.weaponShotsFired ?? pulseShotsFired ?? base.playerStats.weaponShotsFired,
+  };
   return {
     ...base,
     ...partial,
     saveVersion: 1,
     buildVersion: BUILD_VERSION,
-    playerStats: { ...base.playerStats, ...(partial.playerStats ?? {}) },
+    playerStats,
     flags: { ...base.flags, ...(partial.flags ?? {}) },
     completedQuestSteps: partial.completedQuestSteps ?? [],
     unlockedAbilities: partial.unlockedAbilities ?? base.unlockedAbilities,
@@ -315,21 +210,16 @@ function hydrate(partial: Partial<SaveData>): SaveData {
 
 export function loadSave(): SaveData {
   if (cache) return cache;
-  let stored = readRaw(slotKey(activeSlot));
-  if (!stored && activeSlot === 0) {
-    // Legacy migration (slot 0 only): the project was briefly named BEAMLINE.
-    const legacy = readRaw(LEGACY_SAVE_KEY);
-    if (legacy) {
-      stored = legacy;
-      try {
-        localStorage.removeItem(LEGACY_SAVE_KEY);
-      } catch {
-        /* ignore */
-      }
+  const stored = readStoredSave();
+  cache = stored ? hydrate(stored) : defaultSave();
+  if (stored) {
+    writeRaw(cache);
+    try {
+      localStorage.removeItem(LEGACY_SAVE_KEY);
+    } catch {
+      /* ignore */
     }
   }
-  cache = stored ? hydrate(stored) : defaultSave();
-  if (stored) writeRaw(cache); // persist migrated/hydrated form under the slot key
   return cache;
 }
 
@@ -353,72 +243,17 @@ export function updateSave(mutator: (s: SaveData) => void): SaveData {
   return s;
 }
 
-/** Erase the ACTIVE slot back to a fresh save. */
+/** Erase the current run back to a fresh save. */
 export function resetSave(): SaveData {
   try {
-    localStorage.removeItem(slotKey(activeSlot));
-    if (activeSlot === 0) localStorage.removeItem(LEGACY_SAVE_KEY);
+    localStorage.removeItem(SAVE_KEY);
+    localStorage.removeItem(LEGACY_SAVE_KEY);
   } catch {
     /* ignore */
   }
   cache = defaultSave();
   bus.emit(EVT.saveUpdated, cache);
   return cache;
-}
-
-/* --------------------------------- save slots ------------------------------ */
-
-export interface SlotSummary {
-  index: number;
-  exists: boolean;
-  name: string; // player-chosen name ('' if unnamed)
-  savedAt: string | null;
-  zone: string;
-  questStep: string;
-  fragments: number;
-  timePlayedSec: number;
-  selectedSkin: string;
-}
-
-/** Peek at a slot without disturbing the active cache (menu slot picker). */
-export function slotSummary(i: number): SlotSummary {
-  const raw = i === 0 ? readRaw(slotKey(0)) ?? readRaw(LEGACY_SAVE_KEY) : readRaw(slotKey(i));
-  const exists = !!raw && raw.savedAt != null;
-  return {
-    index: i,
-    exists,
-    name: getSlotName(i),
-    savedAt: raw?.savedAt ?? null,
-    zone: raw?.currentZone ?? 'miller-field',
-    questStep: raw?.questStep ?? 'wake',
-    fragments: raw?.signalFragments ?? 0,
-    timePlayedSec: raw?.playerStats?.timePlayedSec ?? 0,
-    selectedSkin: raw?.selectedSkin ?? 'contact47',
-  };
-}
-
-export function allSlotSummaries(): SlotSummary[] {
-  return Array.from({ length: SLOT_COUNT }, (_, i) => slotSummary(i));
-}
-
-/** Erase a specific slot (from the menu). Resets the cache if it's active. */
-export function resetSlot(i: number): void {
-  try {
-    localStorage.removeItem(slotKey(i));
-    if (i === 0) localStorage.removeItem(LEGACY_SAVE_KEY);
-  } catch {
-    /* ignore */
-  }
-  setSlotName(i, ''); // an erased slot forgets its owner
-  if (i === activeSlot) {
-    cache = defaultSave();
-    bus.emit(EVT.saveUpdated, cache);
-  }
-}
-
-/** True if ANY slot has progress (used to decide whether to show top-bar reset). */
-export function hasAnySave(): boolean {
-  return allSlotSummaries().some((s) => s.exists);
 }
 
 /** Raw JSON for the Command Center save viewer. */
