@@ -6,6 +6,7 @@ import type Phaser from 'phaser';
 import { EVT, SCENES } from '../config';
 import { bus } from './EventBus';
 import { getSave, resetSave, selectSkin, unlockSkin, updateSave } from './SaveSystem';
+import { driveVirtualInput, resetVirtualInput } from './VirtualInput';
 import { quests } from './QuestSystem';
 import { rewards } from './RewardSystem';
 import type { CacheType } from '../data/caches';
@@ -22,6 +23,8 @@ export interface VirtualInput {
   scan?: boolean;
   interact?: boolean;
 }
+
+const dir = (v: unknown): -1 | 0 | 1 => (typeof v === 'number' && v < -0.1 ? -1 : typeof v === 'number' && v > 0.1 ? 1 : 0);
 
 interface SceneRegistry {
   menu?: MainMenuScene;
@@ -106,6 +109,7 @@ function startSweep(arenaId: string, zoneId = ZONE_BY_ARENA[arenaId] ?? 'miller-
   quests.load(quest);
   quests.init();
   if (quests.stepId !== step) quests.moveToStep(step);
+  bus.emit(EVT.menuActive, { active: false });
   stopGameplayScenes(gameRef);
   gameRef.registry.set('sweepArenaId', arenaId);
   gameRef.registry.set('gameOverRetryScene', SCENES.sweep);
@@ -191,6 +195,82 @@ export function installTestAPI(game: Phaser.Game): void {
       if (!sweep?.debugRouteToBreach) return false;
       sweep.debugRouteToBreach();
       return true;
+    },
+    driveAi: (input: Partial<VirtualInput> & { dashQueued?: boolean; scanQueued?: boolean; interactQueued?: boolean; weaponNextQueued?: boolean; weaponSlotQueued?: 0 | 1 | 2 | null } = {}): boolean => {
+      driveVirtualInput({
+        active: true,
+        moveX: dir(input.moveX),
+        moveY: dir(input.moveY),
+        aimX: typeof input.aimX === 'number' ? input.aimX : undefined,
+        aimY: typeof input.aimY === 'number' ? input.aimY : undefined,
+        fire: input.fire === true,
+        dashQueued: input.dash === true || input.dashQueued === true,
+        scanQueued: input.scan === true || input.scanQueued === true,
+        interactQueued: input.interact === true || input.interactQueued === true,
+        weaponNextQueued: input.weaponNextQueued === true,
+        weaponSlotQueued: input.weaponSlotQueued,
+      });
+      return true;
+    },
+    stopAi: (): boolean => {
+      resetVirtualInput();
+      return true;
+    },
+    getAiPerception: () => {
+      const sweep = sweepScene() as (Phaser.Scene & { debugAiPerception?: () => unknown }) | null;
+      return sweep?.debugAiPerception?.() ?? null;
+    },
+    getSweepRenderState: () => {
+      const sweep = sweepScene() as (Phaser.Scene & {
+        arena?: { id?: string; label?: string };
+        td?: boolean;
+        tdBiome?: {
+          id?: string;
+          atlas?: string;
+          tiles?: Record<string, string>;
+          skirt?: readonly string[];
+          scatter?: readonly string[];
+          bank?: readonly string[];
+          landmarks?: ReadonlyArray<readonly [string, string | null, number]>;
+          canopy?: string | null;
+        };
+        tdArt?: { hd?: boolean };
+      }) | null;
+      const biome = sweep?.tdBiome;
+      const atlasKey = biome?.atlas ? `td-atlas:${biome.atlas}` : '';
+      const atlas = atlasKey ? sweep?.textures.get(atlasKey) : null;
+      const missingTiles = biome?.tiles ? Object.values(biome.tiles).filter((key) => !sweep?.textures.exists(key)) : [];
+      const missingFrames = biome
+        ? [
+            ...(biome.skirt ?? []),
+            ...(biome.scatter ?? []),
+            ...(biome.bank ?? []),
+            ...((biome.landmarks ?? []).flatMap(([body, emis]) => (emis ? [body, emis] : [body]))),
+            ...(biome.canopy ? [biome.canopy] : []),
+          ].filter((key, i, arr) => arr.indexOf(key) === i && !sweep?.textures.exists(key))
+        : [];
+      const missingAtlasFrames = biome
+        ? [
+            ...(biome.skirt ?? []),
+            ...(biome.scatter ?? []),
+            ...(biome.bank ?? []),
+            ...((biome.landmarks ?? []).flatMap(([body, emis]) => (emis ? [body, emis] : [body]))),
+            ...(biome.canopy ? [biome.canopy] : []),
+          ].filter((key, i, arr) => arr.indexOf(key) === i && atlas && !atlas.has(key))
+        : [];
+      return sweep
+        ? {
+            hdActive: sweep.td === true,
+            arenaId: sweep.arena?.id ?? '',
+            arenaLabel: sweep.arena?.label ?? '',
+            biome: biome?.id ?? '',
+            atlas: biome?.atlas ?? '',
+            artReady: sweep.tdArt?.hd === true,
+            missingTiles,
+            missingFrames,
+            missingAtlasFrames,
+          }
+        : null;
     },
     setSweepWeapon: (id = 'arc'): boolean => {
       const sweep = sweepScene() as (Phaser.Scene & { debugSetWeapon?: (id: string) => boolean }) | null;

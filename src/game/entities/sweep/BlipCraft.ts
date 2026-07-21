@@ -1,6 +1,6 @@
 /**
  * BlipCraft — CONTACT-47 on the radar scope. Top-down, gravity-free, 8-directional
- * roam with a phase-drift dash. Twin-stick: you MOVE with one hand and AIM with the
+ * roam with a Phase Shift blink. Twin-stick: you MOVE with one hand and AIM with the
  * mouse/right-stick (the scene drives aim + firing). Tuning in config.SWEEP.
  */
 import Phaser from 'phaser';
@@ -40,8 +40,7 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
     scene.physics.add.existing(this);
     const body = this.body as Phaser.Physics.Arcade.Body;
     body.setAllowGravity(false);
-    body.setSize(11, 11);
-    body.setOffset((this.width - 11) / 2, (this.height - 11) / 2);
+    body.setSize(15, 15, true);
     body.setDrag(SWEEP.drag, SWEEP.drag);
     body.setMaxVelocity(SWEEP.dashSpeed, SWEEP.dashSpeed);
     this.setDepth(20);
@@ -138,7 +137,9 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    // phase-drift dash — i-frames; toward movement, or toward aim if standing still
+    // Phase Shift — short-range blink with i-frames; toward movement, or toward aim if standing still.
+    // It deliberately moves CONTACT-47 instantly instead of being a renamed dash,
+    // so it can read as traversal/stealth tech as well as combat repositioning.
     if (input.dashJustDown && !this.isDashing && now >= this.dashCdUntil) {
       let dx = ax / len;
       let dy = ay / len;
@@ -146,11 +147,23 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
         dx = Math.cos(this.aimAngle);
         dy = Math.sin(this.aimAngle);
       }
-      this.dashUntil = now + SWEEP.dashMs;
-      this.dashCdUntil = now + SWEEP.dashMs + this.effDashCooldown;
-      body.setVelocity(dx * this.effDashSpeed, dy * this.effDashSpeed);
+      const range = Math.max(52, this.effDashSpeed * 0.18);
+      const bounds = this.scene.physics.world.bounds;
+      const sx = this.x;
+      const sy = this.y;
+      const tx = Phaser.Math.Clamp(sx + dx * range, bounds.x + 10, bounds.right - 10);
+      const ty = Phaser.Math.Clamp(sy + dy * range, bounds.y + 10, bounds.bottom - 10);
+      this.dashUntil = now + Math.max(110, SWEEP.dashMs * 0.72);
+      this.dashCdUntil = now + this.effDashCooldown;
+      body.setVelocity(dx * this.effDashSpeed * 0.2, dy * this.effDashSpeed * 0.2);
+      this.fx.afterimage(this, P.signal);
+      this.fx.scanRing(sx, sy, 30, 150, P.signal);
+      this.setPosition(tx, ty);
+      this.fx.scanRing(tx, ty, 42, 190, P.signal);
       audio.dash();
-      this.fx.sparks(this.x, this.y, P.signal, 6);
+      this.fx.sparks(sx, sy, P.signal, 5);
+      this.fx.sparks(tx, ty, P.signal, 9);
+      bus.emit(EVT.toast, { text: 'PHASE SHIFT', color: 'green' });
     }
 
     if (this.isDashing) {

@@ -12,6 +12,9 @@ import { EVT, PALETTE as P, PLAYER, RENDER_ZOOM, SCENES, VIEW_H, VIEW_W } from '
 import { bus } from '../systems/EventBus';
 
 interface SweepStats {
+  region: string;
+  objectiveTitle?: string;
+  objectiveSub?: string;
   heat: number;
   node: number; // 0..1 node charge (1 when breach open)
   breachOpen: boolean;
@@ -39,6 +42,7 @@ export class UIScene extends Phaser.Scene {
   private sweepG!: Phaser.GameObjects.Graphics;
   private sweepGlow!: Phaser.GameObjects.Graphics;
   private sweepHudEl: HTMLElement | null = null;
+  private sweepRegionEl: HTMLElement | null = null;
   private sweepObjectiveEl: HTMLElement | null = null;
   private sweepContactsEl: HTMLElement | null = null;
   private sweepNodeFillEl: HTMLElement | null = null;
@@ -49,7 +53,7 @@ export class UIScene extends Phaser.Scene {
   private sweepBannerEl: HTMLElement | null = null;
   private sweepBannerTimer: number | null = null;
   private stats: SweepStats = {
-    heat: 0, node: 0, breachOpen: false, traverse: true, enemies: 0,
+    region: 'Miller Surface', heat: 0, node: 0, breachOpen: false, traverse: true, enemies: 0,
     wave: 0, waves: 0, combo: 0, weapon: 'PULSE', overdrive: 0, odReady: false, odActive: false,
   };
   private odPulseT = 0;
@@ -127,6 +131,7 @@ export class UIScene extends Phaser.Scene {
     // Contextual alerts are transient (the banner) — there is no instruction ticker.
     el.innerHTML = `
       <div class="td-objective">
+        <div class="td-region">AREA · MILLER SURFACE</div>
         <div class="td-objective-title">CHARGE THE SIGNAL NODE</div>
         <div class="td-objective-sub">0 contacts left</div>
         <div class="td-objective-bar"><i></i></div>
@@ -141,12 +146,13 @@ export class UIScene extends Phaser.Scene {
       </div>
       <div class="td-overdrive"><span>SIGNAL OVERDRIVE</span><div><i></i></div></div>
       <div class="td-abilities">
-        <span data-k="SHIFT">DASH</span><span data-k="Q">SCAN</span>
+        <span data-k="SHIFT">SHIFT</span><span data-k="Q">SCAN</span>
         <span data-k="1-3">WPN</span><span data-k="E">ECHO</span><span data-k="LMB">FIRE</span>
       </div>
       <div class="sweep-hud-banner"></div>`;
     frame.appendChild(el);
     this.sweepHudEl = el;
+    this.sweepRegionEl = el.querySelector('.td-region');
     this.sweepObjectiveEl = el.querySelector('.td-objective-title');
     this.sweepContactsEl = el.querySelector('.td-objective-sub');
     this.sweepNodeFillEl = el.querySelector('.td-objective-bar i');
@@ -203,16 +209,18 @@ export class UIScene extends Phaser.Scene {
     if (this.sweepWeaponEl) this.sweepWeaponEl.textContent = s.weapon;
 
     // ---- objective ----
+    if (this.sweepRegionEl) this.sweepRegionEl.textContent = `AREA · ${s.region.toUpperCase()}`;
     if (this.sweepObjectiveEl) {
-      this.sweepObjectiveEl.textContent = s.traverse
+      this.sweepObjectiveEl.textContent = s.objectiveTitle ?? (s.traverse
         ? s.breachOpen ? 'BREACH OPEN' : 'CHARGE THE SIGNAL NODE'
-        : `WAVE ${s.wave} / ${s.waves}`;
+        : `WAVE ${s.wave} / ${s.waves}`);
       this.sweepObjectiveEl.classList.toggle('ready', s.traverse && s.breachOpen);
     }
     if (this.sweepContactsEl) {
       // sentence case — uppercase is reserved for labels and the objective itself
-      this.sweepContactsEl.textContent =
-        s.enemies > 0 ? `${s.enemies} contact${s.enemies === 1 ? '' : 's'} left` : 'Area clear';
+      this.sweepContactsEl.textContent = s.objectiveSub ?? (
+        s.enemies > 0 ? `${s.enemies} contact${s.enemies === 1 ? '' : 's'} left` : 'Area clear'
+      );
       this.sweepContactsEl.classList.toggle('clear', s.enemies <= 0);
     }
     if (this.sweepNodeFillEl) this.sweepNodeFillEl.style.width = `${Math.round((s.breachOpen ? 1 : s.node) * 100)}%`;

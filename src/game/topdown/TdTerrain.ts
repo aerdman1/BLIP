@@ -85,6 +85,7 @@ export class TdTerrain {
   /* ------------------------------ 1. ground ---------------------------------- */
   private bakeGround(AW: number, AH: number): void {
     const { tile: T, w: W, h: H, solid, halls, art } = this.input;
+    const tints = this.input.biome.tints;
 
     // ONE SEAMLESS BASE + NON-REPEATING ORGANIC OVERLAYS.
     //
@@ -106,10 +107,10 @@ export class TdTerrain {
       .setDepth(DEPTH.ground);
     base.tileScaleX = scale;
     base.tileScaleY = scale;
+    if (tints.ground) base.setTint(tints.ground);
     this.layers.push(base);
 
     // organic lit/shadow drift — soft blobs, no repeats, no edges
-    const tints = this.input.biome.tints;
     this.cloudOverlay(AW, AH, 'td-cloud-lit', art.groundLit, tints.cloudLit, 0.5, DEPTH.ground + 1, 0x000000);
     this.cloudOverlay(AW, AH, 'td-cloud-dark', art.groundDark, tints.cloudDark, 0.55, DEPTH.ground + 2, 0x000000);
 
@@ -160,6 +161,7 @@ export class TdTerrain {
         .setAlpha(0.85);
       pathLayer.tileScaleX = scale;
       pathLayer.tileScaleY = scale;
+      if (tints.path) pathLayer.setTint(tints.path);
       pathLayer.setMask(new Phaser.Display.Masks.BitmapMask(this.scene, maskImg));
       this.maskImg = maskImg;
       this.layers.push(pathLayer);
@@ -307,6 +309,7 @@ export class TdTerrain {
       .setDepth(DEPTH.sorted - 2);
     cap.tileScaleX = scale;
     cap.tileScaleY = scale;
+    if (this.input.biome.tints.wallTop) cap.setTint(this.input.biome.tints.wallTop);
     cap.setMask(new Phaser.Display.Masks.BitmapMask(this.scene, maskImg));
     this.layers.push(cap);
 

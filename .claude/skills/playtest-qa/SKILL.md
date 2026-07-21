@@ -10,7 +10,7 @@ Purpose: after each major feature, verify the game is actually playable.
 ## Checklist (run after every major feature)
 
 - Can the player spawn in `SweepScene`?
-- Can the player move in 4 directions, dash, aim, and shoot?
+- Can the player move in 4 directions, Phase Shift, aim, and shoot?
 - Can scan pulse reveal caches and damage/stun nearby threats?
 - Can the player charge a signal node?
 - Does a charged breach/route transition to the next top-down arena?

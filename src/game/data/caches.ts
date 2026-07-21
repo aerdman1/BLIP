@@ -43,7 +43,7 @@ export const CACHES: Record<CacheType, CacheDef> = {
   scout: {
     id: 'scout',
     name: 'Scout Cache',
-    tagline: 'Something the five kids buried, on purpose.',
+    tagline: 'A sealed Scout drop, buried before the first blackout.',
     color: '#35d5ff',
     glow: '#2a86b0',
     drops: 1,

@@ -1,7 +1,7 @@
 /**
  * Scout Field Notes (Tunic-style collectible pages) + scan-secrets (Animal Well).
  * Notebook pages the Five Scouts left behind — they teach a mechanic in a
- * wholesome kids'-club voice and reward curiosity. Hidden until a scan pulse
+ * brave, coded field-journal voice and reward curiosity. Hidden until a scan pulse
  * finds them; some secret spots pay Signal Shards instead of a note.
  * Content data only — placements are area coords the top-down scene scans against.
  */
@@ -32,15 +32,15 @@ export const FIELD_NOTES: FieldNoteDef[] = [
   {
     id: 'chip-circuit-doodle',
     scoutId: 'chip',
-    title: "Chip's circuit doodle",
-    body: '“Only the lit signs tell the truth. Shoot the power box and the whole lot changes. I rewired the diner with bike spokes — don’t tell my mom.”',
+    title: "Chip's circuit sketch",
+    body: '“Only the lit signs tell the truth. Shoot the power box and the whole lot changes. I wired the diner into the warning grid. If it hums, leave fast.”',
     hint: 'Pulse-shot signal machinery to open route pressure windows.',
   },
   {
     id: 'danny-dare',
     scoutId: 'danny',
-    title: "Danny's dare",
-    body: '“Bet you can’t dash the whole lot without getting read. I did it in four. Chip says the trick is the drainpipe. Chip is right (don’t tell him).”',
+    title: "Danny's route mark",
+    body: '“The red light reads slow after a dash. I crossed the lot in four cuts. The drainpipe route still works if you do not freeze.”',
     hint: 'Dash i-frames slip you clean through the security cones.',
   },
 ];

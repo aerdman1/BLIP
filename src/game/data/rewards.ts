@@ -107,14 +107,14 @@ export interface RewardDef {
 export const REWARDS: RewardDef[] = [
   /* ---- currency payouts ---- */
   { id: 'dust-small', name: 'Signal Dust', category: 'dust', rarity: 'common', amount: 20, icon: 'dust', flavor: 'Ground-down signal residue. Reforge it into anything.' },
-  { id: 'dust-med', name: 'Signal Dust Cluster', category: 'dust', rarity: 'uncommon', amount: 50, icon: 'dust', flavor: 'A brighter pinch of dust — the good stuff clumps.' },
+  { id: 'dust-med', name: 'Signal Dust Cluster', category: 'dust', rarity: 'uncommon', amount: 50, icon: 'dust', flavor: 'Dense residue from a collapsed signal seam.' },
   { id: 'dust-big', name: 'Signal Dust Drift', category: 'dust', rarity: 'rare', amount: 120, icon: 'dust', flavor: 'A whole drift of the stuff. Chip would be proud.' },
   { id: 'shards-small', name: 'Salvage Shards', category: 'shards', rarity: 'common', amount: 10, icon: 'shard', flavor: 'Loose Signal Shards — spend them at the Workbench.' },
   { id: 'shards-med', name: 'Shard Cache', category: 'shards', rarity: 'uncommon', amount: 25, icon: 'shard', flavor: 'A tidy stack of Shards, still warm.' },
   { id: 'shards-big', name: 'Shard Trove', category: 'shards', rarity: 'rare', amount: 60, icon: 'shard', flavor: 'Enough Shards to actually upgrade something.' },
 
   /* ---- stickers (common/uncommon filler with charm) ---- */
-  { id: 'sticker-blip', name: 'Blip Sticker', category: 'sticker', rarity: 'common', icon: 'blip', flavor: 'A little green dot. It IS you, technically.' },
+  { id: 'sticker-blip', name: 'Blip Marker', category: 'sticker', rarity: 'common', icon: 'blip', flavor: 'A green contact marker pulled from old radar film.' },
   { id: 'sticker-antenna', name: 'Bent Antenna Sticker', category: 'sticker', rarity: 'common', icon: 'antenna', flavor: 'From the Scarecrow Antenna. Slightly cursed.' },
   { id: 'sticker-moon', name: 'Chagrin Moon Sticker', category: 'sticker', rarity: 'common', icon: 'moon', flavor: 'The moon over Miller Field, forever half-lit.' },
   { id: 'sticker-neon', name: 'VACANCY Sticker', category: 'sticker', rarity: 'uncommon', icon: 'neon', flavor: 'It still buzzes if you hold it to your ear.' },
@@ -146,14 +146,14 @@ export const REWARDS: RewardDef[] = [
   { id: 'ripple-anomaly', name: 'Anomaly Ripple', category: 'ripple', rarity: 'anomaly', icon: 'ripple', flavor: 'Nobody agrees on what shape this ripple even is.' },
 
   /* ---- pulse-shot effects ---- */
-  { id: 'pulse-dot', name: 'Round Pulse', category: 'pulsefx', rarity: 'common', icon: 'pulse', flavor: 'A friendly little dot of signal.' },
-  { id: 'pulse-star', name: 'Starburst Pulse', category: 'pulsefx', rarity: 'rare', icon: 'pulse', flavor: 'Every shot pops like a tiny firework.' },
+  { id: 'pulse-dot', name: 'Round Pulse', category: 'pulsefx', rarity: 'common', icon: 'pulse', flavor: 'A compact pressure round with a clean radar edge.' },
+  { id: 'pulse-star', name: 'Starburst Pulse', category: 'pulsefx', rarity: 'rare', icon: 'pulse', flavor: 'A brittle impact flare that leaves a hard amber cut.' },
   { id: 'pulse-arrow', name: 'Chevron Pulse', category: 'pulsefx', rarity: 'superrare', icon: 'pulse', flavor: 'Sharp amber chevrons, all business.' },
-  { id: 'pulse-heart', name: 'Signal-Heart Pulse', category: 'pulsefx', rarity: 'epic', icon: 'pulse', flavor: 'You fire little hearts. The drones hate it.' },
+  { id: 'pulse-heart', name: 'Signal-Core Pulse', category: 'pulsefx', rarity: 'epic', icon: 'pulse', flavor: 'A heart-shaped core flash from the Scouts’ first prototype.' },
 
   /* ---- echo blink effects ---- */
   { id: 'echo-fade', name: 'Soft Echo', category: 'echofx', rarity: 'uncommon', icon: 'echo', flavor: 'Your echo fades gently, like a held breath.' },
-  { id: 'echo-double', name: 'Double Echo', category: 'echofx', rarity: 'rare', icon: 'echo', flavor: 'Two after-images instead of one. Show-off.' },
+  { id: 'echo-double', name: 'Double Echo', category: 'echofx', rarity: 'rare', icon: 'echo', flavor: 'Two after-images split the lock before scanners can settle.' },
   { id: 'echo-mirror', name: 'Mirror Echo', category: 'echofx', rarity: 'epic', icon: 'echo', flavor: 'The echo looks back at you. Cameron loved this.' },
 
   /* ---- skins (cosmetic frequencies) ---- */

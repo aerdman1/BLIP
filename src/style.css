@@ -1751,6 +1751,14 @@ body.compact-gameplay #touch-controls .tc-stick {
   min-width: clamp(150px, 20vw, 240px);
   padding: clamp(7px, 1vw, 11px) clamp(10px, 1.2vw, 14px);
 }
+#sweep-hud-dom.td-hud .td-region {
+  color: var(--td-sig);
+  font-size: clamp(8px, 0.8vw, 10px);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
 #sweep-hud-dom.td-hud .td-objective-title {
   color: var(--td-ink);
   font-size: clamp(10px, 1.15vw, 14px);

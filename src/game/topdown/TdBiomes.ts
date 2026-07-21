@@ -77,6 +77,9 @@ export interface TdBiomeDef {
     count: number;
   };
   tints: {
+    ground?: number;
+    path?: number;
+    wallTop?: number;
     skirt: number;
     propNear: number;
     propFar: number;
@@ -240,6 +243,75 @@ const MOTEL: TdBiomeDef = {
 };
 
 /* --------------------------------------------------------------------------
+ * STADIUM / TOWN — Chagrin Falls streets and stadium-edge connector (zone 3).
+ *
+ * There is not a dedicated topdown-z3 atlas yet. The important rule is still:
+ * the town must render through the HD top-down pipeline, never the legacy
+ * procedural tile-map fallback. Reuse the zone-2 hard-edge HD vocabulary for
+ * now because it already contains built surfaces, cars, lamps, signs, rubble
+ * and crates that read correctly for streets, alleys, bridge edges and stadium
+ * boundaries. A future topdown-z3 atlas can swap in town-specific storefronts,
+ * bridge masonry and field-light props without touching SweepScene.
+ * -------------------------------------------------------------------------- */
+const STADIUM: TdBiomeDef = {
+  id: 'stadium',
+  atlas: 'topdown-z2',
+  tiles: {
+    ground: 'td-z2-ground',
+    groundLit: 'td-z2-ground-lit',
+    groundDark: 'td-z2-ground-dark',
+    path: 'td-z2-path',
+    wallTop: 'td-z2-wall-top',
+    wallFace: 'td-z2-wall-face',
+  },
+  fallback: {
+    ground: TEX.sweepAsphalt,
+    groundLit: TEX.sweepGrass2,
+    groundDark: TEX.sweepGrassDk,
+    path: TEX.sweepPath,
+    wallTop: TEX.sweepWallMotel,
+    wallFace: TEX.sweepWallMotel,
+  },
+  wallStyle: 'hardEdge',
+  skirt: ['td-z2-rubble', 'td-z2-scrap', 'td-z2-crate', 'td-z2-weed'],
+  scatter: ['td-z2-rubble', 'td-z2-tire', 'td-z2-crate', 'td-z2-cone', 'td-z2-planter', 'td-z2-scrap'],
+  bank: ['td-z2-rubble', 'td-z2-crate', 'td-z2-tire'],
+  canopy: null,
+  landmarks: [
+    ['td-z2-lm-car', null, 0.32],
+    ['td-z2-lm-lamp', 'td-z2-lm-lamp-emis', 0.42],
+    ['td-z2-lm-sign', 'td-z2-lm-sign-emis', 0.34],
+    ['td-z2-lm-vending', 'td-z2-lm-vending-emis', 0.30],
+  ],
+  flatLandmark: null,
+  accents: {
+    warm: 0xffc966, // town/stadium field-light spill
+    coolA: 0x35d5ff, // river/sign reflections
+    coolB: 0xa8ff3e, // Scout route markers
+    warmChance: 0.58,
+    count: 18,
+  },
+  tints: {
+    ground: 0x78859a,
+    path: 0x9a7a56,
+    wallTop: 0xa26f4a,
+    skirt: 0xb8bec8,
+    propNear: 0xffffff,
+    propFar: 0xb8c0cc,
+    wallFace: 0xd8bd8e,
+    cloudLit: 0xffd99a,
+    cloudDark: 0x454050,
+    canopy: 0xffffff,
+  },
+  light: {
+    darkness: 0.14,
+    darknessLow: 0.08,
+    ambientFloor: 0.78,
+    vignette: 0.38,
+  },
+};
+
+/* --------------------------------------------------------------------------
  * ORCHARD — Patterson's Orchard, "The Living Maze" (zone 4 / maze-z4).
  *
  * The corn maze from above at harvest dusk. Organic like Miller Field — corn
@@ -319,6 +391,7 @@ const ORCHARD: TdBiomeDef = {
 export const TD_BIOMES: Partial<Record<SweepBiome, TdBiomeDef>> = {
   miller: MILLER,
   motel: MOTEL,
+  stadium: STADIUM,
   orchard: ORCHARD,
 };
 

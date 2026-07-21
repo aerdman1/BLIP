@@ -15,6 +15,8 @@ Purpose: make the game look cool without real art assets.
 - Use generated grass, asphalt, orchard rows, town walls, fences, radio towers, scan equipment, crop-circle glyphs, drones, pickups, and signal nodes.
 - Strong silhouettes and lighting instead of detailed illustrations. **Never spend time drawing realistic objects when symbolic/procedural versions are enough.**
 - Glow = layered alpha copies / additive blending, not blur filters.
+- Mature-tone rule: keep the color, but make threat areas harder-edged with deeper shadows, damaged streets, smoke, scorched ground, broken machinery, emergency lighting and hostile red classification shapes.
+- Ordinary actions should not look like confetti or toys. Combat should read as sparks, debris, electrical rupture, oil-dark scorch and forceful silhouettes.
 
 ## Palette (locked — use `PALETTE` in src/game/config.ts)
 
@@ -26,5 +28,5 @@ Purpose: make the game look cool without real art assets.
 
 ## Aesthetic Targets
 
-- Dreamlike Rural Pixel Sci-Fi: lush fields at dusk, lonely radio towers, strange floating land, crop-circle symbols, red scan cones, green/cyan signal effects, glitch/CRT overlays.
-- Motion sells everything: actor bob, cloud drift, scan ripples, particles, screen shake, glitch flashes.
+- Dreamlike Rural Pixel Sci-Fi: lush fields at dusk, lonely radio towers, damaged Chagrin Falls roads, strange floating land, crop-circle symbols, red scan cones, green/cyan signal effects, glitch/CRT overlays.
+- Motion sells everything: actor bob, cloud drift, scan ripples, sparks, debris, screen shake, glitch flashes and lingering environmental damage.

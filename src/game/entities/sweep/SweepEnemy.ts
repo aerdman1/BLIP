@@ -53,7 +53,7 @@ export class SweepEnemy extends Phaser.Physics.Arcade.Sprite {
     scene.physics.add.existing(this);
     const body = this.body as Phaser.Physics.Arcade.Body;
     body.setAllowGravity(false);
-    body.setSize(11, 11);
+    body.setSize(18, 18, true);
     body.setDrag(600, 600);
     this.setDepth(15);
     this.hpBar = scene.add.graphics().setDepth(16);

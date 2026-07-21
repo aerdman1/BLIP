@@ -1,0 +1,481 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-21T20:32:38.600Z",
+  "label": "current",
+  "runMs": 4200,
+  "seeds": [
+    3107,
+    9114
+  ],
+  "guardrails": [
+    "Personas use visible-perception snapshots only: player, HUD progress, visible enemies, visible pickups, visible node/breach.",
+    "No hidden cache positions, full map geometry, enemy timers, future objectives or direct route-completion hooks are used.",
+    "Metrics are warning signals, not proof that the game is fun."
+  ],
+  "runs": [
+    {
+      "persona": "new-player",
+      "seed": 3107,
+      "result": "alive-timeout",
+      "durationMs": 4304,
+      "regionsReached": [
+        "surface-z1"
+      ],
+      "regionsCompleted": [],
+      "deaths": 0,
+      "stuckEvents": 0,
+      "objectiveFailures": 0,
+      "boredomFlags": [],
+      "frustrationFlags": [],
+      "weaponUsage": {
+        "pulse": 11,
+        "arc": 9,
+        "disc": 15
+      },
+      "weaponSwitches": 2,
+      "phaseShiftUses": 0,
+      "secretsFound": 0,
+      "lootSeen": 1,
+      "lootIgnored": 1,
+      "lootCollected": 0,
+      "damageEvents": 2,
+      "timeWithoutProgressMs": 628,
+      "screenshots": [
+        "test-results/ai-player-lab/screenshots/new-player-3107-entry.png",
+        "test-results/ai-player-lab/screenshots/new-player-3107-combat.png",
+        "test-results/ai-player-lab/screenshots/new-player-3107-combat.png"
+      ]
+    },
+    {
+      "persona": "casual",
+      "seed": 3107,
+      "result": "alive-timeout",
+      "durationMs": 4305,
+      "regionsReached": [
+        "surface-z1"
+      ],
+      "regionsCompleted": [],
+      "deaths": 0,
+      "stuckEvents": 0,
+      "objectiveFailures": 0,
+      "boredomFlags": [
+        "no-progress-window"
+      ],
+      "frustrationFlags": [],
+      "weaponUsage": {
+        "pulse": 9,
+        "arc": 8,
+        "disc": 18
+      },
+      "weaponSwitches": 4,
+      "phaseShiftUses": 0,
+      "secretsFound": 0,
+      "lootSeen": 1,
+      "lootIgnored": 1,
+      "lootCollected": 0,
+      "damageEvents": 2,
+      "timeWithoutProgressMs": 3337,
+      "screenshots": [
+        "test-results/ai-player-lab/screenshots/casual-3107-entry.png",
+        "test-results/ai-player-lab/screenshots/casual-3107-combat.png",
+        "test-results/ai-player-lab/screenshots/casual-3107-combat.png"
+      ]
+    },
+    {
+      "persona": "aggressive",
+      "seed": 3107,
+      "result": "alive-timeout",
+      "durationMs": 4210,
+      "regionsReached": [
+        "surface-z1"
+      ],
+      "regionsCompleted": [],
+      "deaths": 0,
+      "stuckEvents": 0,
+      "objectiveFailures": 0,
+      "boredomFlags": [
+        "no-progress-window"
+      ],
+      "frustrationFlags": [],
+      "weaponUsage": {
+        "pulse": 19,
+        "arc": 8,
+        "disc": 7
+      },
+      "weaponSwitches": 2,
+      "phaseShiftUses": 1,
+      "secretsFound": 0,
+      "lootSeen": 1,
+      "lootIgnored": 1,
+      "lootCollected": 0,
+      "damageEvents": 1,
+      "timeWithoutProgressMs": 3353,
+      "screenshots": [
+        "test-results/ai-player-lab/screenshots/aggressive-3107-entry.png",
+        "test-results/ai-player-lab/screenshots/aggressive-3107-combat.png",
+        "test-results/ai-player-lab/screenshots/aggressive-3107-combat.png"
+      ]
+    },
+    {
+      "persona": "explorer",
+      "seed": 3107,
+      "result": "alive-timeout",
+      "durationMs": 4285,
+      "regionsReached": [
+        "surface-z1"
+      ],
+      "regionsCompleted": [],
+      "deaths": 0,
+      "stuckEvents": 0,
+      "objectiveFailures": 0,
+      "boredomFlags": [
+        "no-progress-window"
+      ],
+      "frustrationFlags": [
+        "heavy-damage"
+      ],
+      "weaponUsage": {
+        "pulse": 17,
+        "disc": 18
+      },
+      "weaponSwitches": 5,
+      "phaseShiftUses": 0,
+      "secretsFound": 0,
+      "lootSeen": 0,
+      "lootIgnored": 0,
+      "lootCollected": 0,
+      "damageEvents": 3,
+      "timeWithoutProgressMs": 3121,
+      "screenshots": [
+        "test-results/ai-player-lab/screenshots/explorer-3107-entry.png",
+        "test-results/ai-player-lab/screenshots/explorer-3107-combat.png",
+        "test-results/ai-player-lab/screenshots/explorer-3107-combat.png"
+      ]
+    },
+    {
+      "persona": "skilled-action",
+      "seed": 3107,
+      "result": "alive-timeout",
+      "durationMs": 4298,
+      "regionsReached": [
+        "surface-z1"
+      ],
+      "regionsCompleted": [],
+      "deaths": 0,
+      "stuckEvents": 0,
+      "objectiveFailures": 0,
+      "boredomFlags": [
+        "no-progress-window"
+      ],
+      "frustrationFlags": [],
+      "weaponUsage": {
+        "pulse": 15,
+        "disc": 6,
+        "arc": 14
+      },
+      "weaponSwitches": 5,
+      "phaseShiftUses": 4,
+      "secretsFound": 0,
+      "lootSeen": 0,
+      "lootIgnored": 0,
+      "lootCollected": 0,
+      "damageEvents": 0,
+      "timeWithoutProgressMs": 3130,
+      "screenshots": [
+        "test-results/ai-player-lab/screenshots/skilled-action-3107-entry.png",
+        "test-results/ai-player-lab/screenshots/skilled-action-3107-combat.png",
+        "test-results/ai-player-lab/screenshots/skilled-action-3107-combat.png"
+      ]
+    },
+    {
+      "persona": "unpredictable",
+      "seed": 3107,
+      "result": "alive-timeout",
+      "durationMs": 4306,
+      "regionsReached": [
+        "surface-z1"
+      ],
+      "regionsCompleted": [],
+      "deaths": 0,
+      "stuckEvents": 0,
+      "objectiveFailures": 0,
+      "boredomFlags": [
+        "no-progress-window"
+      ],
+      "frustrationFlags": [],
+      "weaponUsage": {
+        "pulse": 26,
+        "disc": 9
+      },
+      "weaponSwitches": 8,
+      "phaseShiftUses": 0,
+      "secretsFound": 0,
+      "lootSeen": 0,
+      "lootIgnored": 0,
+      "lootCollected": 0,
+      "damageEvents": 0,
+      "timeWithoutProgressMs": 3458,
+      "screenshots": [
+        "test-results/ai-player-lab/screenshots/unpredictable-3107-entry.png",
+        "test-results/ai-player-lab/screenshots/unpredictable-3107-combat.png",
+        "test-results/ai-player-lab/screenshots/unpredictable-3107-combat.png"
+      ]
+    },
+    {
+      "persona": "new-player",
+      "seed": 9114,
+      "result": "alive-timeout",
+      "durationMs": 4211,
+      "regionsReached": [
+        "surface-z1"
+      ],
+      "regionsCompleted": [],
+      "deaths": 0,
+      "stuckEvents": 0,
+      "objectiveFailures": 0,
+      "boredomFlags": [
+        "no-progress-window",
+        "pulse-dominates"
+      ],
+      "frustrationFlags": [],
+      "weaponUsage": {
+        "pulse": 34
+      },
+      "weaponSwitches": 0,
+      "phaseShiftUses": 0,
+      "secretsFound": 0,
+      "lootSeen": 1,
+      "lootIgnored": 1,
+      "lootCollected": 0,
+      "damageEvents": 0,
+      "timeWithoutProgressMs": 3333,
+      "screenshots": [
+        "test-results/ai-player-lab/screenshots/new-player-9114-entry.png",
+        "test-results/ai-player-lab/screenshots/new-player-9114-combat.png",
+        "test-results/ai-player-lab/screenshots/new-player-9114-combat.png"
+      ]
+    },
+    {
+      "persona": "casual",
+      "seed": 9114,
+      "result": "alive-timeout",
+      "durationMs": 4302,
+      "regionsReached": [
+        "surface-z1"
+      ],
+      "regionsCompleted": [],
+      "deaths": 0,
+      "stuckEvents": 0,
+      "objectiveFailures": 0,
+      "boredomFlags": [],
+      "frustrationFlags": [],
+      "weaponUsage": {
+        "pulse": 12,
+        "arc": 6,
+        "disc": 17
+      },
+      "weaponSwitches": 2,
+      "phaseShiftUses": 1,
+      "secretsFound": 0,
+      "lootSeen": 0,
+      "lootIgnored": 0,
+      "lootCollected": 0,
+      "damageEvents": 0,
+      "timeWithoutProgressMs": 417,
+      "screenshots": [
+        "test-results/ai-player-lab/screenshots/casual-9114-entry.png",
+        "test-results/ai-player-lab/screenshots/casual-9114-combat.png",
+        "test-results/ai-player-lab/screenshots/casual-9114-combat.png"
+      ]
+    },
+    {
+      "persona": "aggressive",
+      "seed": 9114,
+      "result": "alive-timeout",
+      "durationMs": 4218,
+      "regionsReached": [
+        "surface-z1"
+      ],
+      "regionsCompleted": [],
+      "deaths": 0,
+      "stuckEvents": 0,
+      "objectiveFailures": 0,
+      "boredomFlags": [],
+      "frustrationFlags": [],
+      "weaponUsage": {
+        "pulse": 5,
+        "arc": 23,
+        "disc": 6
+      },
+      "weaponSwitches": 3,
+      "phaseShiftUses": 2,
+      "secretsFound": 0,
+      "lootSeen": 0,
+      "lootIgnored": 0,
+      "lootCollected": 0,
+      "damageEvents": 2,
+      "timeWithoutProgressMs": 1159,
+      "screenshots": [
+        "test-results/ai-player-lab/screenshots/aggressive-9114-entry.png",
+        "test-results/ai-player-lab/screenshots/aggressive-9114-combat.png",
+        "test-results/ai-player-lab/screenshots/aggressive-9114-combat.png"
+      ]
+    },
+    {
+      "persona": "explorer",
+      "seed": 9114,
+      "result": "alive-timeout",
+      "durationMs": 4244,
+      "regionsReached": [
+        "surface-z1"
+      ],
+      "regionsCompleted": [],
+      "deaths": 0,
+      "stuckEvents": 0,
+      "objectiveFailures": 0,
+      "boredomFlags": [
+        "no-progress-window"
+      ],
+      "frustrationFlags": [],
+      "weaponUsage": {
+        "pulse": 4,
+        "disc": 30
+      },
+      "weaponSwitches": 3,
+      "phaseShiftUses": 1,
+      "secretsFound": 0,
+      "lootSeen": 0,
+      "lootIgnored": 0,
+      "lootCollected": 0,
+      "damageEvents": 1,
+      "timeWithoutProgressMs": 2929,
+      "screenshots": [
+        "test-results/ai-player-lab/screenshots/explorer-9114-entry.png",
+        "test-results/ai-player-lab/screenshots/explorer-9114-combat.png",
+        "test-results/ai-player-lab/screenshots/explorer-9114-combat.png"
+      ]
+    },
+    {
+      "persona": "skilled-action",
+      "seed": 9114,
+      "result": "alive-timeout",
+      "durationMs": 4286,
+      "regionsReached": [
+        "surface-z1"
+      ],
+      "regionsCompleted": [],
+      "deaths": 0,
+      "stuckEvents": 1,
+      "objectiveFailures": 0,
+      "boredomFlags": [
+        "no-progress-window"
+      ],
+      "frustrationFlags": [
+        "stuck-against-geometry"
+      ],
+      "weaponUsage": {
+        "pulse": 6,
+        "arc": 10,
+        "disc": 18
+      },
+      "weaponSwitches": 2,
+      "phaseShiftUses": 2,
+      "secretsFound": 0,
+      "lootSeen": 0,
+      "lootIgnored": 0,
+      "lootCollected": 0,
+      "damageEvents": 0,
+      "timeWithoutProgressMs": 2969,
+      "screenshots": [
+        "test-results/ai-player-lab/screenshots/skilled-action-9114-entry.png",
+        "test-results/ai-player-lab/screenshots/skilled-action-9114-combat.png",
+        "test-results/ai-player-lab/screenshots/skilled-action-9114-combat.png"
+      ]
+    },
+    {
+      "persona": "unpredictable",
+      "seed": 9114,
+      "result": "alive-timeout",
+      "durationMs": 4215,
+      "regionsReached": [
+        "surface-z1"
+      ],
+      "regionsCompleted": [],
+      "deaths": 0,
+      "stuckEvents": 0,
+      "objectiveFailures": 0,
+      "boredomFlags": [
+        "no-progress-window"
+      ],
+      "frustrationFlags": [],
+      "weaponUsage": {
+        "pulse": 9,
+        "arc": 2,
+        "disc": 23
+      },
+      "weaponSwitches": 2,
+      "phaseShiftUses": 1,
+      "secretsFound": 0,
+      "lootSeen": 1,
+      "lootIgnored": 1,
+      "lootCollected": 0,
+      "damageEvents": 0,
+      "timeWithoutProgressMs": 2933,
+      "screenshots": [
+        "test-results/ai-player-lab/screenshots/unpredictable-9114-entry.png",
+        "test-results/ai-player-lab/screenshots/unpredictable-9114-combat.png",
+        "test-results/ai-player-lab/screenshots/unpredictable-9114-combat.png"
+      ]
+    }
+  ],
+  "summary": {
+    "completionRate": 0,
+    "personas": {
+      "new-player": {
+        "completionRate": 0,
+        "averageDeaths": 0,
+        "averageStuckEvents": 0
+      },
+      "casual": {
+        "completionRate": 0,
+        "averageDeaths": 0,
+        "averageStuckEvents": 0
+      },
+      "aggressive": {
+        "completionRate": 0,
+        "averageDeaths": 0,
+        "averageStuckEvents": 0
+      },
+      "explorer": {
+        "completionRate": 0,
+        "averageDeaths": 0,
+        "averageStuckEvents": 0
+      },
+      "skilled-action": {
+        "completionRate": 0,
+        "averageDeaths": 0,
+        "averageStuckEvents": 0.5
+      },
+      "unpredictable": {
+        "completionRate": 0,
+        "averageDeaths": 0,
+        "averageStuckEvents": 0
+      }
+    },
+    "leastUsedWeapon": "arc",
+    "mostCommonStuckAreas": {
+      "surface-z1": 1
+    },
+    "mostIgnoredRewards": 5,
+    "mostConfusingObjective": "none flagged",
+    "mostRepetitiveEncounter": "none flagged",
+    "likelyBoredomFlags": [
+      "no-progress-window",
+      "pulse-dominates"
+    ],
+    "likelyFrustrationFlags": [
+      "heavy-damage",
+      "stuck-against-geometry"
+    ]
+  }
+}

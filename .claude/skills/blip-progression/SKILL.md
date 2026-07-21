@@ -15,7 +15,7 @@ Purpose: keep BLIP's power curve small, legible, and wired through the current t
 | **B — Signal Shards → Chip's Workbench** | salvage from drones, caches, route clears | `config.PROGRESSION.workbench` + `save.shards` / `purchasedUpgrades` |
 | **C — Scout skins** | complete a scout's 3-piece Signal Set | `src/game/data/skins.ts` |
 
-The base kit must beat every area unaided: move, dash, Pulse Carbine, Arc Blade, Recall Disc, scan pulse, and overdrive. Upgrades add options; they must not become mandatory unless the route explicitly marks the gate.
+The base kit must beat every area unaided: move, Phase Shift, Pulse Carbine, Arc Blade, Recall Disc, scan pulse, and overdrive. Upgrades add options; they must not become mandatory unless the route explicitly marks the gate.
 
 ## Wiring Rules
 

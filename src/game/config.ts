@@ -524,7 +524,7 @@ export const SIGNATURE = {
     echoAlpha: 0.5,
     maxEchoes: 48, // hard cap — oldest markers retire first (perf)
   },
-  // Phase Drift+ (Skyline Array secondary): a longer, faster dash that phases
+  // Phase Shift+ (Signal Storm secondary): a longer, faster blink that phases
   // clean through enemy bolts, plus an extra mid-air dash for high routes.
   phaseDrift: {
     dashMsMul: 1.55, // longer dash → longer distance
@@ -566,7 +566,7 @@ export const WORKBENCH_EFFECTS = {
   'wide-scan': { scanRadiusMul: 1.4 }, // bigger Scan Pulse reveal/EMP radius
   'max-hull-plus': { maxHpDelta: 1 }, // +1 hull segment
   'pulse-rapid': { pulseCooldownMul: 0.78 }, // faster Pulse Carbine cadence
-  'dash-recharge': { dashCooldownMul: 0.72 }, // shorter Phase Drift cooldown
+  'dash-recharge': { dashCooldownMul: 0.72 }, // shorter Phase Shift cooldown
 } as const;
 
 /* -------------------------- Zone 2: Motel Nowhere -------------------------- */
@@ -709,7 +709,7 @@ export const SWEEP = {
   dashMs: 180,
   dashSpeed: 300,
   dashCooldownMs: 700,
-  invulnMs: 900,
+  invulnMs: 520,
   knockback: 150,
   fireCooldownMs: 200, // auto-aim cadence
   shotSpeed: 340,
@@ -733,7 +733,7 @@ export const SWEEP = {
   enemyKnockback: 175, // punch enemies take when shot
   dropChance: 0.26, // chance a slain enemy drops a pickup
   healAmount: 1,
-  // "Charge the Node" objective — the breach stays LOCKED until the Signal Node is
+  // Region-goal objective — the route breach stays LOCKED until the local objective is
   // charged. Kills add charge; kills NEAR the node count double.
   nodeChargeDefault: 100,
   nodeChargePerKill: 10,
@@ -744,7 +744,8 @@ export const SWEEP = {
    *  landing on them, and no two drones may sit closer than droneSpacing —
    *  together these stop packs from stacking into one unreadable cluster or
    *  covering CONTACT-47. Neither changes damage, speed or aggression. */
-  closeStandoff: 34,
+  closeStandoff: 28,
+  enemyContactRadius: 36,
   droneSpacing: 26,
   hitStopMs: 45, // brief freeze on a phase-strike kill for punch
   // Scout Boons (the five scouts as pickups) + hidden Signal Caches revealed by Scan
@@ -1093,6 +1094,14 @@ export const TEX = {
   tdWallFace: 'td-wall-face', // wall extrusion face strip
   tdBlip: 'td-blip', // CONTACT-47
   tdBlipEmis: 'td-blip-emis', // visor emissive (additive layer)
+  tripoContact47South: 'tripo-contact47-south',
+  tripoContact47Southwest: 'tripo-contact47-southwest',
+  tripoContact47West: 'tripo-contact47-west',
+  tripoContact47Northwest: 'tripo-contact47-northwest',
+  tripoContact47North: 'tripo-contact47-north',
+  tripoContact47Northeast: 'tripo-contact47-northeast',
+  tripoContact47East: 'tripo-contact47-east',
+  tripoContact47Southeast: 'tripo-contact47-southeast',
   tdDrifter: 'td-drifter',
   tdDrifterEmis: 'td-drifter-emis',
   tdTagger: 'td-tagger',
@@ -1143,6 +1152,17 @@ export const TD_TILE_KEYS = [
   TEX.tdGround, TEX.tdGroundLit, TEX.tdGroundDark, TEX.tdPath, TEX.tdWallTop, TEX.tdWallFace,
 ] as const;
 
+export const TRIPO_CONTACT47_FRAMES = [
+  { direction: 'south', key: TEX.tripoContact47South, path: 'assets/characters/contact47-tripo-south.png' },
+  { direction: 'southwest', key: TEX.tripoContact47Southwest, path: 'assets/characters/contact47-tripo-southwest.png' },
+  { direction: 'west', key: TEX.tripoContact47West, path: 'assets/characters/contact47-tripo-west.png' },
+  { direction: 'northwest', key: TEX.tripoContact47Northwest, path: 'assets/characters/contact47-tripo-northwest.png' },
+  { direction: 'north', key: TEX.tripoContact47North, path: 'assets/characters/contact47-tripo-north.png' },
+  { direction: 'northeast', key: TEX.tripoContact47Northeast, path: 'assets/characters/contact47-tripo-northeast.png' },
+  { direction: 'east', key: TEX.tripoContact47East, path: 'assets/characters/contact47-tripo-east.png' },
+  { direction: 'southeast', key: TEX.tripoContact47Southeast, path: 'assets/characters/contact47-tripo-southeast.png' },
+] as const;
+
 /**
  * SHARED atlas frames — the cast, not the scenery.
  *
@@ -1177,15 +1197,16 @@ export const TD_ENEMY_TEX: Record<SweepEnemyKind, { body: string; emis: string }
 
 /* ------------------------ top-down HD visual treatment ---------------------- */
 /**
- * THE SINGLE KNOB for the top-down overhaul. `enabled: false` ⇒ every td entry
- * point becomes a no-op and the Sweep renders exactly as it did before.
- * Scoped to ONE arena on purpose (see `useTdVisuals`) — the other arenas keep
- * their procedural pixel art untouched.
+ * THE SINGLE KNOB for the HD top-down treatment. `enabled: false` ⇒ every td
+ * entry point becomes a no-op and the Sweep renders with the legacy procedural
+ * tile path. Current playable route regions should have an HD biome descriptor
+ * in topdown/TdBiomes.ts; procedural fallback is only an emergency art-load
+ * fallback, not a desired shipped look.
  */
 export const TD_VISUALS = {
   enabled: true,
-  /** the ONLY arena overhauled in this pass; add ids as later arenas are done */
-  arenas: ['surface-z1'] as readonly string[],
+  /** legacy helper list; actual HD routing is biome-driven in TdBiomes.ts */
+  arenas: ['surface-z1', 'circuit-z2', 'town-z3', 'maze-z4', 'anomaly-01'] as readonly string[],
   /** backbuffer density multiplier: 480d × 270d. Integer keeps math clean. */
   density: { desktop: 3, touch: 2 },
   /** 'auto' ⇒ 'low' on touch (mirrors VISUAL_FX.quality) */

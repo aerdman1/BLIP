@@ -646,7 +646,7 @@ export class ShellUI {
   /* -------------------------------- main menu -------------------------------- */
 
   private setMenuVisible(v: boolean): void {
-    if (this.menuVisible === v) return;
+    const changed = this.menuVisible !== v;
     this.menuVisible = v;
     this.onMenu = v;
     document.body.classList.toggle('menu-active', v);
@@ -655,7 +655,7 @@ export class ShellUI {
     $('menu-overlay').classList.toggle('hidden', !v);
     $('menu-overlay').classList.remove('peeking'); // never reopen already-hidden
     this.refreshDevChrome();
-    if (v) {
+    if (v && changed) {
       this.buildHero();
       this.buildMenuScoutTargets();
       this.buildMenuEntries();

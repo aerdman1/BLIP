@@ -9,13 +9,14 @@ Purpose: keep the project aligned with the actual game vision. Consult this befo
 
 ## The Vision
 
-- The game is called **BLIP**. Tagline: "You are the thing on the radar." Subtitle: "A pixel signal adventure about staying unknown."
+- The game is called **BLIP**. Tagline: "You are the thing on the radar." Subtitle: "A top-down sci-fi action adventure about staying unknown."
 - BLIP is a **top-down-only** procedural pixel action game. The current foundation is a route-connected chain of separate top-down arena maps, not a seamless open map yet. Polish this route before rebuilding or expanding it.
 - The player is **CONTACT-47**, an unknown signal/contact escaping classification.
 - The enemy is **classification/interpretation itself** (The Interpretation Engine), not just "bad guys." Drones and cones are trying to *label* you.
 - Route progression runs through **Signal Nodes** and breaches. Collectibles are **Signal Fragments**.
-- Core vibe: **Dreamlike Rural Pixel Sci-Fi** — lush pixel fields at dusk, huge clouds, lonely radio towers, floating land chunks, crop-circle glyphs, red scan cones, cyan/green signal effects, glitch overlays, mysterious government tech.
-- The **Five Signal Scouts** (Will/WILLOW-cyan, Chip/SPARK-orange, Henry/ANCHOR-green, Cameron/ECHO-purple, Danny/ROCKET-red) are the heart of the story: five best friends/cousins who understood the Signal first and left a trail. Wholesome, brave, funny, clever — never victims, never dark. Tone stays PG, adventurous, mysterious, heartfelt.
+- Core vibe: **Dreamlike Rural Pixel Sci-Fi** — lush pixel fields at dusk, lonely radio towers, damaged roads, emergency light, red scan cones, green signal effects, glitch overlays, corrupted terrain and mysterious government tech.
+- Tone target: stylized teen/young-adult sci-fi action adventure. BLIP should feel colorful, dangerous, mysterious, energetic and occasionally intense; never grimdark, never military, never toy-like.
+- The **Five Signal Scouts** (Will/WILLOW-cyan, Chip/SPARK-orange, Henry/ANCHOR-green, Cameron/ECHO-purple, Danny/ROCKET-red) are the heart of the story: five best friends/cousins who understood the Signal first and left a trail. They stay brave, funny, clever and emotionally important, but their trail can be eerie and dangerous. Avoid jokes that trivialize serious threats.
 
 ## Hard Rules
 
@@ -31,7 +32,7 @@ Purpose: keep the project aligned with the actual game vision. Consult this befo
 Every player verb must have a **combat** job AND a **traversal/stealth** job — one input, two uses — so the kit stays tiny but deep. This is a house rule: before adding a new verb, first ask whether an existing verb can carry the job.
 
 - **Scan** — reveals caches and scout trails (exploration) AND stuns drones caught in the pulse + exposes weak points (combat).
-- **Dash (Phase Drift)** — crosses danger lanes and slips through security beams with i-frames (traversal/stealth) AND ROCKET's phase-strike damages drones (combat).
+- **Phase Shift** — blinks across danger lanes and slips through security beams with i-frames (traversal/stealth) AND ROCKET's phase-strike damages drones (combat).
 - **Weapons** — Pulse Carbine pressures at range, Arc Blade creates melee/parry risk-reward, and Recall Disc rewards positioning. Fast switching is part of the combat identity. Future weapons should usually be mutations of these before becoming new standalone weapons.
 - **Overdrive** — clears a swarm to open space (survival) AND creates a short rapid-fire push for the node (combat).
 
@@ -47,7 +48,7 @@ Apply these when authoring ANY zone's secrets/collectibles (scan-secrets, scout 
 2. **Claimed = visibly done.** Every scannable/collectible MUST change state on claim: cues **pop
    + fade away** or otherwise visibly retire. Persistent props should **dim/tint green** or clearly show a claimed state. Never leave a claimed item looking identical to an unclaimed one.
 3. **Reachability is math, not vibes.** Every intended route must fit the top-down player radius,
-   dash distance, scan radius, and camera scale. Never place a reward the base kit cannot reach.
+   Phase Shift distance, scan radius, and camera scale. Never place a reward the base kit cannot reach.
 4. **No signage without payoff.** A marker/arrow/glow must point at something real and obtainable.
    Decorative markers that promise a reward (the "stranded WILLOW chevron" bug) read as broken.
 5. **Tutorialize in Zone 1 only.** Miller Surface teaches `[Q] SCAN`; later zones assume the verb is learned.

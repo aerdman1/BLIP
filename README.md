@@ -1,9 +1,9 @@
 # BLIP
 
 **You are the thing on the radar.**
-*A pixel signal adventure about staying unknown.*
+*A top-down sci-fi action adventure about staying unknown.*
 
-BLIP is a top-down pixel-art action game. You are **CONTACT-47** — the forty-seventh logged contact event over Miller Field, a radar blip that woke up with a body. Fight through dreamlike Chagrin Falls-inspired roads, lots, town streets, trails, and signal barriers before **The Interpretation Engine** finishes deciding what you are.
+BLIP is a top-down pixel-art sci-fi action game. You are **CONTACT-47** — the forty-seventh logged contact event over Miller Field, a radar blip that woke up with a body. Fight through dreamlike Chagrin Falls-inspired roads, lots, town streets, trails, and signal barriers before **The Interpretation Engine** finishes deciding what you are.
 
 Five kids figured all of this out years before you did. They left you a trail.
 
@@ -24,7 +24,7 @@ Full controller support (Xbox / PlayStation, standard mapping) including menu na
 |---|---|---|
 | Move | A / D or ← / → | Left stick · D-pad |
 | Move Up / Down | W / S or ↑ / ↓ | Left stick · D-pad |
-| Dash (Phase Drift) | SHIFT | RB / LB · R1 / L1 |
+| Phase Shift | SHIFT | RB / LB · R1 / L1 |
 | Fire | X or Left Click | X / RT · ▢ / R2 |
 | Switch Weapon | 1 / 2 / 3 · mouse wheel · R | L-stick / R-stick click |
 | Scan Pulse | Q / Right Click | Y / LT · △ / L2 |
@@ -82,7 +82,7 @@ Gather a scout's 3-piece **Signal Set** (badge · log · relic) in their home zo
 - **SPARK** (Chip, Engineer) — overdrive economy + Surge Shot concepts for signal devices
 - **ANCHOR** (Henry, Guardian) — +1 hull, reads slower, drops safe zones
 - **ECHO** (Cameron, Trickster) — reflection timing and route-memory master
-- **ROCKET** (Danny, Speed) — faster dash, Phase-Strike, glass cannon
+- **ROCKET** (Danny, Speed) — faster Phase Shift, Phase-Strike, glass cannon
 
 Manage them in **Command Center ▸ Wardrobe**. All five scouts have their Signal Sets placed across the five zones (Will in Miller Field, Chip in Motel Nowhere, Henry at the stadium, Cameron in the orchard, Danny on the Skyline Array). Debug: **F6** unlocks + cycles skins.
 
@@ -98,6 +98,8 @@ The **Command Center** doubles as the dev/design dashboard — in-game via `C`, 
 ## AI QA Pipeline
 
 This project is an experiment in AI-driven development: the game is built, played, debugged and re-verified by automation before a human tests it. Playwright drives a real browser through the top-down smoke route using `?test=1` Test API (`window.__BLIP_TEST_API__`). Use `npm run qa:full` for the current gate.
+
+Current testing distinction: `typecheck`, `build`, and `test:e2e` are hard pass/fail checks. `npm run ai:campaign` produces imperfect persona playtest evidence and friction signals; longer overnight campaigns are deferred until the next AI testing pass.
 
 ## Project Guardrails
 

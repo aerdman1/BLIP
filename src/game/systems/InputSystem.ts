@@ -18,6 +18,7 @@ import { bus } from './EventBus';
 import { padBinding, type PadAction } from './PadBindings';
 import { readPad, type PadSnapshot } from './PadSim';
 import { touchInput } from './TouchInput';
+import { virtualInput } from './VirtualInput';
 
 type Key = Phaser.Input.Keyboard.Key;
 
@@ -136,8 +137,8 @@ export class PlayerInput {
   }
 
   get moveDir(): -1 | 0 | 1 {
-    const l = this.k.left.isDown || this.k.aleft.isDown || this.padDown(PAD.dpadLeft) || this.padAxisX < 0 || touchInput.moveX < 0;
-    const r = this.k.right.isDown || this.k.aright.isDown || this.padDown(PAD.dpadRight) || this.padAxisX > 0 || touchInput.moveX > 0;
+    const l = this.k.left.isDown || this.k.aleft.isDown || this.padDown(PAD.dpadLeft) || this.padAxisX < 0 || touchInput.moveX < 0 || (virtualInput.active && virtualInput.moveX < 0);
+    const r = this.k.right.isDown || this.k.aright.isDown || this.padDown(PAD.dpadRight) || this.padAxisX > 0 || touchInput.moveX > 0 || (virtualInput.active && virtualInput.moveX > 0);
     if (l && !r) return -1;
     if (r && !l) return 1;
     return 0;
@@ -145,8 +146,8 @@ export class PlayerInput {
 
   /** Vertical move for top-down control: -1 up / 0 / 1 down. */
   get moveY(): -1 | 0 | 1 {
-    const up = this.k.up.isDown || this.k.upW.isDown || this.k.upArrow.isDown || this.padDown(PAD.dpadUp) || this.padAxisY < 0 || touchInput.moveY < 0;
-    const down = this.k.down.isDown || this.k.adown.isDown || this.padDown(PAD.dpadDown) || this.padAxisY > 0 || touchInput.moveY > 0;
+    const up = this.k.up.isDown || this.k.upW.isDown || this.k.upArrow.isDown || this.padDown(PAD.dpadUp) || this.padAxisY < 0 || touchInput.moveY < 0 || (virtualInput.active && virtualInput.moveY < 0);
+    const down = this.k.down.isDown || this.k.adown.isDown || this.padDown(PAD.dpadDown) || this.padAxisY > 0 || touchInput.moveY > 0 || (virtualInput.active && virtualInput.moveY > 0);
     if (up && !down) return -1;
     if (down && !up) return 1;
     return 0;
@@ -158,7 +159,9 @@ export class PlayerInput {
   }
 
   get dashJustDown(): boolean {
-    return Phaser.Input.Keyboard.JustDown(this.k.dash) || this.actJust('dash') || this.tDashJust;
+    const queued = virtualInput.dashQueued;
+    virtualInput.dashQueued = false;
+    return Phaser.Input.Keyboard.JustDown(this.k.dash) || this.actJust('dash') || this.tDashJust || queued;
   }
 
   /** held — shots auto-fire on the pulse cooldown */
@@ -169,7 +172,8 @@ export class PlayerInput {
       this.k.shoot.isDown ||
       pointerShoot ||
       this.actDown('shoot') ||
-      touchInput.shootHeld
+      touchInput.shootHeld ||
+      (virtualInput.active && virtualInput.fire)
     );
   }
 
@@ -196,11 +200,15 @@ export class PlayerInput {
   }
 
   get scanJustDown(): boolean {
-    return this.rightJust || Phaser.Input.Keyboard.JustDown(this.k.scan) || this.actJust('scan') || this.tScanJust;
+    const queued = virtualInput.scanQueued;
+    virtualInput.scanQueued = false;
+    return this.rightJust || Phaser.Input.Keyboard.JustDown(this.k.scan) || this.actJust('scan') || this.tScanJust || queued;
   }
 
   get interactJustDown(): boolean {
-    return Phaser.Input.Keyboard.JustDown(this.k.interact) || this.actJust('interact') || this.tInteractJust;
+    const queued = virtualInput.interactQueued;
+    virtualInput.interactQueued = false;
+    return Phaser.Input.Keyboard.JustDown(this.k.interact) || this.actJust('interact') || this.tInteractJust || queued;
   }
 
   get echoJustDown(): boolean {
@@ -210,7 +218,9 @@ export class PlayerInput {
   get weaponNextJustDown(): boolean {
     const queued = this.weaponNextQueued;
     this.weaponNextQueued = false;
-    return queued || Phaser.Input.Keyboard.JustDown(this.k.weaponNext) || this.actJust('weaponNext') || this.tWeaponNextJust;
+    const virtualQueued = virtualInput.weaponNextQueued;
+    virtualInput.weaponNextQueued = false;
+    return queued || virtualQueued || Phaser.Input.Keyboard.JustDown(this.k.weaponNext) || this.actJust('weaponNext') || this.tWeaponNextJust;
   }
 
   get weaponPrevJustDown(): boolean {
@@ -221,6 +231,11 @@ export class PlayerInput {
     if (this.weaponSlotQueued !== null) {
       const slot = this.weaponSlotQueued;
       this.weaponSlotQueued = null;
+      return slot;
+    }
+    if (virtualInput.weaponSlotQueued !== null) {
+      const slot = virtualInput.weaponSlotQueued;
+      virtualInput.weaponSlotQueued = null;
       return slot;
     }
     if (Phaser.Input.Keyboard.JustDown(this.k.weapon1)) return 0;

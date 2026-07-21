@@ -11,8 +11,10 @@ export class Projectile extends Phaser.Physics.Arcade.Sprite {
     this.enableBody(true, x, y, true, true);
     const body = this.body as Phaser.Physics.Arcade.Body;
     body.setAllowGravity(false);
-    // slightly generous vertical hitbox — arcade-friendly bolt collisions
-    body.setSize(this.width, Math.max(this.height, 7));
+    // Generous center hitbox. The HD top-down sprites read larger than the old
+    // radar pixels, so strict tiny projectile bodies made clean-looking shots
+    // pass through enemies or CONTACT-47.
+    body.setSize(Math.max(this.width, 14), Math.max(this.height, 10), true);
     this.setVelocity(vx, vy);
     this.setRotation(Math.atan2(vy, vx));
     this.setDepth(25);

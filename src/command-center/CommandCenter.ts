@@ -62,6 +62,49 @@ const esc = (s: string): string =>
 
 const colorHex = (n: number): string => '#' + n.toString(16).padStart(6, '0');
 
+interface AiLabReport {
+  generatedAt: string;
+  label: string;
+  runMs: number;
+  seeds: number[];
+  guardrails: string[];
+  summary: {
+    completionRate: number;
+    fullRouteCompletionRate?: number;
+    objectiveCompleteRate?: number;
+    leastUsedWeapon: string;
+    mostIgnoredRewards: number;
+    mostConfusingObjective: string;
+    mostRepetitiveEncounter: string;
+    likelyBoredomFlags: string[];
+    likelyFrustrationFlags: string[];
+    personas: Record<string, { completionRate: number; averageDeaths: number; averageStuckEvents: number }>;
+  };
+  runs: Array<{
+    persona: string;
+    seed: number;
+    result: string;
+    durationMs: number;
+    regionsReached: string[];
+    regionsCompleted: string[];
+    deaths: number;
+    stuckEvents: number;
+    objectiveFailures: number;
+    weaponUsage: Record<string, number>;
+    weaponSwitches: number;
+    phaseShiftUses: number;
+    secretsFound: number;
+    maxNode?: number;
+    breachOpened?: boolean;
+    lootSeen: number;
+    lootIgnored: number;
+    lootCollected: number;
+    boredomFlags: string[];
+    frustrationFlags: string[];
+    screenshots: string[];
+  }>;
+}
+
 export class CommandCenter {
   private root: HTMLElement;
   private lastScene = 'BootScene';
@@ -70,6 +113,7 @@ export class CommandCenter {
   private refreshTimer: number | null = null;
   private readonly standalone: boolean;
   private atlasesDrawn = false;
+  private aiLabReport: AiLabReport | null = null;
 
   constructor(root: HTMLElement, opts?: { standalone?: boolean; game?: Phaser.Game }) {
     this.root = root;
@@ -100,6 +144,7 @@ export class CommandCenter {
       this.drawAtlases();
     }
     this.refresh();
+    void this.loadAiLabReport();
     this.refreshTimer = window.setInterval(() => this.refresh(), 1200);
     if (section) {
       const target = this.root.querySelector(`#cc-${section}`);
@@ -138,6 +183,7 @@ export class CommandCenter {
       ['debug', 'DEBUG / SAVE', true],
       ['todo', 'BUILD TODO', true],
       ['qa', 'AI QA LAB', true],
+      ['aiplayerlab', 'AI PLAYER LAB', true],
       ['webtech', 'WEB TECH', true],
       ['art', 'ART DIRECTION', true],
     ];
@@ -180,6 +226,7 @@ export class CommandCenter {
             ${this.sectionDebug()}
             ${this.sectionTodo()}
             ${this.sectionQa()}
+            ${this.sectionAiPlayerLab()}
             ${this.sectionWebTech()}
             ${this.sectionArt()}
             <footer class="cc-footer">BLIP v${BUILD_VERSION} — transmission ends.</footer>
@@ -580,7 +627,7 @@ export class CommandCenter {
     ] as [string, string, string]);
     const rows: Array<[string, string, string]> = [
       ['Move', `${SWEEP.moveSpeed}px/s · accel ${SWEEP.accel}`, `drag ${SWEEP.drag} · camera zoom ${SWEEP.cameraZoom}`],
-      ['Phase Drift', `${SWEEP.dashSpeed}px/s for ${SWEEP.dashMs}ms`, `cooldown ${SWEEP.dashCooldownMs}ms · dash-chain refund ${SWEEP.dashRefundOnPhaseKill ? 'on' : 'off'}`],
+      ['Phase Shift', `${SWEEP.dashSpeed}px/s for ${SWEEP.dashMs}ms`, `cooldown ${SWEEP.dashCooldownMs}ms · phase-chain refund ${SWEEP.dashRefundOnPhaseKill ? 'on' : 'off'}`],
       ['Scan Pulse', `radius ${SWEEP.scanRadius}px`, `${SWEEP.scanDmg} dmg · reveals hidden Signal Caches`],
       ['Signal Node', `${SWEEP.nodeChargeDefault} charge target`, `${SWEEP.nodeChargePerKill} per kill · double within ${SWEEP.nodeChargeRadius}px`],
       ['Signal Overdrive', `${SWEEP.overdriveDurationMs}ms duration`, `shock radius ${SWEEP.overdriveShockRadius}px · ${SWEEP.overdriveShockDmg} dmg`],
@@ -739,6 +786,81 @@ export class CommandCenter {
     );
   }
 
+  private sectionAiPlayerLab(): string {
+    return this.panel(
+      'aiplayerlab',
+      'AI PLAYER LAB',
+      `
+      <p class="cc-note">Persona bots use limited visible perception and imperfect virtual inputs. These metrics are warning signals, not proof of fun.</p>
+      <div class="cc-grid-3" id="cc-ai-lab-summary">
+        <div class="cc-stat"><label>REPORT</label><b>loading…</b></div>
+      </div>
+      <h3>GUARDRAILS</h3>
+      <ul class="cc-check" id="cc-ai-lab-guardrails"><li>loading…</li></ul>
+      <h3>PERSONA SUMMARY</h3>
+      <table class="cc-table" id="cc-ai-lab-personas"><tr><td>loading…</td></tr></table>
+      <h3>RUN EVIDENCE</h3>
+      <table class="cc-table cc-ai-runs" id="cc-ai-lab-runs"><tr><td>loading…</td></tr></table>
+      <p class="cc-note"><a class="cc-btn" href="/ai-playtest/latest.json" target="_blank" rel="noopener">EXPORT JSON</a></p>`,
+      'cc-dev-only'
+    );
+  }
+
+  private async loadAiLabReport(): Promise<void> {
+    try {
+      const res = await fetch('/ai-playtest/latest.json', { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      this.aiLabReport = (await res.json()) as AiLabReport;
+    } catch {
+      this.aiLabReport = null;
+    }
+    this.renderAiLabReport();
+  }
+
+  private renderAiLabReport(): void {
+    const summaryEl = this.root.querySelector('#cc-ai-lab-summary');
+    const guardsEl = this.root.querySelector('#cc-ai-lab-guardrails');
+    const personasEl = this.root.querySelector('#cc-ai-lab-personas');
+    const runsEl = this.root.querySelector('#cc-ai-lab-runs');
+    if (!summaryEl || !guardsEl || !personasEl || !runsEl) return;
+    const report = this.aiLabReport;
+    if (!report) {
+      summaryEl.innerHTML = `<div class="cc-stat"><label>REPORT</label><b class="warn">NO REPORT FOUND</b></div>`;
+      guardsEl.innerHTML = `<li>Run <span class="key">npm run qa:ai</span> to generate <span class="key">public/ai-playtest/latest.json</span>.</li>`;
+      personasEl.innerHTML = `<tr><td>No AI Player Lab data yet.</td></tr>`;
+      runsEl.innerHTML = `<tr><td>No run evidence yet.</td></tr>`;
+      return;
+    }
+    const pct = (n: number) => `${Math.round(n * 100)}%`;
+    summaryEl.innerHTML = `
+      <div class="cc-stat"><label>REPORT</label><b>${esc(report.label.toUpperCase())}</b></div>
+      <div class="cc-stat"><label>GENERATED</label><b>${esc(new Date(report.generatedAt).toLocaleString())}</b></div>
+      <div class="cc-stat"><label>SEEDS</label><b>${esc(report.seeds.join(', '))}</b></div>
+      <div class="cc-stat"><label>LOCAL OBJECTIVE SUCCESS</label><b class="${report.summary.completionRate > 0 ? 'ok' : 'warn'}">${pct(report.summary.completionRate)}</b></div>
+      <div class="cc-stat"><label>FULL ROUTE CLEARS</label><b class="${(report.summary.fullRouteCompletionRate ?? 0) > 0 ? 'ok' : 'warn'}">${pct(report.summary.fullRouteCompletionRate ?? 0)}</b></div>
+      <div class="cc-stat"><label>BREACH-OPEN DRILLS</label><b>${pct(report.summary.objectiveCompleteRate ?? 0)}</b></div>
+      <div class="cc-stat"><label>LEAST USED WEAPON</label><b class="warn">${esc(report.summary.leastUsedWeapon)}</b></div>
+      <div class="cc-stat"><label>IGNORED LOOT</label><b>${report.summary.mostIgnoredRewards}</b></div>
+      <div class="cc-stat"><label>CONFUSING OBJECTIVE</label><b>${esc(report.summary.mostConfusingObjective)}</b></div>
+      <div class="cc-stat"><label>REPETITIVE ENCOUNTER</label><b>${esc(report.summary.mostRepetitiveEncounter)}</b></div>
+      <div class="cc-stat"><label>FLAGS</label><b>${esc([...report.summary.likelyBoredomFlags, ...report.summary.likelyFrustrationFlags].join(' · ') || 'none')}</b></div>`;
+    guardsEl.innerHTML = report.guardrails.map((g) => `<li>☑ ${esc(g)}</li>`).join('');
+    personasEl.innerHTML = `<tr><th>PERSONA</th><th>COMPLETION</th><th>AVG DEATHS</th><th>AVG STUCK</th></tr>` +
+      Object.entries(report.summary.personas)
+        .map(([name, p]) => `<tr><td><b>${esc(name)}</b></td><td class="key">${pct(p.completionRate)}</td><td>${p.averageDeaths.toFixed(1)}</td><td>${p.averageStuckEvents.toFixed(1)}</td></tr>`)
+        .join('');
+    runsEl.innerHTML = `<tr><th>PERSONA</th><th>SEED</th><th>RESULT</th><th>REGIONS</th><th>DEATHS</th><th>STUCK</th><th>WEAPONS</th><th>FLAGS</th><th>EVIDENCE</th></tr>` +
+      report.runs
+        .slice(0, 18)
+        .map((r) => {
+          const weapons = Object.entries(r.weaponUsage).map(([k, v]) => `${k}:${v}`).join(' ');
+          const flags = [...r.boredomFlags, ...r.frustrationFlags].join(' · ') || 'none';
+          const shots = r.screenshots.map((s, i) => `<span class="cc-chip">${esc(`shot ${i + 1}`)}</span>`).join('');
+          return `<tr><td><b>${esc(r.persona)}</b></td><td>${r.seed}</td><td class="key">${esc(r.result)}</td><td>${esc(r.regionsReached.join(' → ') || 'none')}</td><td>${r.deaths}</td><td>${r.stuckEvents}</td><td>${esc(weapons)}</td><td>${esc(flags)}</td><td>${shots}</td></tr>`;
+        })
+        .join('');
+  }
+
   private sectionWebTech(): string {
     return this.panel(
       'webtech',
@@ -848,7 +970,7 @@ export class CommandCenter {
         if (!known) {
           return `<article class="cc-card scout unknown" style="--sw:${colorHex(s.color)}">
             <header><b>UNKNOWN SCOUT</b><span class="cc-chip">SIGNAL ${esc(s.colorName).toUpperCase()}</span></header>
-            <p>A ${esc(s.colorName)} trace in the field data. Someone small, brave, and long gone from here.</p>
+            <p>A ${esc(s.colorName)} trace in the field data. A brave Scout signature, still cutting through the noise.</p>
             <p class="cc-kv"><label>STATUS</label> Scan Miller Field for their trail.</p>
           </article>`;
         }

@@ -2,7 +2,7 @@
   "name": "blip",
   "private": true,
   "version": "0.1.0",
-  "description": "BLIP — You are the thing on the radar. A pixel signal adventure about staying unknown.",
+  "description": "BLIP — You are the thing on the radar. A top-down sci-fi action adventure about staying unknown.",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
@@ -11,9 +11,12 @@
     "typecheck": "tsc --noEmit",
     "test": "npm run typecheck && npm run build",
     "test:e2e": "playwright test",
+    "test:ai": "playwright test tests/ai-player-lab.spec.ts",
     "test:e2e:headed": "playwright test --headed",
     "test:playtest": "playwright test tests/smoke.spec.ts",
     "qa:playtest": "playwright test tests/smoke.spec.ts",
+    "qa:ai": "playwright test tests/ai-player-lab.spec.ts",
+    "ai:campaign": "node scripts/ai-player-campaign.mjs",
     "qa:full": "npm run typecheck && npm run build && npm run test:e2e",
     "qa:loop": "npm run qa:full",
     "deploy": "bash scripts/deploy.sh",
@@ -22,11 +25,13 @@
   },
   "dependencies": {
     "jszip": "^3.10.1",
-    "phaser": "^3.90.0"
+    "phaser": "^3.90.0",
+    "three": "^0.185.1"
   },
   "devDependencies": {
     "@playwright/test": "~1.53.2",
     "@types/node": "^18.19.0",
+    "@types/three": "^0.185.1",
     "typescript": "~5.6.3",
     "vite": "^5.4.11"
   }

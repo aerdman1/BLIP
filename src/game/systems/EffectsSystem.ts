@@ -41,6 +41,30 @@ export class EffectsSystem {
     this.getEmitter(tint).explode(Math.min(count, 20), x, y);
   }
 
+  mechanicalRupture(x: number, y: number, tint: number = P.warning, count = 18): void {
+    this.explode(x, y, tint, count);
+    this.getEmitter(P.white).explode(Math.min(10, Math.ceil(count * 0.45)), x, y);
+    this.getEmitter(P.dangerDark).explode(Math.min(12, Math.ceil(count * 0.55)), x, y);
+  }
+
+  scorch(x: number, y: number, radius = 15): void {
+    const g = this.scene.add.graphics({ x, y }).setDepth(5).setAlpha(0.62);
+    g.fillStyle(P.black, 0.5);
+    g.fillEllipse(0, 2, radius * 1.35, radius * 0.78);
+    g.fillStyle(P.dangerDark, 0.22);
+    g.fillEllipse(-2, -1, radius * 0.78, radius * 0.44);
+    g.lineStyle(1, P.warning, 0.2);
+    g.strokeEllipse(0, 1, radius * 1.18, radius * 0.62);
+    this.scene.tweens.add({
+      targets: g,
+      alpha: 0,
+      delay: 5200,
+      duration: 2400,
+      ease: 'Cubic.easeIn',
+      onComplete: () => g.destroy(),
+    });
+  }
+
   shake(intensity = 0.0045, duration = 130): void {
     if (!settings.get('shake')) return;
     this.scene.cameras.main.shake(duration, intensity);

@@ -460,13 +460,13 @@ class AudioSystem {
   // Volumes are deliberately restrained because combat sounds fire constantly and sit
   // above the quieter music bus. Master volume in Settings scales everything.
 
-  pulseShot(): void { this.tone(950, 0.06, 'square', 0.13, 320); }
+  pulseShot(): void { this.tone(760, 0.075, 'square', 0.15, 220); this.noise(0.035, 0.045, 2600); }
   scanPulse(): void { this.tone(320, 0.42, 'sine', 0.22, 1250); this.tone(320, 0.42, 'sine', 0.09, 1250, 0.05); }
   dash(): void { this.noise(0.14, 0.15, 2600); this.tone(600, 0.12, 'sawtooth', 0.08, 180); }
   playerHit(): void { this.tone(210, 0.22, 'sawtooth', 0.26, 70); this.noise(0.18, 0.18, 900); }
-  enemyHit(): void { this.tone(500, 0.05, 'square', 0.15, 350); }
-  explode(): void { this.noise(0.42, 0.3, 1400); this.tone(120, 0.35, 'sawtooth', 0.15, 40); }
-  badgePickup(): void { this.tone(660, 0.12, 'sine', 0.24); this.tone(990, 0.2, 'sine', 0.24, undefined, 0.1); }
+  enemyHit(): void { this.noise(0.055, 0.06, 2200); this.tone(420, 0.055, 'square', 0.16, 180); }
+  explode(): void { this.noise(0.5, 0.34, 1150); this.tone(82, 0.42, 'sawtooth', 0.18, 32); }
+  badgePickup(): void { this.tone(520, 0.09, 'triangle', 0.18, 300); this.tone(780, 0.14, 'sine', 0.16, undefined, 0.08); }
   fragmentPickup(): void {
     [523, 659, 784, 1046].forEach((f, i) => this.tone(f, 0.22, 'sine', 0.22, undefined, i * 0.09));
     this.tone(2093, 0.5, 'sine', 0.08, undefined, 0.4);

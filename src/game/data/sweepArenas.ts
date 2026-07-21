@@ -95,7 +95,7 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     breach: { tx: 28, ty: 4 },
     spawn: { tx: 6, ty: 15 },
     elite: { tx: 19, ty: 9 },
-    chargeTarget: 100,
+    chargeTarget: 20,
     // ROSTER — "the open field": the fundamentals (drifter/tagger/diver) plus a first
     // taste of the JITTER weaver so Zone 1 teaches the verbs before later zones twist them.
     enemies: [
@@ -143,7 +143,7 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     breach: { tx: 28, ty: 4 },
     spawn: { tx: 4, ty: 15 },
     elite: { tx: 18, ty: 9 },
-    chargeTarget: 90,
+    chargeTarget: 20,
     // ROSTER — "the firewall circuit": tight corridors reward flanking, so FIREWALL wardens
     // clog the halls (dash through / hit their backs) and a rooted PYLON turret guards the node.
     enemies: [
@@ -191,7 +191,7 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     breach: { tx: 30, ty: 15 },
     spawn: { tx: 6, ty: 16 },
     elite: { tx: 18, ty: 10 },
-    chargeTarget: 100,
+    chargeTarget: 45,
     enemies: [
       { tx: 6, ty: 6, type: 'tagger' }, { tx: 10, ty: 7, type: 'drifter' }, { tx: 16, ty: 4, type: 'sniper' },
       { tx: 20, ty: 11, type: 'turret' }, { tx: 26, ty: 4, type: 'weaver' }, { tx: 29, ty: 9, type: 'warden' },
@@ -241,7 +241,7 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     node: { tx: 18, ty: 10 },
     breach: { tx: 30, ty: 4 },
     spawn: { tx: 5, ty: 18 },
-    chargeTarget: 110,
+    chargeTarget: 70,
     // FINALE FLAGS (scoped to THIS arena only): loot-rich drops, a bumped clear payout,
     // guaranteed weapon pickups seeded along both routes, and the Maze Heart boss gate.
     dropChance: 0.55, // the campaign's most generous route clear — the finale should shower loot

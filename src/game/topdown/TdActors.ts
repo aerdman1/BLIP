@@ -20,18 +20,29 @@ import type { LightHandle, TdLighting } from './TdLighting';
 
 export interface RiggedHost extends Phaser.GameObjects.Components.Transform {
   active: boolean;
+  aimAngle?: number;
 }
+
+type Direction8 = 'east' | 'southeast' | 'south' | 'southwest' | 'west' | 'northwest' | 'north' | 'northeast';
 
 export class ActorRig {
   private emis?: Phaser.GameObjects.Image;
   private light?: LightHandle;
   private pulseT = Math.random() * Math.PI * 2;
+  private bodyDirs?: Partial<Record<Direction8, string>>;
+  private currentBody?: string;
+  private targetPx?: number;
+  private hoverFx?: {
+    gfx: Phaser.GameObjects.Graphics;
+    color: number;
+  };
 
   constructor(
     scene: Phaser.Scene,
     private host: RiggedHost & Phaser.GameObjects.Sprite,
     opts: {
       body: string;
+      bodyDirs?: Partial<Record<Direction8, string>>;
       emissive?: string;
       emissiveColor?: number;
       /** px of air under it — drones hover, the player does not */
@@ -42,6 +53,8 @@ export class ActorRig {
       lightRadius?: number;
       lightColor?: number;
       lightIntensity?: number;
+      hoverThrusters?: boolean;
+      hoverColor?: number;
       /** base/pulse alpha for the emissive layer (default 0.72/0.18 = player look).
        *  Enemies dial this down — full-tint ADD-blend was amplifying the emissive
        *  art's scattered rim-light flecks into a noisy "red halo" around each drone. */
@@ -52,25 +65,28 @@ export class ActorRig {
     this.emissiveAlpha = opts.emissiveAlpha ?? 0.72;
     this.emissivePulse = opts.emissivePulse ?? 0.18;
     this.lift = opts.lift ?? 0;
+    this.bodyDirs = opts.bodyDirs;
+    this.targetPx = opts.px;
 
     // Swap the texture ONLY. Origin stays centred: these are physics sprites and
     // re-anchoring them would drag their bodies off the hitbox. We get the
     // base-anchored *sorting* from `feet()` below instead, which is the part
     // that actually matters for occlusion.
-    if (scene.textures.exists(opts.body)) {
-      host.setTexture(opts.body);
-      // Size from the DECLARED on-screen height. The family sprites are authored
-      // large and at differing sizes, so one global scale cannot serve them all.
-      const src = scene.textures.getFrame(opts.body);
-      const s = opts.px && src?.height ? opts.px / src.height : TD_VISUALS.artScale;
-      host.setScale(s);
-    }
+    this.setBodyTexture(opts.body);
 
     if (opts.emissive && scene.textures.exists(opts.emissive)) {
       this.emis = scene.add
         .image(host.x, host.y, opts.emissive)
         .setBlendMode(Phaser.BlendModes.ADD)
         .setTint(opts.emissiveColor ?? 0xffffff);
+    }
+
+    if (opts.hoverThrusters) {
+      const color = opts.hoverColor ?? C.rim;
+      this.hoverFx = {
+        gfx: scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD),
+        color,
+      };
     }
 
     if (opts.lighting && opts.lightRadius) {
@@ -91,17 +107,110 @@ export class ActorRig {
   private emissiveAlpha: number;
   private emissivePulse: number;
 
+  private directionFromAngle(angle: number): Direction8 {
+    const normalized = Phaser.Math.Angle.Wrap(angle);
+    const index = Phaser.Math.Wrap(Math.round(normalized / (Math.PI / 4)), 0, 8);
+    return (['east', 'southeast', 'south', 'southwest', 'west', 'northwest', 'north', 'northeast'] as const)[index];
+  }
+
+  private setBodyTexture(key?: string): void {
+    if (!key || this.currentBody === key || !this.host.scene.textures.exists(key)) return;
+    this.host.setTexture(key);
+    this.currentBody = key;
+    // Size from the DECLARED on-screen height. The family sprites are authored
+    // large and at differing sizes, so one global scale cannot serve them all.
+    const src = this.host.scene.textures.getFrame(key);
+    const s = this.targetPx && src?.height ? this.targetPx / src.height : TD_VISUALS.artScale;
+    this.host.setScale(s);
+  }
+
   /** Called every frame by the scene. Cheap: position, depth, one sin(). */
   update(dtSec: number): void {
     const h = this.host;
     if (!h.active) {
       this.emis?.setVisible(false);
+      this.hoverFx?.gfx.clear().setVisible(false);
       return;
     }
     // Sort by FEET, not centre — the whole point of y-sorting. Sprites are
     // centre-origin, so feet = y + half the display height.
+    if (this.bodyDirs && typeof h.aimAngle === 'number') {
+      this.setBodyTexture(this.bodyDirs[this.directionFromAngle(h.aimAngle)]);
+      h.setFlipX(false);
+    }
     const feet = h.y + h.displayHeight * 0.5;
     h.setDepth(this.lift > 0 ? airDepth(feet, this.lift) : sortedDepth(feet));
+
+    if (this.hoverFx) {
+      const body = (h as Phaser.GameObjects.Sprite & { body?: Phaser.Physics.Arcade.Body }).body;
+      const speed = body?.velocity ? body.velocity.length() : 0;
+      const thrust = Phaser.Math.Clamp(speed / 165, 0, 1);
+      const pulse = 0.5 + Math.sin(this.pulseT * 6.3) * 0.5;
+      const feetY = h.y + h.displayHeight * 0.47;
+      const footSpread = Math.max(5, h.displayWidth * 0.15);
+      const flameLen = 8 + thrust * 11 + pulse * 3;
+      const outerW = 4.5 + thrust * 2.4 + pulse;
+      const innerW = 2.2 + thrust * 1.4;
+      const alpha = 0.38 + thrust * 0.28 + pulse * 0.1;
+      const vx = body?.velocity.x ?? 0;
+      const vy = body?.velocity.y ?? 0;
+      const aim = typeof h.aimAngle === 'number' ? h.aimAngle : Math.PI / 2;
+      const faceX = Math.cos(aim);
+      const sideFacing = Math.abs(faceX) > 0.62;
+      const leanX = Phaser.Math.Clamp(-vx / 42 - faceX * 3.8, -8, 8);
+      const leanY = Phaser.Math.Clamp(-vy / 80, -2, 4);
+      const gfx = this.hoverFx.gfx.clear().setVisible(true).setDepth(h.depth - 0.25);
+
+      gfx.fillStyle(this.hoverFx.color, 0.1 + thrust * 0.1);
+      gfx.fillEllipse(h.x + leanX * 0.25, feetY + flameLen * 0.8, 24 + thrust * 10, 7 + thrust * 4);
+
+      const plume = (x: number, skew: number, yOffset = 0, scale = 1): void => {
+        const wOuter = outerW * scale;
+        const wInner = innerW * scale;
+        const len = flameLen * scale;
+        const startY = feetY + yOffset - 3;
+        const midY = feetY + yOffset + len * 0.45 + leanY;
+        const tipY = feetY + yOffset + len + leanY;
+        const waveA = Math.sin(this.pulseT * 8.4 + x * 0.13) * (1.1 + thrust);
+        const waveB = Math.cos(this.pulseT * 7.1 + x * 0.09) * (0.9 + thrust * 0.8);
+        const tipX = x + skew + leanX;
+        gfx.fillStyle(0x1677ff, alpha * 0.58);
+        gfx.fillPoints(
+          [
+            new Phaser.Geom.Point(x - wOuter, startY),
+            new Phaser.Geom.Point(x + wOuter, startY + 0.5),
+            new Phaser.Geom.Point(x + wOuter * 0.55 + waveA + leanX * 0.3, midY),
+            new Phaser.Geom.Point(tipX + waveB, tipY),
+            new Phaser.Geom.Point(x - wOuter * 0.5 + waveB + leanX * 0.2, midY + 1),
+          ],
+          true
+        );
+        gfx.fillStyle(this.hoverFx!.color, alpha);
+        gfx.fillPoints(
+          [
+            new Phaser.Geom.Point(x - wInner, startY + 1.5),
+            new Phaser.Geom.Point(x + wInner, startY + 2),
+            new Phaser.Geom.Point(x + wInner * 0.45 + waveB * 0.35 + leanX * 0.25, midY - 1),
+            new Phaser.Geom.Point(tipX * 0.35 + x * 0.65, tipY - 4),
+            new Phaser.Geom.Point(x - wInner * 0.45 + waveA * 0.25 + leanX * 0.2, midY),
+          ],
+          true
+        );
+        gfx.lineStyle(1.2 * scale, 0xe7fbff, 0.3 + thrust * 0.18);
+        gfx.lineBetween(x, startY + 2, x + leanX * 0.45 + skew * 0.3, tipY - 6);
+        gfx.fillStyle(0xbff9ff, 0.28 + pulse * 0.14);
+        gfx.fillCircle(tipX + waveB * 0.4, tipY - 2, (0.8 + thrust * 0.35) * scale);
+      };
+
+      if (sideFacing) {
+        const side = Math.sign(faceX) || 1;
+        plume(h.x - side * 1.5, -side * (1.6 + pulse * 0.7), -1, 0.95);
+        plume(h.x - side * 6.5, -side * (2.4 - pulse * 0.4), 1.5, 0.58);
+      } else {
+        plume(h.x - footSpread, -1.2 + pulse * 0.9);
+        plume(h.x + footSpread, 1.2 - pulse * 0.8);
+      }
+    }
 
     if (this.emis) {
       this.pulseT += dtSec * 3.1;
@@ -117,6 +226,7 @@ export class ActorRig {
 
   destroy(): void {
     this.emis?.destroy();
+    this.hoverFx?.gfx.destroy();
     if (this.light && this.lighting) this.lighting.remove(this.light);
   }
 }
