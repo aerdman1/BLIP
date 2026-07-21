@@ -530,15 +530,15 @@ export class TdTerrain {
           .setAlpha(0.85);
         this.props.push(e);
       }
-      // landmarks carry their own light so they read from across the arena
-      this.accentLights?.({
-        x, y: y - 8,
-        radius: isPool ? 96 : 72,
-        // second landmark in the set is the biome's warm/powered one (z1: the
-        // relay); the flat one glows cool; the rest carry signal green.
-        color: key === set[1]?.[0] ? biome.accents.warm : isPool ? biome.accents.coolA : C.signal,
-        intensity: 0.3,
-      });
+      // landmarks carry their own light so they read from across the arena.
+      // second landmark in the set is the biome's warm/powered one (z1: the
+      // relay); the flat one glows cool; the rest carry signal green.
+      const lColor = key === set[1]?.[0] ? biome.accents.warm : isPool ? biome.accents.coolA : C.signal;
+      // The signal-green landmark glow was a big part of the "too much green"
+      // read, so green landmarks are kept much fainter than the biome's own
+      // warm/cool accents.
+      const lIntensity = lColor === C.signal ? 0.12 : 0.22;
+      this.accentLights?.({ x, y: y - 8, radius: isPool ? 84 : 64, color: lColor, intensity: lIntensity });
       idx++;
     }
     void idx;

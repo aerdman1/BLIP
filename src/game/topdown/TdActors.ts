@@ -145,20 +145,23 @@ export class SignalNodeRig {
   ) {
     const hasHd = scene.textures.exists(TEX.tdNode);
 
-    // ground rings, projected onto the terrain (squashed by the oblique factor)
+    // ground rings, projected onto the terrain (squashed by the oblique factor).
+    // Kept faint on purpose — the node's green additive glow was overpowering
+    // the scene in every arena, so the rings, shaft and light pool below are all
+    // dialled well down from their original values.
     for (let i = 0; i < 3; i++) {
       const r = scene.add
         .image(x, y, TEX.tdLight)
         .setDepth(DEPTH.decal + i)
         .setBlendMode(Phaser.BlendModes.ADD)
         .setTint(C.signal)
-        .setAlpha(0.16 - i * 0.04);
+        .setAlpha(0.07 - i * 0.02);
       this.rings.push(r);
     }
 
     // the vertical beacon shaft — visible from anywhere as a navigation cue
     this.shaft = scene.add
-      .rectangle(x, y, 3, 120, C.signal, 0.4)
+      .rectangle(x, y, 3, 120, C.signal, 0.22)
       .setOrigin(0.5, 1)
       .setDepth(DEPTH.air)
       .setBlendMode(Phaser.BlendModes.ADD);
@@ -178,7 +181,7 @@ export class SignalNodeRig {
     }
 
     if (lighting) {
-      this.light = lighting.add({ x, y, radius: 200, color: C.signal, intensity: 0.85 });
+      this.light = lighting.add({ x, y, radius: 150, color: C.signal, intensity: 0.34 });
     }
   }
 
@@ -191,21 +194,23 @@ export class SignalNodeRig {
 
     this.shaft
       .setDisplaySize(3 + f * 3, (90 + f * 130) * breathe)
-      .setFillStyle(hue, (0.3 + f * 0.4) * breathe);
+      .setFillStyle(hue, (0.16 + f * 0.22) * breathe);
 
     for (let i = 0; i < this.rings.length; i++) {
       const phase = (this.t * 0.5 + i / this.rings.length) % 1;
       this.rings[i]
         .setScale((1.4 + phase * 2.6) * (1 + f * 0.5), (1.4 + phase * 2.6) * 0.55 * (1 + f * 0.5))
         .setTint(hue)
-        .setAlpha((1 - phase) * (0.1 + f * 0.16));
+        .setAlpha((1 - phase) * (0.05 + f * 0.09));
     }
 
-    this.emis?.setTint(hue).setAlpha(0.6 + f * 0.4 * breathe);
+    // node body glow (emissive sprite) trimmed, and the light pool cut hard —
+    // the node stays clearly the objective without washing the arena green.
+    this.emis?.setTint(hue).setAlpha(0.42 + f * 0.3 * breathe);
     if (this.light) {
-      this.light.radius = 190 + f * 150;
+      this.light.radius = 150 + f * 90;
       this.light.color = hue;
-      this.light.intensity = (0.7 + f * 0.5) * breathe;
+      this.light.intensity = (0.3 + f * 0.22) * breathe;
     }
   }
 
