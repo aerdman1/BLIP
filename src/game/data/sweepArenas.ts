@@ -36,7 +36,11 @@ export interface SweepArena {
   label: string;
   mode: 'traverse' | 'waves';
   biome: SweepBiome;
-  next?: string; // where the Fold leads (a SCENES key)
+  zoneId?: string;
+  questId?: string;
+  nextArena?: string; // connected top-down world route
+  nextLabel?: string;
+  completeZoneOnExit?: string;
   grid: { w: number; h: number }; // map size in tiles
   rooms: SweepRect[]; // carved floor (open areas)
   halls: SweepRect[]; // carved floor (corridors)
@@ -64,7 +68,11 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     label: 'The Surface · Area 47',
     mode: 'traverse',
     biome: 'miller',
-    next: 'FieldScene',
+    zoneId: 'miller-field',
+    questId: 'the-first-contact',
+    nextArena: 'circuit-z2',
+    nextLabel: 'Road East · Motel Nowhere',
+    completeZoneOnExit: 'miller-field',
     grid: { w: 34, h: 20 },
     rooms: [
       { x: 2, y: 12, w: 9, h: 7 }, // A spawn (SW)
@@ -108,7 +116,11 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     label: 'Inside the Circuit · Motel Nowhere',
     mode: 'traverse',
     biome: 'motel',
-    next: 'MotelScene',
+    zoneId: 'motel-nowhere',
+    questId: 'the-long-night',
+    nextArena: 'town-z3',
+    nextLabel: 'River Road · Chagrin Falls',
+    completeZoneOnExit: 'motel-nowhere',
     grid: { w: 34, h: 20 },
     rooms: [
       { x: 2, y: 14, w: 6, h: 4 }, // A spawn (SW)
@@ -143,6 +155,51 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     caches: [{ tx: 3, ty: 7 }, { tx: 30, ty: 17 }, { tx: 30, ty: 2 }],
   },
 
+  // ── Zone 3 connector: CHAGRIN FALLS TOWN / STADIUM ROUTE ────────────────
+  // A compact town-street route built from the existing top-down grammar. The
+  // walls are exterior building blocks, bridge rails, alleys, and stadium
+  // fencing: readable town structure without enterable interiors.
+  'town-z3': {
+    id: 'town-z3',
+    label: 'River Road · Chagrin Falls',
+    mode: 'traverse',
+    biome: 'stadium',
+    zoneId: 'tiger-stadium',
+    questId: 'friday-night-lights',
+    nextArena: 'maze-z4',
+    nextLabel: "County Trail · Patterson's Orchard",
+    completeZoneOnExit: 'tiger-stadium',
+    grid: { w: 38, h: 22 },
+    rooms: [
+      { x: 2, y: 13, w: 8, h: 6 }, // west street / spawn
+      { x: 3, y: 4, w: 7, h: 5 }, // north neighborhood block
+      { x: 13, y: 9, w: 8, h: 6 }, // town square / node
+      { x: 15, y: 2, w: 7, h: 4 }, // alley to bridge
+      { x: 25, y: 3, w: 9, h: 5 }, // bridge / falls overlook
+      { x: 26, y: 13, w: 9, h: 6 }, // stadium edge / exit
+    ],
+    halls: [
+      { x: 9, y: 15, w: 5, h: 2 }, // spawn -> square
+      { x: 5, y: 8, w: 3, h: 6 }, // neighborhood -> spawn street
+      { x: 9, y: 6, w: 7, h: 2 }, // neighborhood -> square
+      { x: 16, y: 5, w: 3, h: 5 }, // square -> alley
+      { x: 21, y: 3, w: 5, h: 2 }, // alley -> bridge
+      { x: 21, y: 11, w: 6, h: 2 }, // square -> stadium road
+      { x: 29, y: 8, w: 3, h: 6 }, // bridge -> stadium edge
+    ],
+    node: { tx: 17, ty: 11 },
+    breach: { tx: 30, ty: 15 },
+    spawn: { tx: 6, ty: 16 },
+    elite: { tx: 18, ty: 10 },
+    chargeTarget: 100,
+    enemies: [
+      { tx: 6, ty: 6, type: 'tagger' }, { tx: 10, ty: 7, type: 'drifter' }, { tx: 16, ty: 4, type: 'sniper' },
+      { tx: 20, ty: 11, type: 'turret' }, { tx: 26, ty: 4, type: 'weaver' }, { tx: 29, ty: 9, type: 'warden' },
+      { tx: 31, ty: 15, type: 'diver' }, { tx: 14, ty: 13, type: 'splitter' }, { tx: 8, ty: 16, type: 'tagger' },
+    ],
+    caches: [{ tx: 4, ty: 5 }, { tx: 32, ty: 4 }, { tx: 33, ty: 17 }, { tx: 18, ty: 3 }],
+  },
+
   // ── Zone 4: ORCHARD "THE LIVING MAZE" ────────────────────────────────────
   // The corn maze from above. Narrow hedgerow corridors and small clearings; the
   // NODE is the crop-circle glyph at the heart (charging it blooms the circle).
@@ -153,7 +210,11 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     label: 'The Living Maze · Patterson’s Orchard',
     mode: 'traverse',
     biome: 'orchard',
-    next: 'OrchardScene',
+    zoneId: 'pattersons-orchard',
+    questId: 'the-endless-harvest',
+    nextArena: 'anomaly-01',
+    nextLabel: 'Signal Storm · Area 47',
+    completeZoneOnExit: 'pattersons-orchard',
     grid: { w: 36, h: 22 },
     rooms: [
       { x: 2, y: 16, w: 7, h: 5 }, // A spawn (SW)
@@ -217,6 +278,8 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     label: 'Signal Storm · Area 47',
     mode: 'waves',
     biome: 'miller',
+    zoneId: 'skyline-array',
+    questId: 'the-sky-listens',
     grid: { w: 30, h: 17 },
     rooms: [{ x: 1, y: 1, w: 28, h: 15 }],
     halls: [],

@@ -1,16 +1,16 @@
 ---
 name: blip-game-director
-description: Keeps BLIP aligned with the locked game vision — side-view procedural pixel platformer, Dreamlike Rural Pixel Sci-Fi, CONTACT-47 vs the Interpretation Engine, Five Signal Scouts. Consult before designing or implementing any feature, art, story, or scope decision.
+description: Keeps BLIP aligned with the current game vision — top-down procedural pixel action, Dreamlike Rural Pixel Sci-Fi, CONTACT-47 vs the Interpretation Engine, Five Signal Scouts. Consult before designing or implementing any feature, art, story, or scope decision.
 ---
 
 # BLIP Game Director
 
 Purpose: keep the project aligned with the actual game vision. Consult this before any feature, art, or story work.
 
-## The Vision (locked 2026-07-10)
+## The Vision (pivoted 2026-07-20)
 
 - The game is called **BLIP**. Tagline: "You are the thing on the radar." Subtitle: "A pixel signal adventure about staying unknown."
-- BLIP is a **perspective-shift hybrid** (canon updated 2026-07-11): a side-view pixel/procedural action-puzzle platformer that FLIPS into other lenses — most importantly a **top-down combat "Scan"** — via a signature transition called **the Fold**. The side-view is the spine; each zone adds exactly ONE motivated shift. The flip *is* the theme: CONTACT-47 is an unclassifiable signal, so a game that refuses to stay in one camera can't be put in a box. Top-down mode: `src/game/scenes/SweepScene.ts`; the Fold: `src/game/systems/FoldTransition.ts`. The game cold-opens top-down (the Engine's scan) then Folds into Miller Field.
+- BLIP is now a **top-down-only** procedural pixel action game. The previous side-view spine and Fold-back structure are removed from live access. The existing Sweep arenas are the foundation of the whole game and should be connected, expanded, and polished rather than rebuilt from scratch.
 - The player is **CONTACT-47**, an unknown signal/contact escaping classification.
 - The enemy is **classification/interpretation itself** (The Interpretation Engine), not just "bad guys." Drones and cones are trying to *label* you.
 - The puzzle dimension is the **Blipstream** (Blipstream Nodes / Blipstream Rooms). Collectibles are **Signal Fragments**.
@@ -19,12 +19,12 @@ Purpose: keep the project aligned with the actual game vision. Consult this befo
 
 ## Hard Rules
 
-- Do NOT build a generic UFO cow-abduction game. No top-down FARM gameplay. (Top-down COMBAT/traversal "Scan" beats via the Fold ARE core — that's the hybrid, not a farm sim.)
+- Do NOT build a generic UFO cow-abduction game. Top-down means action/exploration/combat through Chagrin Falls-inspired spaces, not farm sim chores.
 - Do NOT build detailed illustrated barns/cars/cows or realistic art of any kind.
 - Do NOT rely on hand-painted assets or complex sprite sheets.
 - DO use procedural pixel art, tile shapes, parallax, particles, scan effects, silhouettes, and UI overlays.
 - No BEAMLINE branding anywhere user-facing (legacy save-migration code is the only exception).
-- Prioritize a playable 5–10 minute vertical slice over scope expansion, always.
+- Prioritize a stable connected top-down route over scope expansion, always.
 
 ## Design Principle — Double-Duty Verbs (Dead Cells)
 

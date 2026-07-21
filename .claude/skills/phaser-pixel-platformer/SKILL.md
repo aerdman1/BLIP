@@ -1,6 +1,6 @@
 ---
 name: phaser-pixel-platformer
-description: Guides all Phaser implementation decisions for BLIP — low-res virtual canvas, Arcade physics, grid collision, data-driven objects, centralized constants, Vercel-ready build. Consult before writing or changing any game engine code.
+description: Guides all Phaser implementation decisions for BLIP — low-res virtual canvas, top-down Arcade physics, grid collision, data-driven objects, centralized constants, Vercel-ready build. Consult before writing or changing any game engine code.
 ---
 
 # Phaser Pixel Platformer
@@ -16,7 +16,7 @@ Purpose: guide all Phaser implementation decisions.
 
 - Low-resolution virtual canvas: **480×270**, scaled up to fit the browser with crisp pixel rendering (`pixelArt: true`, `roundPixels: true`, CSS `image-rendering: pixelated`).
 - All textures are generated at native pixel scale (16px tiles, ~14px player). Never draw sub-pixel.
-- Camera follows the player with lerp + deadzone; world uses tile/grid-based collision from ASCII level maps in `src/game/data/levels.ts`.
+- Camera follows the player with lerp; the top-down world uses tile/grid-based collision from `src/game/data/sweepArenas.ts`.
 - Parallax background layers, screen shake, particles, and a readable HUD are required components of the feel.
 
 ## Code Rules

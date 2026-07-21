@@ -6,7 +6,7 @@
  */
 import './commandCenter.css';
 import type Phaser from 'phaser';
-import { BOSS, BUILD_VERSION, EVT, PLAYER, PULSE, SCAN, TILE } from '../game/config';
+import { BUILD_VERSION, EVT, SWEEP, TILE } from '../game/config';
 import { GAME_BIBLE } from '../game/data/gameBible';
 import {
   BESTIARY_ALL_ENEMIES,
@@ -27,8 +27,6 @@ import { SWEEP_ARENAS, type SweepArena } from '../game/data/sweepArenas';
 import { SCOUTS, SCOUT_LOGS } from '../game/data/scouts';
 import { FIELD_NOTES } from '../game/data/fieldNotes';
 import { SKINS, skinById } from '../game/data/skins';
-import { DESIGN_PILLARS, LEVEL_PLANS } from '../game/data/levelPlans';
-import { ZONES } from '../game/data/zones';
 import { UPGRADES } from '../game/data/upgrades';
 import { selectSkin, setProgress } from '../game/systems/SaveSystem';
 import { rewards } from '../game/systems/RewardSystem';
@@ -150,10 +148,7 @@ export class CommandCenter {
       ['mechanics', 'MECHANICS'],
       ['controls', 'CONTROLS'],
       ['progression', 'PROGRESSION'],
-      ['zones', 'ZONES'],
-      ['levelplans', 'LEVEL PLANS', true],
-      ['atlas', 'LEVEL ATLAS', true],
-      ['sweeparenas', 'SWEEP ARENAS', true],
+      ['sweeparenas', 'WORLD AREAS'],
       ['bestiary', 'BESTIARY'],
       ['arsenal', 'ARSENAL'],
       ['debug', 'DEBUG / SAVE', true],
@@ -195,9 +190,6 @@ export class CommandCenter {
             ${this.sectionMechanics()}
             ${this.sectionControls()}
             ${this.sectionProgression()}
-            ${this.sectionZones()}
-            ${this.sectionLevelPlans()}
-            ${this.sectionAtlas()}
             ${this.sectionSweepArenas()}
             ${this.sectionBestiary()}
             ${this.sectionArsenal()}
@@ -505,160 +497,6 @@ export class CommandCenter {
     );
   }
 
-  private sectionZones(): string {
-    return this.panel(
-      'zones',
-      'ZONES',
-      `<div class="cc-cards">${ZONES.map(
-        (z) => `
-        <article class="cc-card zone">
-          <header><b>${esc(z.name)}</b><span class="cc-chip ${z.status === 'PLAYABLE' ? 'ok' : ''}">${z.status}</span></header>
-          <p class="cc-zone-tag">“${esc(z.tagline)}”</p>
-          <p>${esc(z.description)}</p>
-          <p class="cc-kv"><label>SCOUT TRAIL</label> ${esc(z.scout)} — ${esc(z.scoutHook)}</p>
-          <p class="cc-kv"><label>BOSS</label> ${esc(z.boss)} — ${esc(z.bossDescription)}</p>
-        </article>`
-      ).join('')}</div>`
-    );
-  }
-
-  private sectionLevelPlans(): string {
-    const ul = (items: string[]) => `<ul class="cc-list">${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`;
-    const ol = (items: string[]) =>
-      `<ol class="cc-steps">${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ol>`;
-    return this.panel(
-      'levelplans',
-      'LEVEL PLANS / ROADMAP',
-      `
-      <p class="cc-note">Full structure for all six zones — <b>Miller Field is built</b>; Zones 2–6 are
-      <b>design plans only</b> (not yet playable) for review. Each zone carries one signature system + one
-      motivated perspective shift so none repeat. Re-themes follow LEVEL_RETHEMES.md; skins SCOUT_SKINS_PLAN.md;
-      the full writeup + Phaser feasibility notes in LEVEL_DESIGN_DEEP.md.</p>
-      <h3>DESIGN PILLARS</h3>
-      <div class="cc-cards">${DESIGN_PILLARS.map(
-        (d) => `<article class="cc-card"><header><b>${esc(d.title)}</b></header><p>${esc(d.body)}</p></article>`
-      ).join('')}</div>
-      <h3 style="margin-top:16px">THE ZONES</h3>
-      <div class="cc-plan-list">${LEVEL_PLANS.map(
-        (p) => `
-        <article class="cc-plan ${p.status === 'BUILT' ? 'built' : ''}">
-          <header>
-            <b>ZONE ${p.order} · ${esc(p.name)}</b>
-            <span class="cc-chip ${p.status === 'BUILT' ? 'ok' : ''}">${p.status}</span>
-          </header>
-          <p class="cc-plan-scope">${esc(p.scope)}</p>
-          <p class="cc-plan-setting">${esc(p.setting)}</p>
-          <p class="cc-plan-signature"><span class="cc-plan-flag">◆ SIGNATURE</span> ${esc(p.signature)}</p>
-          <p class="cc-kv"><label>PERSPECTIVE</label> ${esc(p.perspective)}</p>
-          <p class="cc-kv"><label>STANDOUT MOMENT</label> ${esc(p.standoutMoment)}</p>
-          <p class="cc-kv"><label>THE SIGNAL’S ANSWER</label> ${esc(p.signalAnswer)}</p>
-          <div class="cc-plan-cols">
-            <div>
-              <h4>STRUCTURE / CORE LOOP</h4>${ol(p.coreLoop)}
-              <h4>WILD / STANDOUT MECHANICS</h4>${ul(p.wildMechanics)}
-              <h4>CORE MECHANICS</h4>${ul(p.mechanics)}
-              <h4>SUB-AREAS</h4>${ul(p.subAreas)}
-            </div>
-            <div>
-              <h4>BLIPSTREAM NODE</h4><p>${esc(p.blipstream)}</p>
-              <h4>BOSS — ${esc(p.boss.name)}</h4>${ul(p.boss.phases)}
-              <p class="cc-kv"><label>WEAKNESS</label> ${esc(p.boss.weakness)}</p>
-              <h4>SCOUT / SIGNAL SET</h4>
-              <p class="cc-kv"><label>SCOUT</label> ${esc(p.scout)}</p>
-              <p class="cc-kv"><label>SET</label> ${esc(p.signalSet)}</p>
-              <p class="cc-kv"><label>SKIN PAYOFF</label> ${esc(p.skinPayoff)}</p>
-              ${p.captured && p.captured.length ? `<h4>CAPTURED — WIRE WHEN BUILT</h4>${ul(p.captured)}` : ''}
-              <h4>GRAPHICS IDENTITY (pixel + selective realism)</h4>${ul(p.graphicsHook)}
-            </div>
-          </div>
-        </article>`
-      ).join('')}</div>`,
-      'cc-dev-only'
-    );
-  }
-
-  /* ------------------------- developer birdseye sections ------------------------ */
-
-  private sectionAtlas(): string {
-    const legend: Array<[string, string]> = [
-      ['#3f9a5f', 'ground / platform'],
-      ['#a8ff3e', 'hidden (scan) / waveform / node'],
-      ['#35d5ff', "Will's badge path + markers"],
-      ['#fff3c9', 'player spawn / switches'],
-      ['#d84a42', 'drones / hazards / arena band'],
-      ['#f2a93b', 'scanner rig / Chip box / fuse box'],
-      ['#7c5cff', 'crop-circle door'],
-      ['#7cfc9b', 'exit gate'],
-      ['#3df0ff', 'neon circuit A / ice'],
-      ['#ffb03b', 'neon circuit B / SPARK'],
-      ['#ff4d8d', 'neon circuit C / VACANCY'],
-    ];
-    return this.panel(
-      'atlas',
-      'LEVEL ATLAS — BIRDSEYE',
-      `
-      <p class="cc-note">Rendered live from <span class="key">src/game/data/levels.ts</span> — the actual collision/entity grids the game builds from. 1 cell = 1 tile (16px). Red band = boss arena.</p>
-      <div class="cc-chips">${legend
-        .map(([c, l]) => `<span class="cc-chip"><i class="cc-legend-swatch" style="background:${c}"></i>${esc(l)}</span>`)
-        .join('')}</div>
-      <h3>MILLER FIELD 3.0 — ${MILLER_FIELD.cols}×${MILLER_FIELD.rowCount} tiles (${MILLER_FIELD.meta.widthPx}×${MILLER_FIELD.meta.heightPx}px) · vertical route topology</h3>
-      <div class="cc-chips">
-        <span class="cc-chip"><i class="cc-legend-swatch" style="background:#f4f4f4"></i>main path</span>
-        <span class="cc-chip"><i class="cc-legend-swatch" style="background:#35a7ff"></i>lower route</span>
-        <span class="cc-chip"><i class="cc-legend-swatch" style="background:#35d5ff"></i>upper secret (Will)</span>
-        <span class="cc-chip"><b style="color:#ff7a3b">▼</b> descent</span>
-        <span class="cc-chip"><b style="color:#a8ff3e">▲</b> climb</span>
-        <span class="cc-chip"><b style="color:#f4f4f4">◯</b> rejoin</span>
-        <span class="cc-chip"><b style="color:#ffd54a">✳</b> secret badge</span>
-        <span class="cc-chip"><b style="color:#ff5040">◎</b> boss arena</span>
-        <span class="cc-chip"><b style="color:#fff3c9">▣</b> checkpoint</span>
-        <span class="cc-chip"><b style="color:#ff5a48">▨</b> softlock void</span>
-      </div>
-      <div class="cc-atlas-wrap"><canvas id="cc-atlas-miller" class="cc-atlas"></canvas></div>
-      <p class="cc-note"><b>Main path</b> (white, serpentine): high spawn ridge → <b>deep scan-dip</b> (descend cascading ledges; one scan reveals the climb-out ladder) → high meadow (Chip's box) → scanner plateau → <b>drop</b> into the tiered drone lowlands → terraced climb to the radio ridge → <b>ravine</b> crossing on the mid pillar → node-mound landmark → crop-circle door → <b>drop</b> into the tiered boss bowl → road east → glowing signal-gate. <b>Lower route</b> (blue): the basin pit under the drone valley + the ravine's recovery shelf (fall-safe). <b>Upper secret</b> (cyan): Will's tall hidden climb to the WILLOW badge. Red hatch = the ravine void (only real fall hazard).</p>
-      <div class="cc-chips">
-        <span class="cc-chip">SIZE: <b class="warn">${MILLER_FIELD.cols}×${MILLER_FIELD.rowCount} tiles · ${MILLER_FIELD.meta.widthPx}×${MILLER_FIELD.meta.heightPx}px</b></span>
-        <span class="cc-chip">VERTICAL RANGE USED: <b class="warn">r5→r30 · 25 tiles (400px)</b></span>
-        <span class="cc-chip">DESCENTS: <b class="warn">4</b></span>
-        <span class="cc-chip">CLIMBS: <b class="warn">4 + 1 secret</b></span>
-        <span class="cc-chip">OPTIONAL ROUTES: <b class="warn">2 (lower basin · Will's upper)</b></span>
-        <span class="cc-chip">EST. PLAYTIME: <b class="warn">4–6 min</b></span>
-      </div>
-      <h3>MOTEL NOWHERE — ${MOTEL_NOWHERE.cols}×${MOTEL_NOWHERE.rowCount} tiles (${MOTEL_NOWHERE.meta.widthPx}×${MOTEL_NOWHERE.meta.heightPx}px)</h3>
-      <div class="cc-atlas-wrap"><canvas id="cc-atlas-motel" class="cc-atlas"></canvas></div>
-      <p class="cc-note">Flow: wet parking lot (security lamps) → power switch → circuit-A neon staircase → diner roof + fuse box (Blipstream circuit) → the wing wakes (circuit B) → climb → THE VACANCY SIGN (red band, arena walkway) → fragment. Optional circuit-C side route to Chip's SPARK badge.</p>
-      <h3>CHAGRIN FALLS HIGH — ${TIGER_STADIUM.cols}×${TIGER_STADIUM.rowCount} tiles (${TIGER_STADIUM.meta.widthPx}×${TIGER_STADIUM.meta.heightPx}px) · Friday-night-lights stealth</h3>
-      <div class="cc-atlas-wrap"><canvas id="cc-atlas-stadium" class="cc-atlas"></canvas></div>
-      <p class="cc-note">Flow: school gates / track start → rotating <b>light-cone</b> stealth lane → a sunken <b>DUGOUT</b> dip (Henry ANCHOR safe zone + badge + a hidden locker cache) → optional <b>BLEACHER</b> climb high to the press box (Signal Flare relic) → the <b>SCOREBOARD</b> landmark (KNOWN/UNKNOWN meter) → a deep <b>REC-POOL</b> basin (dive node) → surface / rejoin near the fifty → the tiered <b>WEATHER BALLOON</b> arena (red band) → road east. Green safe zones declassify + heal between light sweeps.</p>
-      ${this.statChips({
-        SIZE: `${TIGER_STADIUM.cols}×${TIGER_STADIUM.rowCount} tiles · ${TIGER_STADIUM.meta.widthPx}×${TIGER_STADIUM.meta.heightPx}px`,
-        'VERTICAL RANGE USED': 'r8→r40 · 32 tiles (512px)',
-        DESCENTS: '2 (dugout · rec-pool) + boss drop',
-        CLIMBS: '3 (bleachers → press box · relic · surface rejoin)',
-        'OPTIONAL ROUTES': '3 (locker cache · top-bleacher relic · dugout)',
-        'EST. PLAYTIME': '6–9 min',
-      })}
-      <h3>PATTERSON'S ORCHARD — ${PATTERSONS_ORCHARD.cols}×${PATTERSONS_ORCHARD.rowCount} tiles (${PATTERSONS_ORCHARD.meta.widthPx}×${PATTERSONS_ORCHARD.meta.heightPx}px) · living maze + the Fold</h3>
-      <div class="cc-atlas-wrap"><canvas id="cc-atlas-orchard" class="cc-atlas"></canvas></div>
-      <p class="cc-note">Flow: farm road → a TALL apple-tree pillar climb (branch ledges + <b>respawning fruit</b>) → the white barn + a hidden <b>LOFT</b> (Cameron/ECHO badge) → the corn-maze approach whose walls <b>shift on a readable beat</b> → the <b>FOLD</b> mouth [E] into the top-down <b>maze-z4</b> Sweep arena → charging the crop-circle node <b>BLOOMS</b> the circle → back through the opened gate to the maze heart (Tuning Fork) → the tiered <b>HARVEST PATTERN</b> arena (red band) → county road. Green = fruit platforms · tan = corn walls (Q/W shift) · purple = crop-circle gate.</p>
-      ${this.statChips({
-        SIZE: `${PATTERSONS_ORCHARD.cols}×${PATTERSONS_ORCHARD.rowCount} tiles · ${PATTERSONS_ORCHARD.meta.widthPx}×${PATTERSONS_ORCHARD.meta.heightPx}px`,
-        'VERTICAL RANGE USED': 'r6→r44 · 38 tiles (608px)',
-        CLIMBS: '1 tall apple-pillar climb + hidden loft',
-        'PERSPECTIVE SHIFT': 'the Fold → top-down maze-z4 (Sweep)',
-        'OPTIONAL ROUTES': '2 (barn-loft badge · maze-heart relic)',
-        'EST. PLAYTIME': '6–9 min',
-      })}
-      <h3>THE REC POOL — inverted reflection node — ${POOL_MIRROR.cols}×${POOL_MIRROR.rowCount} tiles (${POOL_MIRROR.meta.widthPx}×${POOL_MIRROR.meta.heightPx}px)</h3>
-      <div class="cc-atlas-wrap"><canvas id="cc-atlas-pool" class="cc-atlas"></canvas></div>
-      <p class="cc-note">Dive through the pool and the world flips to a low-gravity, god-rayed underwater mirror where your delayed reflection echoes your moves. Route the three sync nodes (float over the slow static), then rise through the surface gate — the field above wakes for the boss.</p>
-      <h3>BLIPSTREAM NODE A — ${NODE_A.cols}×${NODE_A.rowCount} tiles (${NODE_A.meta.widthPx}×${NODE_A.meta.heightPx}px)</h3>
-      <div class="cc-atlas-wrap"><canvas id="cc-atlas-node" class="cc-atlas"></canvas></div>
-      <p class="cc-note">Flow: entry shelf → node 1 → scan-line corridor → static-hazard run → node 2 → oscillating platforms → node 3 over hazard → descent → exit gate. (Reused as Chip's Circuit when jacked in from Motel Nowhere.)</p>`,
-      'cc-dev-only'
-    );
-  }
-
   private statChips(stats: Record<string, string | number>): string {
     return `<div class="cc-chips">${Object.entries(stats)
       .map(([k, v]) => `<span class="cc-chip">${esc(k)}: <b class="warn">${esc(String(v))}</b></span>`)
@@ -792,21 +630,20 @@ export class CommandCenter {
   }
 
   private sectionArsenal(): string {
-    const jumpTiles = (PLAYER.jumpVel * PLAYER.jumpVel) / (2 * PLAYER.gravity) / TILE;
-    const pulseRange = Math.round(PULSE.speed * (PULSE.lifeMs / 1000));
     const rows: Array<[string, string, string]> = [
-      ['Run', `${PLAYER.runSpeed}px/s · accel ${PLAYER.accel}`, 'air accel ' + PLAYER.airAccel],
-      ['Jump', `${PLAYER.jumpVel}px/s ≈ ${jumpTiles.toFixed(1)} tiles`, `coyote ${PLAYER.coyoteMs}ms · buffer ${PLAYER.jumpBufferMs}ms · release-cut ×${PLAYER.jumpCutMult}`],
-      ['Hover', `fall capped @ ${PLAYER.hoverFallSpeed}px/s`, `drains ${PLAYER.hoverDrainPerSec}/s of ${PLAYER.energyMax} energy · regen ${PLAYER.energyRegenPerSec}/s grounded`],
-      ['Phase Drift (dash)', `${PLAYER.dashSpeed}px/s for ${PLAYER.dashMs}ms`, `i-frames during dash · cooldown ${PLAYER.dashCooldownMs}ms · afterimages`],
-      ['Pulse Shot', `${PULSE.damage} dmg · ${PULSE.speed}px/s · range ≈ ${pulseRange}px`, `auto-fire every ${PULSE.cooldownMs}ms · activates node switches · cracks the boss core`],
-      ['Scan Pulse', `radius ${SCAN.radius}px`, `cooldown ${SCAN.cooldownMs}ms · reveals hidden platforms, scout trails, boss core (${BOSS.coreExposeMs}ms window)`],
-      ['Hull', `${PLAYER.maxHp} hp`, `${PLAYER.invulnMs}ms invulnerability + knockback ${PLAYER.knockback} on hit`],
+      ['Move', `${SWEEP.moveSpeed}px/s · accel ${SWEEP.accel}`, `drag ${SWEEP.drag} · camera zoom ${SWEEP.cameraZoom}`],
+      ['Phase Drift', `${SWEEP.dashSpeed}px/s for ${SWEEP.dashMs}ms`, `cooldown ${SWEEP.dashCooldownMs}ms · dash-chain refund ${SWEEP.dashRefundOnPhaseKill ? 'on' : 'off'}`],
+      ['Pulse Shot', `${SWEEP.shotDmg} dmg · ${SWEEP.shotSpeed}px/s`, `cooldown ${SWEEP.fireCooldownMs}ms · max ${SWEEP.maxShots} live shots`],
+      ['Scan Pulse', `radius ${SWEEP.scanRadius}px`, `${SWEEP.scanDmg} dmg · reveals hidden Signal Caches`],
+      ['Signal Node', `${SWEEP.nodeChargeDefault} charge target`, `${SWEEP.nodeChargePerKill} per kill · double within ${SWEEP.nodeChargeRadius}px`],
+      ['Signal Overdrive', `${SWEEP.overdriveDurationMs}ms duration`, `shock radius ${SWEEP.overdriveShockRadius}px · ${SWEEP.overdriveShockDmg} dmg`],
+      ['Hull', `${SWEEP.maxHp} hp`, `${SWEEP.invulnMs}ms invulnerability · knockback ${SWEEP.knockback}`],
+      ['Caches / Shards', `${SWEEP.cacheShards} shards per cache`, `${SWEEP.shardsPerKill} shard per kill · ${SWEEP.shardsClearBonus} clear bonus`],
     ];
     return this.panel(
       'arsenal',
       'ARSENAL — CONTACT-47 TUNING',
-      `<p class="cc-note">The full movement/combat kit with live numbers from <span class="key">config.ts → PLAYER / PULSE / SCAN</span>. Future abilities live in PROGRESSION ▸ upgrade roadmap.</p>
+      `<p class="cc-note">The live top-down movement/combat kit with numbers from <span class="key">config.ts → SWEEP</span>. Future abilities live in PROGRESSION ▸ upgrade roadmap.</p>
       <table class="cc-table">${rows
         .map(([a, b, c]) => `<tr><td><b>${esc(a)}</b></td><td class="key">${esc(b)}</td><td>${esc(c)}</td></tr>`)
         .join('')}</table>`
@@ -943,25 +780,25 @@ export class CommandCenter {
     overlay?.(ctx, CELL);
   }
 
-  /* --------------------- top-down Sweep arenas (the Fold) -------------------- */
+  /* --------------------- top-down connected world areas -------------------- */
 
   private sectionSweepArenas(): string {
     const cards = Object.values(SWEEP_ARENAS)
       .filter((a) => a.mode === 'traverse')
       .map(
         (a) => `
-      <h3>${esc(a.label)} — ${a.grid.w}×${a.grid.h} tiles · ${esc(a.biome)} biome · Fold → ${esc(a.next ?? '—')}</h3>
+      <h3>${esc(a.label)} — ${a.grid.w}×${a.grid.h} tiles · ${esc(a.biome)} biome · route → ${esc(a.nextLabel ?? 'end')}</h3>
       <div class="cc-atlas-wrap"><canvas id="cc-sweep-${a.id}" class="cc-atlas"></canvas></div>`
       )
       .join('');
     return this.panel(
       'sweeparenas',
-      'SWEEP ARENAS — TOP-DOWN (THE FOLD)',
+      'TOP-DOWN WORLD AREAS',
       `
-      <p class="cc-note">The top-down twin-stick combat maps you enter through <b>the Fold</b> (side-view ⇄ the Interpretation Engine's top-down scan). Floor is carved from a solid wall field by hand-authored rooms + corridors, so every zone's Sweep is a real, unique level.
+      <p class="cc-note">The current BLIP world is top-down only. These connected twin-stick areas are hand-authored from rooms, corridors, roads, alleys, trails, bridges, and signal barriers.
       <span style="color:#a8ff3e">◉</span> signal node · <span style="color:#7cfc9b">◉</span> breach (exit) · <span style="color:#f2a93b">◉</span> elite Classifier · <span style="color:#d84a42">◉</span> drones · <span style="color:#7c5cff">◉</span> caches · <span style="color:#fff3c9">◉</span> spawn.</p>
       ${cards}
-      <p class="cc-note"><b>maze-z4</b> is Patterson's Orchard's living corn maze — fight through, charge the crop-circle node, and it <b>blooms</b> the circle and Folds you back to open the maze-heart gate.</p>`,
+      <p class="cc-note"><b>town-z3</b> is the first Chagrin Falls connector pass: exterior buildings, town streets, bridge lanes, and stadium-edge cover without enterable interiors.</p>`,
       'cc-dev-only'
     );
   }

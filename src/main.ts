@@ -62,13 +62,11 @@ window.addEventListener('keydown', (ev) => {
     }
     case 'F4':
       ev.preventDefault();
-      bus.emit(EVT.debugGotoBlipstream, {});
+      bus.emit(EVT.toast, { text: 'DEBUG: SIDE-VIEW BLIPSTREAM REMOVED', color: 'orange' });
       break;
     case 'F5':
-      if (game.scene.isActive(SCENES.blipstream)) {
-        ev.preventDefault();
-        bus.emit(EVT.debugGotoField, {});
-      }
+      ev.preventDefault();
+      bus.emit(EVT.toast, { text: 'DEBUG: SIDE-VIEW RETURN REMOVED', color: 'orange' });
       break;
     case 'F6': {
       // debug: unlock all skins + cycle to the next one (applies live)
@@ -83,47 +81,27 @@ window.addEventListener('keydown', (ev) => {
       break;
     }
     case 'F7': {
-      // GOD-MODE WARP → The Sweep (top-down bonus arena). Jumps in from wherever
-      // you are and returns you to that same scene on exit.
+      // WARP → Signal Storm top-down arena.
       ev.preventDefault();
       if (game.scene.isActive(SCENES.sweep)) break; // already there
-      const overworld = [SCENES.field, SCENES.motel, SCENES.stadium, SCENES.orchard, SCENES.underwater, SCENES.blipstream].find((k) =>
-        game.scene.isActive(k)
-      );
-      game.registry.set('sweepReturnScene', overworld ?? SCENES.field);
       game.registry.set('sweepArenaId', 'anomaly-01');
       if (!game.scene.isActive(SCENES.ui)) game.scene.run(SCENES.ui);
       bus.emit(EVT.toast, { text: 'DEBUG: WARP → SIGNAL STORM', color: 'orange' });
-      if (overworld) game.scene.getScene(overworld).scene.switch(SCENES.sweep);
-      else game.scene.start(SCENES.sweep);
+      game.scene.start(SCENES.sweep);
       break;
     }
     case 'F8': {
-      // WARP → Miller Field TOP-DOWN (the real "Surface" traverse → Folds to Miller Field)
+      // WARP → Miller Field top-down.
       ev.preventDefault();
       if (game.scene.isActive(SCENES.sweep)) break;
-      const overworld = [SCENES.field, SCENES.motel, SCENES.stadium, SCENES.orchard, SCENES.underwater, SCENES.blipstream].find((k) =>
-        game.scene.isActive(k)
-      );
-      game.registry.set('sweepReturnScene', overworld ?? SCENES.field);
       game.registry.set('sweepArenaId', 'surface-z1');
       if (!game.scene.isActive(SCENES.ui)) game.scene.run(SCENES.ui);
       bus.emit(EVT.toast, { text: 'DEBUG: WARP → MILLER FIELD (TOP-DOWN)', color: 'orange' });
-      if (overworld) game.scene.getScene(overworld).scene.switch(SCENES.sweep);
-      else game.scene.start(SCENES.sweep);
-      break;
-    }
-    case 'F9': {
-      // WARP → Miller Field SIDE-VIEW (direct, no Fold)
-      ev.preventDefault();
-      if (game.scene.isActive(SCENES.field)) break;
-      if (!game.scene.isActive(SCENES.ui)) game.scene.run(SCENES.ui);
-      bus.emit(EVT.toast, { text: 'DEBUG: WARP → MILLER FIELD (SIDE-VIEW)', color: 'orange' });
-      game.scene.start(SCENES.field);
+      game.scene.start(SCENES.sweep);
       break;
     }
     case 'F10': {
-      // TELEPORT TO BREACH — preview the top-down → side-view Fold instantly
+      // TELEPORT TO ROUTE EXIT — preview the top-down area transition instantly
       ev.preventDefault();
       const sweep = game.scene.getScene(SCENES.sweep) as SweepScene | null;
       if (sweep && game.scene.isActive(SCENES.sweep)) {

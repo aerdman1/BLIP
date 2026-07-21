@@ -173,6 +173,20 @@ function activeSceneName(): string {
   return gameRef.scene.getScenes(true)[0]?.scene.key ?? 'none';
 }
 
+const ARENA_BY_ZONE: Record<string, string> = {
+  'miller-field': 'surface-z1',
+  'motel-nowhere': 'circuit-z2',
+  'tiger-stadium': 'town-z3',
+  'pattersons-orchard': 'maze-z4',
+  'skyline-array': 'anomaly-01',
+};
+
+function stopGameplayScenes(game: Phaser.Game): void {
+  [SCENES.menu, SCENES.field, SCENES.motel, SCENES.stadium, SCENES.orchard, SCENES.skyline, SCENES.underwater, SCENES.blipstream, SCENES.sweep, SCENES.gameOver].forEach((k) => {
+    if (game.scene.isActive(k) || game.scene.isPaused(k)) game.scene.stop(k);
+  });
+}
+
 export function installTestAPI(game: Phaser.Game): void {
   gameRef = game;
   if (!isTestApiEnabled()) return;
@@ -189,6 +203,28 @@ export function installTestAPI(game: Phaser.Game): void {
     }),
 
     getPlayerState: () => {
+      if (gameRef && (gameRef.scene.isActive(SCENES.sweep) || gameRef.scene.isPaused(SCENES.sweep))) {
+        const sweep = gameRef.scene.getScene(SCENES.sweep) as unknown as {
+          player?: Phaser.GameObjects.Sprite & { hp?: number; maxHp?: number; alive?: boolean; aimAngle?: number; godMode?: boolean };
+        };
+        const p = sweep.player;
+        const body = p?.body as Phaser.Physics.Arcade.Body | null;
+        if (!p || !p.active) return null;
+        return {
+          x: Math.round(p.x),
+          y: Math.round(p.y),
+          vx: Math.round(body?.velocity.x ?? 0),
+          vy: Math.round(body?.velocity.y ?? 0),
+          hp: p.hp ?? 0,
+          energy: 0,
+          grounded: true,
+          facing: (p.aimAngle ?? 0) > Math.PI / 2 || (p.aimAngle ?? 0) < -Math.PI / 2 ? -1 : 1,
+          god: p.godMode ?? false,
+          echoActive: false,
+          echoX: Math.round(p.x),
+          echoY: Math.round(p.y),
+        };
+      }
       const s = driveable(scenes.blipstream)
         ? scenes.blipstream
         : driveable(scenes.underwater)
@@ -263,30 +299,25 @@ export function installTestAPI(game: Phaser.Game): void {
       });
       quests.load(quest);
       quests.restart();
-      const target = route?.scene ?? SCENES.field;
-      // stop EVERY gameplay scene (incl. the Sweep + a lingering Game Over) so
-      // zone entry is deterministic no matter what mode we were in before.
-      [SCENES.menu, SCENES.field, SCENES.motel, SCENES.stadium, SCENES.orchard, SCENES.skyline, SCENES.underwater, SCENES.blipstream, SCENES.sweep, SCENES.gameOver].forEach((k) => {
-        if (gameRef!.scene.isActive(k)) gameRef!.scene.stop(k);
-      });
-      gameRef.scene.start(target);
+      gameRef.registry.set('sweepArenaId', ARENA_BY_ZONE[zoneId] ?? 'surface-z1');
+      gameRef.registry.set('gameOverRetryScene', SCENES.sweep);
+      gameRef.registry.set('gameOverRetryArenaId', ARENA_BY_ZONE[zoneId] ?? 'surface-z1');
+      stopGameplayScenes(gameRef);
+      gameRef.scene.start(SCENES.sweep);
       return true;
     },
 
     /** deterministic top-down arena entry for retry/death routing QA. */
-    enterSweep: (arenaId = 'surface-z1', returnScene = SCENES.field): boolean => {
+    enterSweep: (arenaId = 'surface-z1'): boolean => {
       if (!gameRef) return false;
       updateSave((s) => {
         s.currentZone = 'miller-field';
         s.currentQuest = 'the-first-contact';
       });
       gameRef.registry.set('sweepArenaId', arenaId);
-      gameRef.registry.set('sweepReturnScene', returnScene);
       gameRef.registry.set('gameOverRetryScene', SCENES.sweep);
       gameRef.registry.set('gameOverRetryArenaId', arenaId);
-      [SCENES.menu, SCENES.field, SCENES.motel, SCENES.stadium, SCENES.orchard, SCENES.skyline, SCENES.underwater, SCENES.blipstream, SCENES.sweep, SCENES.gameOver].forEach((k) => {
-        if (gameRef!.scene.isActive(k) || gameRef!.scene.isPaused(k)) gameRef!.scene.stop(k);
-      });
+      stopGameplayScenes(gameRef);
       gameRef.scene.start(SCENES.sweep);
       return true;
     },

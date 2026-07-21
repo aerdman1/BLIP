@@ -3,7 +3,7 @@
 **You are the thing on the radar.**
 *A pixel signal adventure about staying unknown.*
 
-BLIP is a side-scrolling pixel-art action-puzzle platformer. You are **CONTACT-47** — the forty-seventh logged contact event over Miller Field, a radar blip that woke up with a body. Platform through dreamlike rural dusk, scan for what the world refuses to map, dive into the **Blipstream**, and collect **Signal Fragments** before **The Interpretation Engine** finishes deciding what you are.
+BLIP is a top-down pixel-art action game. You are **CONTACT-47** — the forty-seventh logged contact event over Miller Field, a radar blip that woke up with a body. Fight through dreamlike Chagrin Falls-inspired roads, lots, town streets, trails, and signal barriers before **The Interpretation Engine** finishes deciding what you are.
 
 Five kids figured all of this out years before you did. They left you a trail.
 
@@ -23,7 +23,7 @@ Full controller support (Xbox / PlayStation, standard mapping) including menu na
 | Action | Keyboard / Mouse | Xbox · PlayStation |
 |---|---|---|
 | Move | A / D or ← / → | Left stick · D-pad |
-| Jump / Hover | SPACE (hold to hover) | A · ✕ (hold) |
+| Move Up / Down | W / S or ↑ / ↓ | Left stick · D-pad |
 | Dash (Phase Drift) | SHIFT | RB / LT · R1 / L2 |
 | Pulse Shot | X or Left Click | X / RT · ▢ / R2 |
 | Scan Pulse | Q | Y / LB · △ / L1 |
@@ -34,28 +34,26 @@ Full controller support (Xbox / PlayStation, standard mapping) including menu na
 | Debug overlay / tools | F1–F5 | — |
 | Debug: cycle Signal Skin | F6 | — |
 
-## The Campaign (5 playable zones)
+## The Current Top-Down Route
 
-BLIP is a **5-zone campaign** with a real ending. Each zone is a side-view spine plus one perspective shift routed through the shared **Fold** engine, and each ends with a boss, a Signal Fragment, and one of the Five Signal Scouts:
+BLIP is being pivoted into one connected top-down game. The current playable route preserves the existing top-down areas and links them together:
 
-1. **Miller Field** (Will / WILLOW) — scan-reveal + Blipstream Node A · boss **The Scarecrow Antenna**
-2. **Motel Nowhere** (Chip / SPARK) — neon-power routing + top-down circuit run · boss **The Vacancy Sign**
-3. **Chagrin Falls High / Tiger Stadium** (Henry / ANCHOR) — Friday-night-lights stealth + an underwater Pool Mirror sub-level · boss **The Weather Balloon**
-4. **Patterson's Orchard** (Cameron / ECHO) — the maze that thinks + a top-down crop-draw Fold · boss **The Harvest Pattern**
-5. **Skyline Array** (Danny / ROCKET) — storm-surfing speedrun + first-person sky-tuning · boss **The Listening Station**
+1. **Miller Surface** (`surface-z1`) — rural Area 47 combat/traversal
+2. **Motel Circuit** (`circuit-z2`) — tight neon corridors and powered routes
+3. **Chagrin Falls Town** (`town-z3`) — streets, alleys, bridge lanes, and stadium-edge cover
+4. **Patterson's Orchard Maze** (`maze-z4`) — living corn-maze combat route
+5. **Signal Storm** (`anomaly-01`) — wave-based combat holdout
 
-There are **5 Signal Fragments** in all — one per zone. Progress autosaves to localStorage. The **Command Center** (C) holds the story bible, the Five Signal Scouts, progression, zones, debug/save data, and the AI QA lab.
+Progress autosaves to localStorage. The **Command Center** (C) holds the story bible, the Five Signal Scouts, progression, world-area maps, debug/save data, and the AI QA lab.
 
 ### Ending / Finale
 
-**Skyline Array (Zone 5) is the finale.** Beating The Listening Station launches **EndingScene** — a classification-choice climax where CONTACT-47 decides what the radar is allowed to read them as (**REFUSE THE LABEL**). The Five Signal Scouts converge here. *(The Broadcast — once planned as a separate Zone 6 — was folded into Skyline; it survives only as a possible post-V1 stretch idea.)*
-
-The first-zone loop, in detail: wake in Miller Field → learn to move → **scan** the dip to reveal unmapped platforms → slip past the old scanner rig (red cones *classify* you: UNKNOWN → ANOMALY → THREAT) → destroy two scanner drones → find the sealed crop-circle door → **enter Blipstream Node A** → route the signal through three node switches → return; the door answers → survive **THE SCARECROW ANTENNA** (scan to expose its core, jump-shot it) → collect the first **Signal Fragment**. Hidden along the way: **Will's scout badge** and **Chip's signal box**.
+The previous side-scrolling campaign has been removed from live access. Story, bosses, scouts, rewards, and Signal Fragment structure are being ported onto the top-down foundation after the connected route is stable.
 
 ## Tech
 
 - **Vite 5 + TypeScript + Phaser 3** (Arcade physics), 480×270 virtual pixel canvas, crisp upscale
-- **Split rendering**: the *world* is pixelated canvas; the *console UI* (menu, objective, status strip, pause, settings, Command Center) is crisp native-resolution HTML in the warm-midnight palette (cream / lime / amber / crimson)
+- **Top-down rendering**: the world is pixelated canvas with selected higher-detail top-down arenas; the console UI (menu, objective, status strip, pause, settings, Command Center) is crisp native-resolution HTML in the warm-midnight palette (cream / lime / amber / crimson)
 - **100% procedural art** — every texture is generated at boot (no image assets); the BLIP logo is an inline pixel-grid SVG
 - **WebAudio-synthesized SFX** — no audio assets; volume/mute in Settings
 - **Gamepad**: Web Gamepad API via Phaser + a shell navigator (menus), with a simulation hook so the QA suite verifies the whole mapping layer
@@ -91,7 +89,7 @@ Manage them in **Command Center ▸ Wardrobe**. All five scouts have their Signa
 
 The **Command Center** doubles as the dev/design dashboard — in-game via `C`, or standalone (no game, no Phaser) at **`/command-center.html`**. Beyond story/progression it includes:
 
-- **Level Plans / Roadmap** — full structure for all five zones (core loop, mechanics, sub-areas, Blipstream node, boss phases, scout Signal Set, art direction). All five zones are built and playable through the Skyline Array finale.
+- **World Areas** — live maps for the connected top-down arenas.
 - **Wardrobe** — every Signal Skin with passive/signature/tradeoff, lock state, and live equip.
 - **Level Atlas** — the real collision/entity grids from `src/game/data/levels.ts` painted as maps.
 - **Bestiary / Arsenal** — every enemy + the CONTACT-47 kit with live tuning numbers from `config.ts`.

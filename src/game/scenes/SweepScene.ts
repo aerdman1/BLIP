@@ -1,9 +1,7 @@
 /**
- * THE SWEEP — BLIP's top-down combat mode (the Interpretation Engine's SCAN of you).
- * Two modes (data-driven, see data/sweepArenas.ts):
- *  - 'traverse': ROAM an open space (camera follows), fight through drones, reach the
- *    BREACH → the Fold carries you onward. This is the core hybrid beat (Z1 cold-open,
- *    Z2 circuit).
+ * BLIP's top-down game world. Areas remain data-driven arenas internally, but
+ * traversal breaches now connect to the next top-down area instead of returning
+ * to the removed side-view campaign.
  *  - 'waves': hold against escalating waves (F7 dev warp / future run mode).
  * Isolated scene (own physics world, gravity 0). Aim with the mouse (or right stick),
  * fire yourself. Tuning in config.SWEEP.
@@ -20,12 +18,12 @@ import { audio } from '../systems/AudioSystem';
 import { bus } from '../systems/EventBus';
 import { touchInput } from '../systems/TouchInput';
 import { EffectsSystem } from '../systems/EffectsSystem';
-import { FOLD_FLAG, foldCollapse } from '../systems/FoldTransition';
 import { PlayerInput } from '../systems/InputSystem';
 import { readPad } from '../systems/PadSim';
 import { addShards, updateSave } from '../systems/SaveSystem';
 import { activeSkin } from '../systems/SkinState';
 import { uiOverlayActive } from '../systems/UIState';
+import { quests } from '../systems/QuestSystem';
 import { enterHiRes, linearAllTd, restoreBase } from '../render/RenderScale';
 import { TopDownShadows } from '../render/TopDownShadows';
 import { bindAtlasFrames, resolveTdArt, type TdArt } from '../topdown/TdAssets';
@@ -193,6 +191,7 @@ export class SweepScene extends Phaser.Scene {
 
     this.arena = SWEEP_ARENAS[arenaId] ?? SWEEP_ARENAS[DEFAULT_ARENA];
     this.traverse = this.arena.mode === 'traverse';
+    this.persistArenaEntry();
 
     const T = SWEEP.tile;
     const AW = this.arena.grid.w * T;
@@ -306,7 +305,7 @@ export class SweepScene extends Phaser.Scene {
       // "surfaced" intro — a scan bloom + objective
       this.cameras.main.fadeIn(350, 2, 3, 8);
       this.fx.scanRing(this.player.x, this.player.y, 200, 620, P.signal);
-      bus.emit(EVT.toast, { text: 'SIGNAL SURFACED — CHARGE THE NODE ◎', color: 'green' });
+      bus.emit(EVT.toast, { text: 'SIGNAL SURFACED — CHARGE THE NODE', color: 'green' });
       this.showBanner('CHARGE THE SIGNAL NODE');
     } else {
       bus.emit(EVT.toast, { text: 'RENDER ACTIVE — MOUSE AIMS · CLICK FIRES', color: 'green' });
@@ -528,8 +527,8 @@ export class SweepScene extends Phaser.Scene {
       this.breachGlow.setTint(P.signal).setAlpha(0.4);
       this.tweens.add({ targets: this.breachGlow, scale: { from: 6, to: 9 }, alpha: { from: 0.3, to: 0.6 }, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
-    bus.emit(EVT.toast, { text: 'NODE CHARGED — BREACH OPEN ▸', color: 'green' });
-    this.showBanner('BREACH OPEN — GET OUT');
+    bus.emit(EVT.toast, { text: 'NODE CHARGED — ROUTE OPEN', color: 'green' });
+    this.showBanner(this.arena.nextLabel ? `ROUTE OPEN — ${this.arena.nextLabel.toUpperCase()}` : 'ROUTE OPEN');
     // reward system: a Signal Storm was cleared → medal + cache (RewardTriggers)
     bus.emit(EVT.sweepCleared, { combo: this.combo, noHit: this.player.hp >= this.player.maxHp });
     // boss-finale arenas bloom the crop circle when the Node charges (see beginBossFinale),
@@ -611,7 +610,7 @@ export class SweepScene extends Phaser.Scene {
     this.fx.flash(P.danger, 200);
     this.fx.shake(0.014, 420);
     if (this.arena.biome === 'orchard') this.cropBloom();
-    bus.emit(EVT.toast, { text: 'THE MAZE HEART AWAKENS — DESTROY IT ◎', color: 'orange' });
+    bus.emit(EVT.toast, { text: 'THE MAZE HEART AWAKENS — DESTROY IT', color: 'orange' });
     this.showBanner('THE MAZE HEART AWAKENS');
     this.breachLabel?.setText('BREACH · SEALED').setColor(css(P.danger));
     this.spawnBoss();
@@ -1338,7 +1337,23 @@ export class SweepScene extends Phaser.Scene {
   }
 
   /* ------------------------------ outcomes ------------------------------- */
-  /** DEV: jump straight to the breach so the Fold fires next update (preview the transition). */
+  private persistArenaEntry(): void {
+    if (!this.arena.zoneId && !this.arena.questId) return;
+    updateSave((s) => {
+      if (this.arena.zoneId) s.currentZone = this.arena.zoneId;
+      if (this.arena.questId) {
+        s.currentQuest = this.arena.questId;
+        const first = quests.quest.id === this.arena.questId ? quests.quest.steps[0]?.id : undefined;
+        if (first) s.questStep = first;
+      }
+    });
+    if (this.arena.questId) {
+      quests.load(this.arena.questId);
+      quests.init();
+    }
+  }
+
+  /** DEV: jump straight to the breach so the route transition fires next update. */
   debugSkipToBreach(): void {
     if (!this.traverse || !this.player || this.exiting) return;
     if (!this.breachOpen) this.openBreach(); // force it so the Fold can fire
@@ -1346,22 +1361,28 @@ export class SweepScene extends Phaser.Scene {
     (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
   }
 
-  /** traverse complete — the Fold carries you into the next (side-view) scene. */
+  /** traverse complete — move to the next connected top-down area. */
   private foldOnward(): void {
     if (this.exiting) return;
     this.exiting = true;
     addShards(this.arena.clearBonus ?? SWEEP.shardsClearBonus); // finale Fold pays out more
-    // circuit beats (Z2 → Motel) report "node solved" so the overworld powers its wing.
-    if (this.arena.next === SCENES.motel || this.arena.next === SCENES.orchard) this.registry.set('nodeJustSolved', true);
-    bus.emit(EVT.toast, { text: 'BREACH — DROPPING BACK IN', color: 'green' });
-    const next = this.arena.next ?? SCENES.field;
-    foldCollapse(this, this.fx, () => {
-      this.scene.stop();
-      if (this.scene.isSleeping(next)) {
-        this.scene.wake(next); // Z2: the overworld resumes via its onWake return beat
+    if (this.arena.completeZoneOnExit) {
+      updateSave((s) => {
+        if (!s.completedZones.includes(this.arena.completeZoneOnExit!)) s.completedZones.push(this.arena.completeZoneOnExit!);
+      });
+    }
+    const nextArena = this.arena.nextArena;
+    bus.emit(EVT.toast, { text: nextArena ? `ROUTE — ${this.arena.nextLabel ?? 'NEXT AREA'}` : 'ROUTE COMPLETE', color: 'green' });
+    this.fx.staticBurst(360);
+    this.fx.flash(P.white, 160);
+    this.time.delayedCall(360, () => {
+      if (nextArena) {
+        this.registry.set('sweepArenaId', nextArena);
+        this.registry.set('gameOverRetryScene', SCENES.sweep);
+        this.registry.set('gameOverRetryArenaId', nextArena);
+        this.scene.restart();
       } else {
-        this.registry.set(FOLD_FLAG, true); // Z1: the fresh scene plays foldSettle in create()
-        this.scene.start(next);
+        this.victory();
       }
     });
   }
@@ -1375,7 +1396,10 @@ export class SweepScene extends Phaser.Scene {
     this.fx.flash(P.signalGreen, 180);
     bus.emit(EVT.toast, { text: `STORM CLEARED — +${this.shardsEarned} SHARDS`, color: 'green' });
     this.showBanner('SIGNAL HELD');
-    this.time.delayedCall(1200, () => this.exitToOverworld());
+    updateSave((s) => {
+      if (!s.completedZones.includes('skyline-array')) s.completedZones.push('skyline-array');
+    });
+    this.time.delayedCall(1200, () => this.exitToMenu());
   }
 
   private onDeath(): void {
@@ -1393,18 +1417,13 @@ export class SweepScene extends Phaser.Scene {
     });
   }
 
-  private exitToOverworld(): void {
+  private exitToMenu(): void {
     audio.transitionWarp();
     this.fx.staticBurst(400);
     this.fx.flash(P.white, 160);
-    const returnScene = (this.registry.get('sweepReturnScene') as string) ?? SCENES.field;
     this.time.delayedCall(350, () => {
-      if (this.arena.id === 'surface-z1' && returnScene === SCENES.field) {
-        updateSave((s) => { s.flags.introSweepCleared = true; });
-      }
       this.scene.stop();
-      if (this.scene.isSleeping(returnScene)) this.scene.wake(returnScene);
-      else this.scene.start(returnScene);
+      this.scene.start(SCENES.menu);
     });
   }
 

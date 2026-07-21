@@ -7,7 +7,6 @@
  */
 import Phaser from 'phaser';
 import { EVT, VIEW_H, VIEW_W, PALETTE as P, RENDER_ZOOM, SCENES, TEX } from '../config';
-import { ZONE_ROUTES } from '../data/zones';
 import { audio } from '../systems/AudioSystem';
 import { bus } from '../systems/EventBus';
 import { getSave, resetSave, updateSave } from '../systems/SaveSystem';
@@ -609,30 +608,22 @@ export class MainMenuScene extends Phaser.Scene {
         s.questStep = 'wake';
       });
     }
-    // Continue drops you into whichever zone the save is in. A FRESH START does the
-    // canon cold-open (levelPlans.ts / Command Center): the top-down "Surface" Scan
-    // — Area 47 from above — then THE FOLD flips you down into side-view Miller Field.
+    // BLIP is now top-down-only: both fresh start and continue enter the
+    // connected top-down world through the saved/current arena.
     quests.load(getSave().currentQuest);
     if (!continueRun) quests.restart();
     audio.unlock();
     bus.emit(EVT.menuActive, { active: false });
     this.cameras.main.fadeOut(350, 7, 17, 38);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-      if (continueRun) {
-        const save = getSave();
-        if (!save.flags.introSweepCleared) {
-          this.registry.set('sweepReturnScene', SCENES.field);
-          this.registry.set('sweepArenaId', 'surface-z1');
-          this.scene.start(SCENES.sweep);
-          return;
-        }
-        const zone = save.currentZone;
-        this.scene.start(ZONE_ROUTES[zone]?.scene ?? SCENES.field);
-        return;
-      }
-      // cold-open: the surface-z1 traverse Scan → reach the Breach → Fold → Miller Field
-      this.registry.set('sweepReturnScene', SCENES.field);
-      this.registry.set('sweepArenaId', 'surface-z1');
+      const arenaByZone: Record<string, string> = {
+        'miller-field': 'surface-z1',
+        'motel-nowhere': 'circuit-z2',
+        'tiger-stadium': 'town-z3',
+        'pattersons-orchard': 'maze-z4',
+        'skyline-array': 'anomaly-01',
+      };
+      this.registry.set('sweepArenaId', continueRun ? arenaByZone[getSave().currentZone] ?? 'surface-z1' : 'surface-z1');
       this.scene.start(SCENES.sweep);
     });
   }

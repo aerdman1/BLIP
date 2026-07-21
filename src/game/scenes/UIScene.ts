@@ -1,10 +1,9 @@
 /**
  * UIScene — the in-world pixel HUD (zoom-1 layer, unaffected by the Sweep's
- * camera zoom). Two modes:
- *  • Side-view: the compact gauge cluster (hp pips, energy, cooldown pips).
- *  • Top-down "Sweep": a full integrated combat HUD (HP, weapon, objective/
- *    wave, enemies-left, combo, Signal Overdrive [E] meter, ability prompts,
- *    big centred banner) driven by EVT.hudSweep / hudSweepStats / hudBanner.
+ * camera zoom). The live game uses the top-down combat HUD: HP, weapon,
+ * objective/wave, enemies-left, combo, Signal Overdrive [E] meter, ability
+ * prompts, and a centered banner driven by EVT.hudSweep / hudSweepStats /
+ * hudBanner.
  * Everything with prose (objective text, toasts, boss name) still lives in the
  * HTML shell.
  */
@@ -165,7 +164,7 @@ export class UIScene extends Phaser.Scene {
     // (status strip, objective ticker) while the top-down arena is up.
     document.body.classList.toggle('td-hud-active', active);
     if (active) {
-      this.bars.clear(); // hide the side-view gauge cluster while in the Sweep
+      this.bars.clear();
       this.drawSweepHud();
     } else {
       this.sweepG.clear();
@@ -259,7 +258,7 @@ export class UIScene extends Phaser.Scene {
       } else {
         this.sweepOverdriveEl?.style.setProperty('--td-pulse', '1');
       }
-      return; // sweep HUD is event-driven; skip the side-view gauges
+      return; // top-down HUD is event-driven
     }
 
     const g = this.bars;

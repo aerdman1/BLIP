@@ -14,14 +14,15 @@ test('boots to the main menu without console errors', async ({ page }) => {
   expect(watcher.errors, `console errors: ${watcher.errors.join(' | ')}`).toHaveLength(0);
 });
 
-test('play button path: menu → FieldScene', async ({ page }) => {
+test('play button path: menu → top-down SweepScene', async ({ page }) => {
   const watcher = watchConsole(page);
   await bootToMenu(page);
   await startGame(page);
-  expect(await api(page, `api.getSceneName()`)).toBe('FieldScene');
+  expect(await api(page, `api.getSceneName()`)).toBe('SweepScene');
   const p = await api(page, 'api.getPlayerState()');
   expect(p).not.toBeNull();
   expect(p.hp).toBeGreaterThan(0);
+  expect(await api(page, 'api.getSaveData().currentZone')).toBe('miller-field');
   expect(watcher.errors, watcher.errors.join(' | ')).toHaveLength(0);
 });
 
@@ -40,17 +41,31 @@ test('command center opens from the pause menu and closes', async ({ page }) => 
   await expect(page.locator('#command-center')).toBeHidden();
 });
 
+test('top-down route transitions preserve SweepScene and advance save zone', async ({ page }) => {
+  await bootToMenu(page);
+  await api(page, `api.enterSweep('surface-z1')`);
+  expect(await api(page, `api.getSceneName()`)).toBe('SweepScene');
+  expect(await api(page, 'api.getSaveData().currentZone')).toBe('miller-field');
+
+  await api(page, 'api.completeBlipstreamPuzzle()');
+  await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSaveData().currentZone === 'motel-nowhere');
+  expect(await api(page, `api.getSceneName()`)).toBe('SweepScene');
+
+  await api(page, 'api.completeBlipstreamPuzzle()');
+  await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSaveData().currentZone === 'tiger-stadium');
+  expect(await api(page, `api.getSceneName()`)).toBe('SweepScene');
+});
+
 test('reset save from the pause menu clears progress', async ({ page }) => {
   await bootToMenu(page);
   await startGame(page);
-  await api(page, `api.setQuestStep('reachDoor')`);
-  expect(await api(page, 'api.getSaveData().questStep')).toBe('reachDoor');
+  await api(page, `api.enterZone('motel-nowhere')`);
+  expect(await api(page, 'api.getSaveData().currentZone')).toBe('motel-nowhere');
   page.on('dialog', (d) => void d.accept());
   // RESET SAVE now lives in the pause menu (removed from the player-facing top bar)
   await page.keyboard.press('Escape');
   await page.click('#pause-reset');
   await page.waitForLoadState('load');
   await page.waitForFunction(() => !!(window as never as Record<string, unknown>).__BLIP_TEST_API__);
-  const step = await api(page, 'api.getSaveData().questStep');
-  expect(step).toBe('wake');
+  expect(await api(page, 'api.getSaveData().currentZone')).toBe('miller-field');
 });

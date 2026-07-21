@@ -56,12 +56,9 @@ export async function api<T = any>(page: Page, script: string): Promise<T> {
 export async function startGame(page: Page, continueRun = false): Promise<void> {
   if (continueRun) await api(page, 'api.startGame(true)');
   else await api(page, `api.enterZone('miller-field')`);
-  await waitForScene(page, 'FieldScene');
+  await waitForScene(page, 'SweepScene');
   // let the fade-in + first physics settle
   await page.waitForTimeout(700);
-  // a new game opens with the how-to-play card (it pauses the scene) — close it
-  await api(page, 'api.dismissTransmission()');
-  await page.waitForTimeout(200);
 }
 
 export async function playerState(page: Page): Promise<{

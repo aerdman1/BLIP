@@ -1,6 +1,6 @@
 # BLIP — Project Instructions
 
-**Always follow the local BLIP project skills/instructions before implementing features. BLIP is a playable, Vercel-ready, side-view procedural pixel-art game — a 5-zone campaign + classification-choice ending (Skyline Array is the finale).**
+**Always follow the local BLIP project skills/instructions before implementing features. BLIP is now a playable, Vercel-ready, top-down procedural pixel-art game. The old side-scrolling campaign is removed from live access; current work must build on the connected top-down world.**
 
 ## Non-Negotiable Production Deploy Rule
 
@@ -21,7 +21,7 @@
 | Skill | Path | Governs |
 |---|---|---|
 | BLIP Game Director | `.claude/skills/blip-game-director/SKILL.md` | Vision, tone, story, naming — consult before ANY feature |
-| Phaser Pixel Platformer | `.claude/skills/phaser-pixel-platformer/SKILL.md` | Engine, rendering, code architecture rules |
+| Phaser Top-Down Runtime | `.claude/skills/phaser-pixel-platformer/SKILL.md` | Engine, rendering, code architecture rules |
 | Procedural Pixel Art | `.claude/skills/procedural-pixel-art/SKILL.md` | All art/textures/palette decisions |
 | Blipstream Puzzle | `.claude/skills/blipstream-puzzle/SKILL.md` | Blipstream Node room design |
 | Playtest / QA | `.claude/skills/playtest-qa/SKILL.md` | Playability checklist + AI QA pipeline rules |
@@ -31,8 +31,8 @@
 ## Quick Facts
 
 - Game: **BLIP** — "You are the thing on the radar." Player: **CONTACT-47**. Puzzle dimension: **Blipstream**. Villain/system: **The Interpretation Engine**. Story heart: **The Five Signal Scouts** (Will, Chip, Henry, Cameron, Danny).
-- **5 playable zones**, one scout + boss + Signal Fragment each: 1 Miller Field (Will) · 2 Motel Nowhere (Chip) · 3 Chagrin Falls High / Tiger Stadium (Henry) · 4 Patterson's Orchard (Cameron) · 5 Skyline Array (Danny). **Skyline Array is the finale** — beating it launches **EndingScene**, a classification-choice climax ("REFUSE THE LABEL"). There is no Zone 6; "The Broadcast" was folded into Skyline (future stretch at most). Signal Fragments total **5** (one per zone).
-- Side-view pixel platformer. Internal resolution 480×270, pixel-perfect upscale. Phaser 3 + Arcade physics + Vite 5 (Node 18 pin) + TypeScript.
+- Current playable route is top-down only: Miller Surface (`surface-z1`) → Motel Circuit (`circuit-z2`) → Chagrin Falls town/stadium connector (`town-z3`) → Patterson's Orchard maze (`maze-z4`) → Signal Storm (`anomaly-01`). Preserve the Five Signal Scouts and classification theme while porting story/progression out of the old side-view structure.
+- Top-down pixel action game. Internal resolution 480×270, pixel-perfect upscale, with selected arenas using the higher-detail top-down render path. Phaser 3 + Arcade physics + Vite 5 (Node 18 pin) + TypeScript.
 - All art is procedural (generated textures). All tuning constants in `src/game/config.ts`. All content data in `src/game/data/`.
 - Save: localStorage `blip_save_v1` (migrates legacy `beamline_save_v1` if found).
 - Commands: `npm run dev` · `npm run typecheck` · `npm run build` · `npm run preview` · `npm run test:e2e` · `npm run qa:playtest` (fun-loop storyboard → `qa-reports/`) · `npm run qa:full` · `npm run qa:loop`

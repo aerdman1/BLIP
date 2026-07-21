@@ -4,7 +4,6 @@
  */
 import Phaser from 'phaser';
 import { EVT, VIEW_H, VIEW_W, PAD, RENDER_ZOOM, SCENES } from '../config';
-import { ZONE_ROUTES } from '../data/zones';
 import { bus } from '../systems/EventBus';
 import { audio } from '../systems/AudioSystem';
 import { readPad } from '../systems/PadSim';
@@ -78,19 +77,22 @@ export class GameOverScene extends Phaser.Scene {
 
   private retry(): void {
     this.removeDomOverlay();
-    // stop whatever gameplay was running and restart the CURRENT zone fresh —
-    // quest + flags come back from the save file (route by save.currentZone so
-    // dying in Motel Nowhere re-establishes there, not back in Miller Field).
-    const zone = getSave().currentZone;
-    // died in a top-down section? re-attempt that same section (arena id is still
-    // in the registry) rather than dumping the player into the side-view zone.
+    // Top-down-only retry: re-attempt the current/saved arena.
+    const arenaByZone: Record<string, string> = {
+      'miller-field': 'surface-z1',
+      'motel-nowhere': 'circuit-z2',
+      'tiger-stadium': 'town-z3',
+      'pattersons-orchard': 'maze-z4',
+      'skyline-array': 'anomaly-01',
+    };
     const retryScene = (this.registry.get('gameOverRetryScene') as string) || this.fromScene;
+    let arenaId = this.registry.get('gameOverRetryArenaId') as string | undefined;
     if (retryScene === SCENES.sweep) {
-      const arenaId = this.registry.get('gameOverRetryArenaId') as string | undefined;
       if (arenaId) this.registry.set('sweepArenaId', arenaId);
+    } else {
+      arenaId = arenaByZone[getSave().currentZone] ?? 'surface-z1';
+      this.registry.set('sweepArenaId', arenaId);
     }
-    const target =
-      retryScene === SCENES.sweep ? SCENES.sweep : (ZONE_ROUTES[zone]?.scene ?? SCENES.field);
     this.scene.stop(SCENES.blipstream);
     this.scene.stop(SCENES.sweep);
     this.scene.stop(SCENES.underwater);
@@ -101,7 +103,7 @@ export class GameOverScene extends Phaser.Scene {
     this.scene.stop(SCENES.skyline);
     this.scene.stop(SCENES.ending);
     this.scene.stop(SCENES.ui);
-    this.scene.start(target);
+    this.scene.start(SCENES.sweep);
     this.scene.stop();
   }
 

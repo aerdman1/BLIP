@@ -9,18 +9,15 @@ Purpose: after each major feature, verify the game is actually playable.
 
 ## Checklist (run after every major feature)
 
-- Can the player spawn?
-- Can the player move, jump, hover, dash?
-- Can the player shoot (pulse shot)?
-- Can the scan pulse reveal something?
-- Can the player enter Blipstream Node A?
-- Can the Blipstream puzzle be completed?
-- Does returning unlock the main-world crop-circle gate?
-- Does the boss spawn?
-- Can the boss be defeated (scan → weak point → pulse)?
-- Can the Signal Fragment be collected?
+- Can the player spawn in `SweepScene`?
+- Can the player move in 4 directions, dash, aim, and shoot?
+- Can scan pulse reveal caches and damage/stun nearby threats?
+- Can the player charge a signal node?
+- Does a charged breach/route transition to the next top-down arena?
+- Do health, shards, weapon pickups, skins, rewards, and save state persist across arena transitions?
+- Can the player clear Signal Storm?
 - Does save data update (localStorage `blip_save_v1`)?
-- Does the Command Center reflect state?
+- Does the Command Center reflect the top-down world state?
 - Does `npm run typecheck` pass?
 - Does `npm run build` pass?
 
@@ -32,4 +29,4 @@ Purpose: after each major feature, verify the game is actually playable.
 - `npm run qa:full` = typecheck + build + e2e. `npm run qa:loop` = bounded QA loop writing `test-results/qa-reports/latest.md` + `history.json`.
 - When a test fails: read the error → inspect code → inspect screenshots if visual → fix the ROOT CAUSE → rerun the failing test → only then continue.
 - Never weaken a test to make it pass (unless the test itself is clearly wrong). Never delete features to go green unless broken AND nonessential. Never expand the game while tests are failing.
-- Screenshot review is strict: player visible, level readable, Blipstream visually distinct, boss/projectiles readable, HUD legible, Command Center polished, no old top-down/cow-abduction concept anywhere.
+- Screenshot review is strict: player visible, level readable, projectiles readable, HUD legible, Command Center polished, no side-scrolling gameplay accessible, no old cow-abduction concept anywhere.

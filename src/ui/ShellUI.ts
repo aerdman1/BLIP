@@ -24,10 +24,8 @@ import { addShards, allSlotSummaries, buyUpgrade, getSave, getSlotName, grantAbi
 import { rewards } from '../game/systems/RewardSystem';
 import { skinById } from '../game/data/skins';
 import { UPGRADES } from '../game/data/upgrades';
-import { findQuest } from '../game/data/quests';
-import { quests } from '../game/systems/QuestSystem';
 import { devState } from '../game/systems/DevState';
-import { ZONES, ZONE_ROUTES } from '../game/data/zones';
+import { ZONES } from '../game/data/zones';
 import { settings, type TouchControlsMode } from '../game/systems/Settings';
 import { setOverlayDepth } from '../game/systems/UIState';
 import { TouchControls } from './TouchControls';
@@ -270,7 +268,7 @@ export class ShellUI {
 
   /* --------------------------- on-screen touch controls --------------------- */
 
-  private touchGameplayScenes: string[] = [SCENES.field, SCENES.motel, SCENES.stadium, SCENES.underwater, SCENES.blipstream, SCENES.sweep];
+  private touchGameplayScenes: string[] = [SCENES.sweep];
 
   /** Show the on-screen controls only during unobstructed gameplay, per the
    *  ON-SCREEN CONTROLS setting (auto = touch devices only). */
@@ -374,16 +372,7 @@ export class ShellUI {
 
   /* --------------------------- modal pause plumbing -------------------------- */
 
-  private gameplayScenes = [
-    SCENES.field,
-    SCENES.motel,
-    SCENES.stadium,
-    SCENES.underwater,
-    SCENES.orchard,
-    SCENES.skyline,
-    SCENES.blipstream,
-    SCENES.sweep,
-  ];
+  private gameplayScenes = [SCENES.sweep];
 
   private pushModal(): void {
     this.modalDepth++;
@@ -577,7 +566,7 @@ export class ShellUI {
     });
     bus.on(EVT.uiMainMenu, () => {
       this.setPauseVisible(false);
-      [SCENES.gameOver, SCENES.blipstream, SCENES.underwater, SCENES.field, SCENES.motel, SCENES.stadium, SCENES.orchard, SCENES.skyline, SCENES.sweep, SCENES.ui].forEach((k) => {
+      [SCENES.gameOver, SCENES.sweep, SCENES.ui].forEach((k) => {
         if (this.game.scene.isActive(k) || this.game.scene.isPaused(k) || this.game.scene.isSleeping(k)) {
           this.game.scene.stop(k);
         }
@@ -610,10 +599,7 @@ export class ShellUI {
 
   private renderStatus(): void {
     const el = $('strip-status');
-    if (this.lastScene === SCENES.blipstream) {
-      el.textContent = 'SUBMERGED';
-      el.className = 'violet';
-    } else if (this.lastTier === 'THREAT') {
+    if (this.lastTier === 'THREAT') {
       el.textContent = 'HUNTED';
       el.className = 'bad';
     } else if (this.lastTier === 'ANOMALY') {
@@ -972,12 +958,11 @@ export class ShellUI {
         <h3>CONTROLS — KEYBOARD + GAMEPAD</h3>
         <table class="settings-table">
           <tr><th>ACTION</th><th>KEYBOARD / MOUSE</th><th>XBOX · PLAYSTATION</th></tr>
-          <tr><td>Move</td><td class="key">A / D · ← / →</td><td class="pad">Left stick · D-pad</td></tr>
-          <tr><td>Jump / Hover</td><td class="key">SPACE (hold to hover)</td><td class="pad">A · ✕ (hold)</td></tr>
+          <tr><td>Move</td><td class="key">WASD · ARROWS</td><td class="pad">Left stick · D-pad</td></tr>
           <tr><td>Dash</td><td class="key">SHIFT</td><td class="pad">RB / LB · R1 / L1</td></tr>
           <tr><td>Pulse Shot</td><td class="key">X · LEFT CLICK</td><td class="pad">X / RT · ▢ / R2</td></tr>
-          <tr><td>Sonar (Scan Pulse)</td><td class="key">RIGHT CLICK · Q</td><td class="pad">Y / LT · △ / L2</td></tr>
-          <tr><td>Interact / Enter Node</td><td class="key">E</td><td class="pad">B · ○</td></tr>
+          <tr><td>Scan Pulse</td><td class="key">RIGHT CLICK · Q</td><td class="pad">Y / LT · △ / L2</td></tr>
+          <tr><td>Interact / Overdrive</td><td class="key">E</td><td class="pad">B · ○</td></tr>
           <tr><td>Echo Blink (place / return)</td><td class="key">F</td><td class="pad">D-pad Up</td></tr>
           <tr><td>Pause</td><td class="key">ESC</td><td class="pad">START · OPTIONS</td></tr>
           <tr><td>Command Center</td><td class="key">C · TAB</td><td class="pad">BACK · SHARE</td></tr>
@@ -1514,14 +1499,13 @@ export class ShellUI {
     el.innerHTML = `
       <div class="dev-card bracketed">
         <div class="dev-title">▚ ERD DEV CONSOLE <span id="dev-close">✕</span></div>
-        <div class="dev-sec-h">WARP TO ZONE (SIDE-VIEW)</div>
-        <div class="dev-row" id="dev-zones"></div>
-        <div class="dev-sec-h">WARP TO TOP-DOWN (SCAN)</div>
+        <div class="dev-sec-h">WARP TO TOP-DOWN AREA</div>
         <div class="dev-row" id="dev-topdown">
-          <button data-sweep="surface-z1" data-return="FieldScene">Miller · Surface</button>
-          <button data-sweep="circuit-z2" data-return="MotelScene">Motel · Circuit</button>
-          <button data-sweep="maze-z4" data-return="OrchardScene">Orchard · Maze</button>
-          <button data-sweep="anomaly-01" data-return="FieldScene">Signal Storm</button>
+          <button data-sweep="surface-z1">Miller Surface</button>
+          <button data-sweep="circuit-z2">Motel Circuit</button>
+          <button data-sweep="town-z3">Chagrin Town</button>
+          <button data-sweep="maze-z4">Orchard Maze</button>
+          <button data-sweep="anomaly-01">Signal Storm</button>
         </div>
         <div class="dev-sec-h">GRANT</div>
         <div class="dev-row">
@@ -1547,22 +1531,14 @@ export class ShellUI {
           <button data-act="fly" id="dev-fly">Fly Mode: OFF</button>
           <button data-act="reset" class="danger">Reset Save</button>
         </div>
-        <div class="dev-hint">In a level: <b>F</b> = FLY-THROUGH (noclip · WASD + ↑↓) · <b>G</b> = god mode · <b>X</b> shoots, <b>right-click</b> sonar.<br>God Mode here applies when you next enter a level (warp / continue); or just press <b>G</b> while playing.</div>
+        <div class="dev-hint">Top-down only: <b>WASD</b> move · mouse/right stick aim · <b>X/click</b> fires · <b>Q</b> scans · <b>SHIFT</b> dashes · <b>G</b> toggles god mode.</div>
         <div class="dev-status" id="dev-status"></div>
       </div>`;
     document.body.appendChild(el);
     this.devEl = el;
 
-    const zones = el.querySelector('#dev-zones') as HTMLElement;
-    const playable = ZONES.filter((z) => z.status === 'PLAYABLE');
-    zones.innerHTML = playable.map((z) => `<button data-zone="${z.id}">${z.name}</button>`).join('');
-    zones.querySelectorAll('button').forEach((b) =>
-      b.addEventListener('click', () => this.devWarp((b as HTMLElement).dataset.zone as string))
-    );
     el.querySelectorAll('[data-sweep]').forEach((b) =>
-      b.addEventListener('click', () =>
-        this.devWarpSweep((b as HTMLElement).dataset.sweep as string, (b as HTMLElement).dataset.return as string)
-      )
+      b.addEventListener('click', () => this.devWarpSweep((b as HTMLElement).dataset.sweep as string))
     );
     (el.querySelector('#dev-close') as HTMLElement).addEventListener('click', () => this.hideDevPanel());
     el.querySelectorAll('[data-act]').forEach((b) =>
@@ -1589,38 +1565,13 @@ export class ShellUI {
     if (st) st.textContent = msg;
   }
 
-  private devWarp(zoneId: string): void {
-    // route from the shared ZONE_ROUTES map so every playable zone warps correctly
-    // (a missing entry here is what used to dump Patterson's Orchard into Miller Field).
-    const route = ZONE_ROUTES[zoneId];
-    const questId = route?.quest ?? 'the-first-contact';
-    const firstStep = findQuest(questId).steps[0].id;
-    updateSave((s) => {
-      s.currentZone = zoneId;
-      s.currentQuest = questId;
-      s.questStep = firstStep;
-      s.completedQuestSteps = [];
-    });
-    quests.load(questId);
-    quests.restart();
-    this.hideDevPanel();
-    audio.unlock();
-    bus.emit(EVT.menuActive, { active: false });
-    const target = route?.scene ?? SCENES.field;
-    [SCENES.menu, SCENES.field, SCENES.motel, SCENES.stadium, SCENES.orchard, SCENES.skyline, SCENES.underwater, SCENES.blipstream, SCENES.sweep, SCENES.gameOver].forEach((k) => {
-      if (this.game.scene.isActive(k)) this.game.scene.stop(k);
-    });
-    this.game.scene.start(target);
-  }
-
-  /** warp straight into a TOP-DOWN (Scan) arena — the ERD console skips these otherwise */
-  private devWarpSweep(arenaId: string, returnScene: string): void {
+  /** warp straight into a top-down area. */
+  private devWarpSweep(arenaId: string): void {
     this.game.registry.set('sweepArenaId', arenaId);
-    this.game.registry.set('sweepReturnScene', returnScene);
     this.hideDevPanel();
     audio.unlock();
     bus.emit(EVT.menuActive, { active: false });
-    [SCENES.menu, SCENES.field, SCENES.motel, SCENES.stadium, SCENES.orchard, SCENES.skyline, SCENES.underwater, SCENES.blipstream, SCENES.sweep, SCENES.gameOver].forEach((k) => {
+    [SCENES.menu, SCENES.sweep, SCENES.gameOver].forEach((k) => {
       if (this.game.scene.isActive(k)) this.game.scene.stop(k);
     });
     if (!this.game.scene.isActive(SCENES.ui)) this.game.scene.run(SCENES.ui);
