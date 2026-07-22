@@ -475,6 +475,7 @@ Scope:
 4. Patch only obvious problems from the expanded pass:
    - excessive empty walking
    - unclear signs/landmarks
+   - route signs, pickup labels or field-event labels that overlap in normal play
    - cover or enemies placed where they no longer support the larger spaces
    - rewards or field events that are visible but not worth diverting for
    - stale helper coordinates

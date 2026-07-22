@@ -31,6 +31,7 @@ const gravityWells = extractExportedObject(src, 'SWEEP_GRAVITY_WELLS', '};');
 
 const errors = [];
 const warnings = [];
+const TILE = 32;
 const key = (x, y) => `${x},${y}`;
 
 function buildWalkable(arena) {
@@ -162,6 +163,53 @@ function assertRouteDistance(arena, label, actual, min, max) {
   if (actual > max) errors.push(`${arena.id}: ${label} too long (${actual} tiles > ${max})`);
 }
 
+function labelRect(cx, cy, text, minW, lineH, padX = 10) {
+  const lines = String(text).split('\n');
+  const chars = Math.max(...lines.map((line) => line.length), 1);
+  const width = Math.max(minW, chars * 6 + padX * 2);
+  const height = Math.max(lineH, lines.length * lineH);
+  return { x1: cx - width / 2, y1: cy - height / 2, x2: cx + width / 2, y2: cy + height / 2 };
+}
+
+function overlaps(a, b, pad = 4) {
+  return a.x1 - pad < b.x2 && a.x2 + pad > b.x1 && a.y1 - pad < b.y2 && a.y2 + pad > b.y1;
+}
+
+function markerWorld(marker) {
+  return { x: (marker.tx + 0.5) * TILE, y: (marker.ty + 0.5) * TILE };
+}
+
+function pickupLabelY(marker, baseOffset, routeSigns) {
+  const p = markerWorld(marker);
+  let y = p.y - baseOffset;
+  for (const sign of routeSigns) {
+    const s = markerWorld(sign);
+    const signY = s.y - 31;
+    if (Math.abs(p.x - s.x) < 118 && Math.abs(y - signY) < 44) y = p.y + 39;
+  }
+  return y;
+}
+
+function checkLabelCrowding(arena, phaseName, routeSigns) {
+  const routeRects = routeSigns.map((sign) => {
+    const p = markerWorld(sign);
+    return { label: sign.label, rect: labelRect(p.x, p.y - 31, sign.label, 50, 17, 7) };
+  });
+  const labelMarkers = [
+    ...(arena.weaponSpawns ?? []).map((marker) => ({ marker, label: String(marker.wid).toUpperCase(), baseOffset: 25 })),
+    ...(arena.fieldEvents ?? []).map((marker) => ({ marker, label: `${marker.label}\n${marker.trigger === 'scan' ? 'SCAN' : 'POWER'}`, baseOffset: 24 })),
+  ];
+  for (const item of labelMarkers) {
+    const p = markerWorld(item.marker);
+    const rect = labelRect(p.x, pickupLabelY(item.marker, item.baseOffset, routeSigns), item.label, 42, 13, 8);
+    for (const route of routeRects) {
+      if (overlaps(rect, route.rect)) {
+        errors.push(`${arena.id}: ${phaseName} label crowding "${item.label.replace(/\n/g, ' ')}" overlaps route sign "${route.label}"`);
+      }
+    }
+  }
+}
+
 for (const arena of Object.values(arenas)) {
   const walk = buildWalkable(arena);
   checkMarker(arena, walk, 'spawn', arena.spawn);
@@ -223,6 +271,8 @@ for (const arena of Object.values(arenas)) {
     assertMin(arena, 'enemy placements', arena.enemies?.length ?? 0, 8);
     assertMin(arena, 'objective route signs', routeBeacons[arena.id]?.toObjective?.length ?? 0, 3);
     assertMin(arena, 'exit route signs', routeBeacons[arena.id]?.toExit?.length ?? 0, 3);
+    checkLabelCrowding(arena, 'objective-phase', routeBeacons[arena.id]?.toObjective ?? []);
+    checkLabelCrowding(arena, 'exit-phase', routeBeacons[arena.id]?.toExit ?? []);
   }
 
   const graph = roomGraph(arena);

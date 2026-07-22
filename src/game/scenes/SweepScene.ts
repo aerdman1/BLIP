@@ -2422,20 +2422,27 @@ export class SweepScene extends Phaser.Scene {
   /* ------------------------------ pickups -------------------------------- */
   private pickupLabelY(x: number, y: number, baseOffset: number): number {
     let nearbyLabels = 0;
-    let nearRouteSign = false;
+    let labelY = y - baseOffset;
+    const route = ROUTE_BEACONS[this.arena.id];
+    const activePhase = this.breachOpen ? 'toExit' : 'toObjective';
+    const activeRouteSigns = route?.[activePhase] ?? [];
+    for (const sign of activeRouteSigns) {
+      const sx = (sign.tx + 0.5) * SWEEP.tile;
+      const sy = (sign.ty + 0.5) * SWEEP.tile - 31;
+      if (Math.abs(x - sx) < 118 && Math.abs(labelY - sy) < 44) labelY = y + 39;
+    }
     this.routeMarkers.forEach((obj) => {
       if (!obj.getData?.('routeSign') || !(obj as unknown as Phaser.GameObjects.Components.Visible).visible) return;
       const sx = Number(obj.getData('routeSignX') ?? 0);
       const sy = Number(obj.getData('routeSignY') ?? 0);
-      if (Math.abs(x - sx) < 92 && Math.abs(y - sy) < 58) nearRouteSign = true;
+      if (Math.abs(x - sx) < 118 && Math.abs(labelY - sy) < 44) labelY = y + 39;
     });
-    if (nearRouteSign) return y + 24;
     (this.pickups?.getChildren?.() as Phaser.Physics.Arcade.Image[] | undefined)?.forEach((pk) => {
       if (!pk.active) return;
       if (!pk.getData('label')) return;
       if (Phaser.Math.Distance.Between(x, y, pk.x, pk.y) < 46) nearbyLabels++;
     });
-    return y - baseOffset - Math.min(2, nearbyLabels) * 13;
+    return labelY - Math.min(2, nearbyLabels) * 13;
   }
 
   private dropPickup(x: number, y: number): void {
