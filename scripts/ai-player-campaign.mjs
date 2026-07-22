@@ -13,16 +13,16 @@ mkdirSync(PUB_DIR, { recursive: true });
 mkdirSync(SHOT_DIR, { recursive: true });
 
 const RUNS = Number(process.env.AI_CAMPAIGN_RUNS ?? 500);
-const RUN_MS = Number(process.env.AI_CAMPAIGN_RUN_MS ?? 9000);
+const RUN_MS = Number(process.env.AI_CAMPAIGN_RUN_MS ?? 11000);
 const BASE_URL = process.env.AI_CAMPAIGN_URL ?? 'http://127.0.0.1:4173';
 const PORT = Number(new URL(BASE_URL).port || 4173);
-const LABEL = process.env.AI_CAMPAIGN_LABEL ?? 'campaign';
+const LABEL = process.env.AI_CAMPAIGN_LABEL ?? process.env.AI_CAMPAIGN_REPORT ?? 'campaign';
 const RESTART_EVERY = Number(process.env.AI_CAMPAIGN_RESTART_EVERY ?? 40);
-const SAVE_EVERY = Number(process.env.AI_CAMPAIGN_SAVE_EVERY ?? 10);
+const SAVE_EVERY = Number(process.env.AI_CAMPAIGN_SAVE_EVERY ?? (RUNS <= 30 ? 1 : 10));
 const VISIBLE_EVERY = Number(process.env.AI_CAMPAIGN_VISIBLE_EVERY ?? 35);
 const NO_BUILD = process.env.AI_CAMPAIGN_NO_BUILD === '1';
 const NO_SERVER = process.env.AI_CAMPAIGN_NO_SERVER === '1';
-const SCENARIO_FILTER = (process.env.AI_CAMPAIGN_SCENARIOS ?? '')
+const SCENARIO_FILTER = (process.env.AI_CAMPAIGN_SCENARIOS ?? process.env.AI_CAMPAIGN_SCENARIO ?? '')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
@@ -37,16 +37,16 @@ const PERSONAS = [
 ];
 
 const SCENARIOS = [
-  { name: 'full-route', zone: 'miller-field', goalZone: 'skyline-array', runMul: 7.5, objectiveBias: 1.25 },
-  { name: 'route-miller-motel', zone: 'miller-field', goalZone: 'motel-nowhere', runMul: 3.1, objectiveBias: 1.35, arrivalGoal: true },
-  { name: 'route-first-three', zone: 'miller-field', goalZone: 'tiger-stadium', runMul: 5.4, objectiveBias: 1.35, arrivalGoal: true },
-  { name: 'region-miller', zone: 'miller-field', goalZone: 'miller-field', runMul: 1.45, objectiveBias: 1 },
-  { name: 'region-motel', zone: 'motel-nowhere', goalZone: 'motel-nowhere', runMul: 1.45, objectiveBias: 1.05 },
-  { name: 'region-town', zone: 'tiger-stadium', goalZone: 'tiger-stadium', runMul: 1.45, objectiveBias: 1.05 },
-  { name: 'region-orchard', zone: 'pattersons-orchard', goalZone: 'pattersons-orchard', runMul: 1.45, objectiveBias: 1.05 },
-  { name: 'combat-storm', zone: 'skyline-array', goalZone: 'skyline-array', runMul: 1.65, objectiveBias: 0.8 },
-  { name: 'objective-drill', zone: 'miller-field', goalZone: 'miller-field', runMul: 1.7, objectiveBias: 1.45 },
-  { name: 'visible-review', zone: 'tiger-stadium', goalZone: 'tiger-stadium', runMul: 1.8, objectiveBias: 1.1, visual: true },
+  { name: 'full-route', zone: 'miller-field', goalZone: 'skyline-array', runMul: 8.5, objectiveBias: 1.25 },
+  { name: 'route-miller-motel', zone: 'miller-field', goalZone: 'motel-nowhere', runMul: 3.4, objectiveBias: 1.35, arrivalGoal: true },
+  { name: 'route-first-three', zone: 'miller-field', goalZone: 'tiger-stadium', runMul: 5.9, objectiveBias: 1.35, arrivalGoal: true },
+  { name: 'region-miller', zone: 'miller-field', goalZone: 'miller-field', runMul: 1.75, objectiveBias: 1.05 },
+  { name: 'region-motel', zone: 'motel-nowhere', goalZone: 'motel-nowhere', runMul: 1.8, objectiveBias: 1.1 },
+  { name: 'region-town', zone: 'tiger-stadium', goalZone: 'tiger-stadium', runMul: 1.8, objectiveBias: 1.1 },
+  { name: 'region-orchard', zone: 'pattersons-orchard', goalZone: 'pattersons-orchard', runMul: 2.15, objectiveBias: 1.18 },
+  { name: 'combat-storm', zone: 'skyline-array', goalZone: 'skyline-array', runMul: 1.8, objectiveBias: 0.85 },
+  { name: 'objective-drill', zone: 'miller-field', goalZone: 'miller-field', runMul: 1.95, objectiveBias: 1.45 },
+  { name: 'visible-review', zone: 'tiger-stadium', goalZone: 'tiger-stadium', runMul: 2.0, objectiveBias: 1.1, visual: true },
 ].filter((s) => SCENARIO_FILTER.length === 0 || SCENARIO_FILTER.includes(s.name));
 if (!SCENARIOS.length) {
   throw new Error(`No AI campaign scenarios matched AI_CAMPAIGN_SCENARIOS=${process.env.AI_CAMPAIGN_SCENARIOS}`);
@@ -67,6 +67,9 @@ const sign = (v) => (v < -0.18 ? -1 : v > 0.18 ? 1 : 0);
 function vecTo(from, to, error, rand) {
   const a = Math.atan2(to.y - from.y, to.x - from.x) + (rand() - 0.5) * error;
   return { x: Math.cos(a), y: Math.sin(a) };
+}
+function seenCachesNearby(perception) {
+  return (perception.visible?.caches ?? []).some((c) => c.distance < 170);
 }
 async function api(page, expr) {
   return page.evaluate(`(() => { const api = window.__BLIP_TEST_API__; return (${expr}); })()`);
@@ -123,6 +126,10 @@ async function runOne(page, idx) {
   let lastNode = -1;
   let lastLootSize = 0;
   let maxNode = 0;
+  let maxObjectiveActions = 0;
+  let objectiveActionsRequired = 0;
+  let gravityWellRequired = false;
+  let gravityWellUsed = false;
   let breachOpened = false;
   let wallFollowUntil = 0;
   let wallFollowSide = 1;
@@ -157,6 +164,10 @@ async function runOne(page, idx) {
     if (lastHp && perception.player.hp < lastHp) damageEvents++;
     lastHp = perception.player.hp;
     maxNode = Math.max(maxNode, perception.progress.node ?? 0);
+    maxObjectiveActions = Math.max(maxObjectiveActions, perception.progress.objectiveActions ?? 0);
+    objectiveActionsRequired = Math.max(objectiveActionsRequired, perception.progress.objectiveActionsRequired ?? 0);
+    gravityWellRequired = gravityWellRequired || perception.progress.gravityWellRequired === true;
+    gravityWellUsed = gravityWellUsed || perception.progress.gravityWellUsed === true;
     breachOpened = breachOpened || perception.progress.breachOpen === true;
 
     const lootKeys = new Set((perception.visible.pickups ?? []).map((p) => `${p.type}:${p.weapon}:${p.x}:${p.y}`));
@@ -209,6 +220,8 @@ async function runOne(page, idx) {
       const player = perception.player;
       const enemies = perception.visible.enemies ?? [];
       const pickups = perception.visible.pickups ?? [];
+      const signals = perception.visible.signals ?? [];
+      const scanners = perception.visible.scanners ?? [];
       const visibleBreach = perception.visible.breach;
       const visibleNode = perception.visible.node;
       const objectiveHint = perception.objectiveHint;
@@ -221,35 +234,69 @@ async function runOne(page, idx) {
       let weaponSlotQueued = null;
 
       const preferred = persona.weaponPreference[Math.floor(rand() * persona.weaponPreference.length)];
+      const roleEnemy = enemies.find((e) => ['warden', 'splitter', 'turret'].includes(e.kind) && e.distance < 120);
       if (rand() < 0.06 + persona.mistakeChance * 0.1) weaponNextQueued = true;
-      if (preferred === 'arc' && perception.weapon.id !== 'arc' && enemies[0]?.distance < 78) weaponSlotQueued = 1;
-      if (preferred === 'disc' && perception.weapon.id !== 'disc' && enemies[0]?.distance > 105) weaponSlotQueued = 2;
+      if (roleEnemy && perception.weapon.id !== 'arc' && persona.name !== 'new-player' && rand() < 0.72 + persona.aggression * 0.18) weaponSlotQueued = 1;
+      else if (enemies[0]?.distance < 70 && perception.weapon.id !== 'arc' && persona.name !== 'new-player' && rand() < 0.72) weaponSlotQueued = 1;
+      else if (enemies[0]?.distance > 128 && enemies[0]?.distance < 230 && perception.weapon.id !== 'disc' && rand() < 0.48 + persona.curiosity * 0.2) weaponSlotQueued = 2;
+      else if (preferred === 'arc' && perception.weapon.id !== 'arc' && enemies[0]?.distance < 86) weaponSlotQueued = 1;
+      else if (preferred === 'disc' && perception.weapon.id !== 'disc' && enemies[0]?.distance > 105) weaponSlotQueued = 2;
       if (weaponNextQueued || weaponSlotQueued !== null) weaponSwitches++;
 
       const usefulPickup = pickups.find((p) => p.type === 'health' && player.hp <= 3) ?? pickups.find((p) => p.type === 'weapon' && (persona.curiosity + rand() * 0.4) > 0.62);
+      const interestingSignal = signals.find((s) => s.reward === 'health' && player.hp <= 4) ?? signals.find((s) => rand() < persona.curiosity * persona.exploration);
       const routeOpenFollowChance = Math.max(
         persona.objectiveUnderstanding * scenario.objectiveBias,
         1 - persona.missInstructionChance * 0.65
       );
+      const nearestEnemy = enemies[0] ?? null;
+      const threatenedByEnemy = nearestEnemy && nearestEnemy.distance < (player.hp <= 2 ? 170 : persona.riskTolerance < 0.45 ? 135 : 112);
+      const urgentThreat = nearestEnemy && nearestEnemy.distance < (player.hp <= 2 ? 105 : 74);
+      const requiredTraversal = objectiveHint?.kind === 'gravity-well';
+      const gravityGateNeeded = perception.progress.gravityWellRequired === true && perception.progress.gravityWellUsed !== true;
+      const scannerPressure = scanners.find((s) => !s.disabled && s.distance < 125);
+      const shouldFightVisibleThreat = threatenedByEnemy && !(perception.progress.breachOpen && objectiveHint && objectiveHint.distance < 120 && rand() < routeOpenFollowChance);
+      const combatMove = (enemy) => {
+        const keepAway = persona.riskTolerance < 0.45 && enemy.distance < 92;
+        const closeIn = persona.aggression > 0.72 && enemy.distance > 78 && perception.weapon.id === 'arc';
+        const strafe = persona.name === 'skilled-action' || persona.name === 'unpredictable' || rand() < persona.aggression * 0.35;
+        if (keepAway) return { x: player.x - (enemy.x - player.x), y: player.y - (enemy.y - player.y) };
+        if (closeIn) return enemy;
+        if (strafe) return { x: player.x - (enemy.y - player.y), y: player.y + (enemy.x - player.x) };
+        return enemy;
+      };
       if (perception.progress.breachOpen && objectiveHint && rand() < routeOpenFollowChance) {
         target = objectiveHint;
         fire = enemies.length > 0 && rand() > persona.mistakeChance;
+      } else if (gravityGateNeeded && objectiveHint && !urgentThreat && rand() < Math.max(0.88, persona.objectiveUnderstanding * scenario.objectiveBias)) {
+        target = objectiveHint;
+        fire = enemies.length > 0 && rand() > persona.mistakeChance;
+        if (objectiveHint.kind === 'gravity-well' && objectiveHint.distance < 120) interactQueued = true;
+      } else if (requiredTraversal && objectiveHint && !urgentThreat && rand() < Math.max(0.72, persona.objectiveUnderstanding * scenario.objectiveBias)) {
+        target = objectiveHint;
+        fire = enemies.length > 0 && rand() > persona.mistakeChance;
+        if (objectiveHint.distance < 110) interactQueued = true;
+      } else if (shouldFightVisibleThreat) {
+        target = combatMove(nearestEnemy);
+        fire = rand() > persona.mistakeChance * 0.8;
+        if (rand() < persona.abilityUse * (nearestEnemy.distance < 80 ? 0.34 : 0.16)) { dashQueued = true; phaseShiftUses++; }
+      } else if (scannerPressure && rand() < persona.abilityUse * scenario.objectiveBias) {
+        target = objectiveHint ?? scannerPressure;
+        dashQueued = scannerPressure.distance < 92;
+        if (dashQueued) phaseShiftUses++;
       } else if (usefulPickup && rand() > persona.missInstructionChance) {
         target = usefulPickup;
+      } else if (interestingSignal && rand() > persona.missInstructionChance * 0.75) {
+        target = interestingSignal;
+        scanQueued = interestingSignal.trigger === 'scan' && interestingSignal.distance < 170;
       } else if (enemies.length) {
         const enemy = enemies[0];
-        const keepAway = persona.riskTolerance < 0.45 && enemy.distance < 84;
-        const strafe = persona.name === 'skilled-action' || persona.name === 'unpredictable';
-        target = keepAway
-          ? { x: player.x - (enemy.x - player.x), y: player.y - (enemy.y - player.y) }
-          : strafe
-            ? { x: player.x - (enemy.y - player.y), y: player.y + (enemy.x - player.x) }
-            : enemy;
+        target = combatMove(enemy);
         fire = rand() > persona.mistakeChance * 0.72;
         if (rand() < persona.abilityUse * 0.18 && enemy.distance < 110) { dashQueued = true; phaseShiftUses++; }
       } else if (visibleBreach?.open && rand() < persona.objectiveUnderstanding * scenario.objectiveBias) {
         target = visibleBreach;
-      } else if (visibleNode && rand() < persona.objectiveUnderstanding * scenario.objectiveBias) {
+      } else if (!gravityGateNeeded && visibleNode && rand() < persona.objectiveUnderstanding * scenario.objectiveBias) {
         target = visibleNode;
       } else if (objectiveHint && rand() < persona.objectiveUnderstanding * scenario.objectiveBias * 0.78) {
         target = objectiveHint;
@@ -259,7 +306,8 @@ async function runOne(page, idx) {
       }
 
       if (rand() < persona.curiosity * 0.13) scanQueued = true;
-      if (objectiveHint?.kind === 'gravity-well' && objectiveHint.distance < 72 && rand() < persona.objectiveUnderstanding * scenario.objectiveBias) {
+      if ((seenCachesNearby(perception) || interestingSignal?.trigger === 'scan') && rand() < persona.curiosity * 0.42) scanQueued = true;
+      if (objectiveHint?.kind === 'gravity-well' && objectiveHint.distance < 110 && rand() < Math.max(0.62, persona.objectiveUnderstanding * scenario.objectiveBias)) {
         interactQueued = true;
       }
       const aimTarget = enemies[0] ?? target ?? { x: player.x + 1, y: player.y };
@@ -289,6 +337,7 @@ async function runOne(page, idx) {
   if (stuckEvents) frustrationFlags.push('stuck-against-geometry');
   if ((weaponUsage.pulse ?? 0) > ((weaponUsage.arc ?? 0) + (weaponUsage.disc ?? 0)) * 4) boredomFlags.push('pulse-dominates');
   if (objectiveFailures > 0) boredomFlags.push('objective-stall');
+  if (gravityWellRequired && maxNode >= 70 && !gravityWellUsed) boredomFlags.push('gravity-well-missed');
   return {
     index: idx + 1,
     persona: persona.name,
@@ -308,6 +357,10 @@ async function runOne(page, idx) {
     phaseShiftUses,
     secretsFound: (save.foundSecrets ?? []).length,
     maxNode,
+    maxObjectiveActions,
+    objectiveActionsRequired,
+    gravityWellRequired,
+    gravityWellUsed,
     breachOpened,
     lootSeen,
     lootIgnored: Math.max(0, lootSeen - lootCollected),
@@ -452,6 +505,9 @@ async function main() {
   const previous = existsSync(path.join(PUB_DIR, 'latest.json')) ? JSON.parse(readFileSync(path.join(PUB_DIR, 'latest.json'), 'utf8')) : null;
   const server = startServer();
   await waitForServer();
+  console.log(
+    `[ai-campaign] label=${LABEL} runs=${RUNS} runMs=${RUN_MS} scenarios=${SCENARIOS.map((s) => s.name).join(',')} saveEvery=${SAVE_EVERY}`
+  );
   let browser = await chromium.launch();
   let page = await browser.newPage({ viewport: { width: 960, height: 540 } });
   const runs = [];

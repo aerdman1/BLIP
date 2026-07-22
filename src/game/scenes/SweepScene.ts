@@ -11,7 +11,7 @@ import { buildSweepTextures } from '../art/sweepTextures';
 import { BlipCraft } from '../entities/sweep/BlipCraft';
 import { SweepEnemy, type SweepEnemyDebugState } from '../entities/sweep/SweepEnemy';
 import { Projectile, fireFrom, makeProjectileGroup } from '../entities/Projectile';
-import { DEFAULT_ARENA, SWEEP_ARENAS, type SweepArena } from '../data/sweepArenas';
+import { DEFAULT_ARENA, SWEEP_ARENAS, SWEEP_GRAVITY_WELLS, SWEEP_MOTEL_SCANNERS, SWEEP_ROUTE_BEACONS, type SweepArena, type SweepFieldEvent } from '../data/sweepArenas';
 import { goalForArena, type RegionGoal } from '../data/regionGoals';
 import { WEAPONS, WEAPON_PICKUPS, type SweepWeapon } from '../data/sweepWeapons';
 import { audio } from '../systems/AudioSystem';
@@ -26,7 +26,7 @@ import { activeSkin } from '../systems/SkinState';
 import { uiOverlayActive } from '../systems/UIState';
 import { quests } from '../systems/QuestSystem';
 import { enterHiRes, linearAllTd, restoreBase } from '../render/RenderScale';
-import { DEPTH } from '../render/Depth';
+import { DEPTH, sortedDepth } from '../render/Depth';
 import { TopDownShadows } from '../render/TopDownShadows';
 import { bindAtlasFrames, resolveTdArt, type TdArt } from '../topdown/TdAssets';
 import { tdBiomeFor, type TdBiomeDef } from '../topdown/TdBiomes';
@@ -35,7 +35,8 @@ import { TdLighting } from '../topdown/TdLighting';
 import { ActorRig, SignalNodeRig } from '../topdown/TdActors';
 
 type PickupType = 'health' | 'weapon' | 'boon';
-type ObjectiveKind = 'node' | 'breach' | 'survive' | 'gravity-well' | 'route-beacon';
+type ObjectiveKind = 'node' | 'breach' | 'survive' | 'gravity-well' | 'route-beacon' | 'field-event';
+type WeaponAnnounce = 'switch' | 'pickup' | 'boon' | 'quiet';
 
 interface SweepWorldHandoff {
   hp: number;
@@ -61,45 +62,7 @@ const SCOUT_TINT: Record<string, number> = {
   danny: P.scoutDanny,
 };
 
-const ROUTE_BEACONS: Record<string, {
-  toObjective: Array<{ tx: number; ty: number; label: string }>;
-  toExit: Array<{ tx: number; ty: number; label: string }>;
-}> = {
-  'surface-z1': {
-    toObjective: [
-      { tx: 11, ty: 14, label: 'FIELD TRACK' },
-      { tx: 15, ty: 11, label: 'WILLOW SIGNAL' },
-    ],
-    toExit: [
-      { tx: 23, ty: 12, label: 'EAST ROAD' },
-      { tx: 29, ty: 10, label: 'MOTEL BEND' },
-      { tx: 28, ty: 4, label: 'MOTEL BREACH' },
-    ],
-  },
-  'circuit-z2': {
-    toObjective: [
-      { tx: 4, ty: 9, label: 'SAFE SHADOW' },
-      { tx: 10, ty: 9, label: 'SCANNER HALL' },
-      { tx: 16, ty: 10, label: 'MOTEL CIRCUIT' },
-    ],
-    toExit: [
-      { tx: 24, ty: 11, label: 'SIDE LOT' },
-      { tx: 30, ty: 9, label: 'EXIT HALL' },
-      { tx: 30, ty: 5, label: 'RIVER ROAD' },
-      { tx: 28, ty: 4, label: 'TOWN BREACH' },
-    ],
-  },
-  'town-z3': {
-    toObjective: [
-      { tx: 11, ty: 16, label: 'MAIN STREET' },
-      { tx: 17, ty: 11, label: 'TOWER LINE' },
-    ],
-    toExit: [
-      { tx: 24, ty: 12, label: 'STADIUM ROAD' },
-      { tx: 30, ty: 15, label: 'ORCHARD GATE' },
-    ],
-  },
-};
+const ROUTE_BEACONS = SWEEP_ROUTE_BEACONS;
 
 /** shortest distance from point (px,py) to segment (ax,ay)-(bx,by) */
 function pointToSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
@@ -108,6 +71,25 @@ function pointToSegment(px: number, py: number, ax: number, ay: number, bx: numb
   const len2 = dx * dx + dy * dy || 1;
   const t = Phaser.Math.Clamp(((px - ax) * dx + (py - ay) * dy) / len2, 0, 1);
   return Math.hypot(px - (ax + dx * t), py - (ay + dy * t));
+}
+
+function seededUnit(seed: string): () => number {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return () => {
+    h += 0x6d2b79f5;
+    let t = h;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function pickSeeded<T>(rng: () => number, values: readonly T[]): T {
+  return values[Math.floor(rng() * values.length)] ?? values[0];
 }
 
 export class SweepScene extends Phaser.Scene {
@@ -166,6 +148,7 @@ export class SweepScene extends Phaser.Scene {
   private boonScanMul = 1; // WILLOW boon
   private boonFireMul = 1; // ROCKET boon
   private caches: Phaser.GameObjects.Image[] = [];
+  private fieldEventObjects: Array<{ def: SweepFieldEvent; x: number; y: number; marker: Phaser.GameObjects.Image; label: Phaser.GameObjects.Text; claimed: boolean }> = [];
   private elite?: SweepEnemy;
   private eliteAura?: Phaser.GameObjects.Image;
   private eliteBeam?: Phaser.GameObjects.Graphics;
@@ -179,6 +162,7 @@ export class SweepScene extends Phaser.Scene {
   private bossAddsSpawned = false; // one-time reinforcement wave fired
   private routeMarkers: Phaser.GameObjects.GameObject[] = [];
   private routeVisited = new Set<string>();
+  private exploredWashes: Array<{ area: Phaser.GameObjects.Rectangle; x: number; y: number; w: number; h: number; seen: boolean }> = [];
   private motelScanners: Array<{
     ax: number;
     ay: number;
@@ -203,6 +187,7 @@ export class SweepScene extends Phaser.Scene {
     ring: Phaser.GameObjects.Image;
     label: Phaser.GameObjects.Text;
   };
+  private orchardGateWarnAt = 0;
 
   /* ---- HD top-down visual treatment (per biome; see TdBiomes) ---- */
   private td = false; // is the HD treatment active for this arena?
@@ -275,6 +260,7 @@ export class SweepScene extends Phaser.Scene {
     this.boonScanMul = 1;
     this.boonFireMul = 1;
     this.caches = [];
+    this.fieldEventObjects = [];
     this.elite = undefined;
     this.eliteAura = undefined;
     this.eliteBeam = undefined;
@@ -285,12 +271,14 @@ export class SweepScene extends Phaser.Scene {
     this.bossAddsSpawned = false;
     this.routeMarkers = [];
     this.routeVisited = new Set<string>();
+    this.exploredWashes = [];
     this.motelScanners = [];
     this.motelAlertUntil = 0;
     this.motelAlertCooldownUntil = 0;
     this.motelAlertCount = 0;
     this.motelPhaseSlipUntil = 0;
     this.gravityWell = undefined;
+    this.orchardGateWarnAt = 0;
 
     this.arena = SWEEP_ARENAS[arenaId] ?? SWEEP_ARENAS[DEFAULT_ARENA];
     this.goal = goalForArena(this.arena.id);
@@ -331,6 +319,7 @@ export class SweepScene extends Phaser.Scene {
 
     this.walls = this.physics.add.staticGroup();
     this.buildMap(); // carves rooms/halls, builds floor + solid walls + floorTiles
+    this.buildExplorationWashes();
 
     this.playerShots = makeProjectileGroup(this, TEX.sweepShotP, SWEEP.maxShots);
     this.enemyShots = makeProjectileGroup(this, TEX.sweepShotE, 72); // headroom for PYLON radial volleys
@@ -431,6 +420,7 @@ export class SweepScene extends Phaser.Scene {
       this.buildBreach();
       this.buildCaches();
       this.buildRouteMarkers();
+      this.buildFieldEvents();
       this.buildRegionSetPieces();
       this.seedEnemies();
       this.seedWeaponPickups();
@@ -442,7 +432,6 @@ export class SweepScene extends Phaser.Scene {
         bus.emit(EVT.toast, { text: 'PHASE SHIFT ONLINE — blink through scanner pressure', color: 'green' });
       }
       bus.emit(EVT.toast, { text: this.goal.activeHint, color: 'green' });
-      this.showBanner(this.goal.objective.toUpperCase());
     } else {
       bus.emit(EVT.toast, { text: this.goal.activeHint, color: 'green' });
       this.cameras.main.fadeIn(350, 2, 3, 8);
@@ -511,6 +500,7 @@ export class SweepScene extends Phaser.Scene {
       this.tdLight = new TdLighting(this, AW, AH, this.tdBiome!);
       this.tdTerrain.accentLights = (h) => void this.tdLight?.add(h);
       this.tdTerrain.build();
+      this.buildEnvironmentalBlockers(solid, floorCoords);
       // collision bodies — identical merged rects to the legacy path
       for (let y = 0; y < H; y++) {
         let x = 0;
@@ -652,6 +642,136 @@ export class SweepScene extends Phaser.Scene {
     // fixed-size overlay can cover only part of the viewport and look broken.
   }
 
+  private buildExplorationWashes(): void {
+    if (!this.td) return;
+    const T = SWEEP.tile;
+    const spawnX = (this.arena.spawn.tx + 0.5) * T;
+    const spawnY = (this.arena.spawn.ty + 0.5) * T;
+    this.arena.rooms.forEach((r, i) => {
+      const x = (r.x + r.w / 2) * T;
+      const y = (r.y + r.h / 2) * T;
+      const w = Math.max(1, r.w * T);
+      const h = Math.max(1, r.h * T);
+      const seen = Math.abs(spawnX - x) <= w / 2 + 20 && Math.abs(spawnY - y) <= h / 2 + 20;
+      const area = this.add
+        .rectangle(x, y, w + 8, h + 8, P.black, seen ? 0.02 : 0.14)
+        .setDepth(5 + i * 0.001)
+        .setBlendMode(Phaser.BlendModes.NORMAL);
+      this.exploredWashes.push({ area, x, y, w, h, seen });
+    });
+  }
+
+  private updateExplorationWashes(): void {
+    if (!this.exploredWashes.length || !this.player?.active) return;
+    this.exploredWashes.forEach((w) => {
+      if (w.seen) return;
+      const inside =
+        Math.abs(this.player.x - w.x) <= w.w / 2 + 34 &&
+        Math.abs(this.player.y - w.y) <= w.h / 2 + 34;
+      if (!inside) return;
+      w.seen = true;
+      this.tweens.add({ targets: w.area, alpha: 0.025, duration: 520, ease: 'Sine.easeOut' });
+    });
+  }
+
+  private buildEnvironmentalBlockers(solid: boolean[][], floorCoords: Array<{ tx: number; ty: number; edge: boolean }>): void {
+    if (!this.td || !this.tdBiome) return;
+    const T = SWEEP.tile;
+    const rng = seededUnit(`blockers:${this.arena.id}`);
+    const markerClear = [this.arena.spawn, this.arena.node, this.arena.breach].filter(Boolean) as Array<{ tx: number; ty: number }>;
+    const clearOfMarkers = (tx: number, ty: number, d = 4) =>
+      !markerClear.some((m) => Math.abs(tx - m.tx) + Math.abs(ty - m.ty) < d);
+    const blockedEdge: Array<{ tx: number; ty: number; openBelow: boolean; openLeft: boolean; openRight: boolean; openAbove: boolean }> = [];
+    const seen = new Set<string>();
+    for (const p of floorCoords) {
+      if (!p.edge) continue;
+      for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]] as const) {
+        const tx = p.tx + dx;
+        const ty = p.ty + dy;
+        const k = `${tx},${ty}`;
+        if (seen.has(k) || !solid[ty]?.[tx] || !clearOfMarkers(tx, ty)) continue;
+        seen.add(k);
+        blockedEdge.push({
+          tx,
+          ty,
+          openBelow: !solid[ty + 1]?.[tx],
+          openLeft: !solid[ty]?.[tx - 1],
+          openRight: !solid[ty]?.[tx + 1],
+          openAbove: !solid[ty - 1]?.[tx],
+        });
+      }
+    }
+
+    const poolForArena = (): readonly string[] => {
+      if (this.arena.id === 'circuit-z2') {
+        return ['td-z2-rubble', 'td-z2-scrap', 'td-z2-tire', 'td-z2-cone', 'td-z2-crate', 'td-z2-planter'];
+      }
+      if (this.arena.id === 'town-z3') {
+        return ['td-z2-lm-car', 'td-z2-lm-lamp', 'td-z2-rubble', 'td-z2-planter', 'td-z2-crate', 'td-z2-cone'];
+      }
+      if (this.arena.id === 'maze-z4') {
+        return ['td-z4-hay', 'td-z4-crate', 'td-z4-pumpkin', 'td-z4-gourd', 'td-z4-basket', 'td-z4-tuft'];
+      }
+      if (this.arena.id === 'anomaly-01') {
+        return [TEX.tdScrap, TEX.tdRock, TEX.tdDebris, TEX.tdLmRelay, TEX.tdLmRoots, TEX.tdBush];
+      }
+      return [TEX.tdRock, TEX.tdBush, TEX.tdLog, TEX.tdFern, TEX.tdDebris, TEX.tdScrap];
+    };
+    const pool = poolForArena().filter((key) => this.textures.exists(key));
+    if (!pool.length) return;
+    for (let i = blockedEdge.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [blockedEdge[i], blockedEdge[j]] = [blockedEdge[j], blockedEdge[i]];
+    }
+    const max = Math.min(this.arena.id === 'town-z3' ? 52 : 44, blockedEdge.length);
+    for (let i = 0; i < max; i++) {
+      const edge = blockedEdge[i];
+      const tex = pickSeeded(rng, pool);
+      const horizontalOffset = (rng() - 0.5) * T * 0.62;
+      const sideNudge = edge.openLeft ? -T * 0.2 : edge.openRight ? T * 0.2 : 0;
+      const yBias = edge.openBelow ? 0.82 : edge.openAbove ? 0.34 : 0.58;
+      const x = (edge.tx + 0.5) * T + horizontalOffset + sideNudge;
+      const y = (edge.ty + yBias) * T;
+      const large = tex.includes('lm-') || rng() < (this.arena.id === 'town-z3' ? 0.28 : 0.16);
+      const baseScale = this.arena.id === 'town-z3' || this.arena.id === 'circuit-z2' ? 0.26 : 0.34;
+      const scale = large ? baseScale * (1.05 + rng() * 0.35) : baseScale * (0.65 + rng() * 0.5);
+      const img = this.add
+        .image(x, y, tex)
+        .setOrigin(0.5, 1)
+        .setDepth(sortedDepth(y))
+        .setScale(scale)
+        .setAlpha(this.arena.id === 'anomaly-01' ? 0.78 : 0.9);
+      if (rng() < 0.5) img.setFlipX(true);
+      if (this.arena.id === 'anomaly-01') {
+        img.setTint(rng() < 0.5 ? P.violetGlitch : P.neonCyan);
+        if (rng() < 0.32) {
+          this.tdLight?.add({ x, y: y - 12, radius: 34 + rng() * 36, color: rng() < 0.5 ? P.violetGlitch : P.danger, intensity: 0.16 });
+        }
+      }
+    }
+  }
+
+  private orchardGateReady(): boolean {
+    if (this.arena.id !== 'maze-z4') return true;
+    return !this.gravityWell || this.gravityWell.used;
+  }
+
+  private maybeCompleteTraverseObjective(): boolean {
+    if (!this.traverse || this.breachOpen || this.nodeFull) return false;
+    const minActions = this.arena.minObjectiveActions ?? 0;
+    if (this.nodeCharge < this.chargeTarget || this.objectiveProgressCount < minActions) return false;
+    if (!this.orchardGateReady()) {
+      this.fx.floatText(this.nodePos.x, this.nodePos.y - 26, 'RIDGE ROUTE FIRST', P.warning);
+      bus.emit(EVT.toast, { text: 'Redirect the Gravity Well before the Crop Circle opens.', color: 'orange' });
+      return false;
+    }
+    this.nodeFull = true;
+    // FINALE: charging the Node wakes the Maze Heart; the breach stays sealed until it dies.
+    if (this.arena.bossFinale) this.beginBossFinale();
+    else this.openBreach();
+    return true;
+  }
+
   /* ------------------------------ traverse ------------------------------- */
   private buildBreach(): void {
     const T = SWEEP.tile;
@@ -705,6 +825,7 @@ export class SweepScene extends Phaser.Scene {
       [glow, stem, postLight, dot, back, cap, label].forEach((obj) => {
         obj.setData('routePhase', phase);
         obj.setData('routeSign', true);
+        obj.setData('routeLabel', m.label);
         obj.setData('routeSignX', x);
         obj.setData('routeSignY', y - 20);
         obj.setData('baseAlpha', obj.alpha);
@@ -723,7 +844,12 @@ export class SweepScene extends Phaser.Scene {
     this.routeMarkers.forEach((obj) => {
       const phase = obj.getData?.('routePhase') as string | undefined;
       if (!phase) return;
-      (obj as unknown as Phaser.GameObjects.Components.Visible).setVisible(phase === activePhase);
+      let visible = phase === activePhase;
+      const label = obj.getData?.('routeLabel') as string | undefined;
+      if (visible && this.arena.id === 'maze-z4' && phase === 'objective') {
+        visible = this.gravityWell?.used ? label === 'CROP CIRCLE' : label !== 'CROP CIRCLE';
+      }
+      (obj as unknown as Phaser.GameObjects.Components.Visible).setVisible(visible);
     });
     this.updateRouteMarkerProximity();
   }
@@ -745,13 +871,15 @@ export class SweepScene extends Phaser.Scene {
     if (this.arena.id === 'circuit-z2') this.buildMotelScanners();
     if (this.arena.id !== 'maze-z4') return;
     const T = SWEEP.tile;
-    const x = (12.5) * T;
-    const y = (18.5) * T;
-    const destX = (17.5) * T;
-    const destY = (3.5) * T;
+    const well = SWEEP_GRAVITY_WELLS[this.arena.id];
+    if (!well) return;
+    const x = well.tx * T;
+    const y = well.ty * T;
+    const destX = well.destTx * T;
+    const destY = well.destTy * T;
     const ring = this.add.image(x, y, TEX.glow8).setDepth(10).setTint(P.cropGlow).setBlendMode(Phaser.BlendModes.ADD).setScale(2.2).setAlpha(0.42);
     const label = this.add
-      .text(x, y - 28, 'GRAVITY WELL\nE · LAUNCH TO RIDGE', {
+      .text(x, y - 28, well.label, {
         fontFamily: 'monospace',
         fontSize: '7px',
         fontStyle: 'bold',
@@ -769,7 +897,7 @@ export class SweepScene extends Phaser.Scene {
     const ridge = this.add.image(destX, destY, TEX.sweepCrop).setDepth(3).setTint(P.cropGlow).setBlendMode(Phaser.BlendModes.ADD).setScale(0.9).setAlpha(0.34);
     this.tweens.add({ targets: ridge, alpha: { from: 0.2, to: 0.5 }, duration: 1200, yoyo: true, repeat: -1 });
     this.add
-      .text(destX, destY - 22, 'RAISED RIDGE CACHE', {
+      .text(destX, destY - 22, well.destLabel, {
         fontFamily: 'monospace',
         fontSize: '7px',
         fontStyle: 'bold',
@@ -809,10 +937,7 @@ export class SweepScene extends Phaser.Scene {
       this.motelScanners.push({ ax, ay, bx, by, label, line, emitter, text });
     };
 
-    addScanner(2.7, 12.5, 5.3, 12.5, 'PHASE SHIFT');
-    addScanner(12.5, 7.8, 12.5, 10.2, 'SCANNER GATE');
-    addScanner(15.3, 6.5, 18.7, 6.5, 'BLINK WINDOW');
-    addScanner(28.3, 9.5, 31.2, 9.5, 'RIVER ROAD EXIT');
+    SWEEP_MOTEL_SCANNERS.forEach((s) => addScanner(s.aTx, s.aTy, s.bTx, s.bTy, s.label));
     bus.emit(EVT.toast, { text: 'MOTEL SECURITY — Phase Shift through red beams or fight the alert.', color: 'orange' });
   }
 
@@ -860,7 +985,6 @@ export class SweepScene extends Phaser.Scene {
   private cropBloom(): void {
     const { x, y } = this.nodePos;
     this.fx.flash(P.cropGlow, 220);
-    this.fx.shake(0.01, 320);
     this.fx.scanRing(x, y, 280, 900, P.cropGlow);
     const glyph = this.add
       .image(x, y, TEX.sweepCrop)
@@ -907,7 +1031,6 @@ export class SweepScene extends Phaser.Scene {
       rarity: goal.rewardType === 'Major story unlock' ? 'mythic' : 'epic',
       big: true,
     });
-    this.showBanner(`${goal.completionBanner} · ${goal.rewardName.toUpperCase()}`);
   }
 
   private regionRewardColor(): string {
@@ -968,14 +1091,20 @@ export class SweepScene extends Phaser.Scene {
   private addObjectiveProgress(x: number, y: number, amount: number, label = '+CHARGE'): void {
     if (!this.traverse || this.breachOpen || this.nodeFull) return;
     this.objectiveProgressCount++;
-    this.nodeCharge = Math.min(this.chargeTarget, this.nodeCharge + amount);
+    const gravityLocked = this.arena.id === 'maze-z4' && this.gravityWell && !this.gravityWell.used;
+    const preWellCap = gravityLocked ? Math.max(1, Math.floor(this.chargeTarget * 0.72)) : this.chargeTarget;
+    this.nodeCharge = Math.min(preWellCap, this.nodeCharge + amount);
     if (label) this.fx.floatText(x, y - 6, label, P.signalGreen);
+    if (gravityLocked && this.nodeCharge >= preWellCap && this.time.now >= this.orchardGateWarnAt) {
+      this.orchardGateWarnAt = this.time.now + 2400;
+      this.fx.floatText(this.nodePos.x, this.nodePos.y - 26, 'GRAVITY WELL FIRST', P.warning);
+      bus.emit(EVT.toast, { text: 'The Crop Circle is primed. Enter the Gravity Well to open it.', color: 'orange' });
+      this.emitHudStats();
+      return;
+    }
     const minActions = this.arena.minObjectiveActions ?? 0;
-    if (this.nodeCharge >= this.chargeTarget && this.objectiveProgressCount >= minActions) {
-      this.nodeFull = true;
-      // FINALE: charging the Node wakes the Maze Heart; the breach stays sealed until it dies.
-      if (this.arena.bossFinale) this.beginBossFinale();
-      else this.openBreach();
+    if (this.maybeCompleteTraverseObjective()) {
+      return;
     } else if (this.nodeCharge >= this.chargeTarget && minActions > 0) {
       this.fx.floatText(this.nodePos.x, this.nodePos.y - 26, `SIGNALS ${this.objectiveProgressCount}/${minActions}`, P.warning);
     }
@@ -997,7 +1126,6 @@ export class SweepScene extends Phaser.Scene {
   private beginBossFinale(): void {
     audio.bossWarning();
     this.fx.flash(P.danger, 200);
-    this.fx.shake(0.014, 420);
     if (this.arena.biome === 'orchard') this.cropBloom();
     bus.emit(EVT.toast, { text: 'THE MAZE HEART AWAKENS — DESTROY IT', color: 'orange' });
     this.showBanner('THE MAZE HEART AWAKENS');
@@ -1031,9 +1159,8 @@ export class SweepScene extends Phaser.Scene {
   private onBossDefeated(x: number, y: number): void {
     this.bossActive = false;
     this.eliteBeam?.clear();
-    // triumphant climax — big shake, a crop-glow flash, layered explosions + a signal ring
+    // triumphant climax — crop-glow flash, layered explosions + a signal ring
     this.fx.flash(P.cropGlow, 260);
-    this.fx.shake(0.02, 520);
     for (let i = 0; i < 3; i++)
       this.time.delayedCall(i * 120, () =>
         this.fx.explode(x + Phaser.Math.Between(-24, 24), y + Phaser.Math.Between(-24, 24), i % 2 ? P.warning : P.danger, 22)
@@ -1065,6 +1192,111 @@ export class SweepScene extends Phaser.Scene {
     marks.forEach((p) => {
       const c = this.add.image(p.x, p.y, TEX.sweepPickup).setDepth(6).setTint(P.violetGlitch).setAlpha(0).setScale(1.1);
       this.caches.push(c);
+    });
+  }
+
+  private buildFieldEvents(): void {
+    const T = SWEEP.tile;
+    (this.arena.fieldEvents ?? []).forEach((def) => {
+      const p = this.nearestWalkableWorld((def.tx + 0.5) * T, (def.ty + 0.5) * T);
+      const tint = this.fieldEventColor(def);
+      const marker = this.add
+        .image(p.x, p.y, TEX.glow8)
+        .setDepth(11)
+        .setTint(tint)
+        .setBlendMode(Phaser.BlendModes.ADD)
+        .setScale(def.trigger === 'scan' ? 1.15 : 1.35)
+        .setAlpha(def.trigger === 'scan' ? 0.34 : 0.48);
+      const label = this.add
+        .text(p.x, this.pickupLabelY(p.x, p.y, 24), `${def.label}\n${def.trigger === 'scan' ? 'SCAN' : 'POWER'}`, {
+          fontFamily: 'monospace',
+          fontSize: '6px',
+          fontStyle: 'bold',
+          color: css(P.cream),
+          align: 'center',
+          backgroundColor: 'rgba(5,8,14,0.76)',
+          padding: { x: 4, y: 3 },
+        })
+        .setOrigin(0.5)
+        .setResolution(2)
+        .setDepth(13)
+        .setAlpha(def.trigger === 'scan' ? 0.74 : 0.9);
+      this.tweens.add({
+        targets: marker,
+        scale: { from: marker.scale * 0.84, to: marker.scale * 1.18 },
+        alpha: { from: marker.alpha * 0.72, to: Math.min(0.72, marker.alpha * 1.34) },
+        duration: def.trigger === 'scan' ? 1100 : 760,
+        yoyo: true,
+        repeat: -1,
+      });
+      this.fieldEventObjects.push({ def, x: p.x, y: p.y, marker, label, claimed: false });
+    });
+  }
+
+  private fieldEventColor(def: SweepFieldEvent): number {
+    if (def.scout) return SCOUT_TINT[def.scout];
+    const weapon = def.wid ? (WEAPONS as Record<string, SweepWeapon>)[def.wid] : undefined;
+    if (def.reward === 'weapon' && weapon) return weapon.tint;
+    if (def.reward === 'health') return P.signalGreen;
+    if (def.reward === 'overdrive') return P.warning;
+    return P.violetGlitch;
+  }
+
+  private triggerScanFieldEvents(x: number, y: number, radius: number): void {
+    this.fieldEventObjects.forEach((event) => {
+      if (event.claimed || event.def.trigger !== 'scan') return;
+      if (Phaser.Math.Distance.Between(x, y, event.x, event.y) <= radius) this.claimFieldEvent(event);
+    });
+  }
+
+  private updateEnterFieldEvents(): void {
+    this.fieldEventObjects.forEach((event) => {
+      if (event.claimed || event.def.trigger !== 'enter') return;
+      const r = event.def.radius ?? 52;
+      if (Phaser.Math.Distance.Between(this.player.x, this.player.y, event.x, event.y) <= r) this.claimFieldEvent(event);
+    });
+  }
+
+  private claimFieldEvent(event: { def: SweepFieldEvent; x: number; y: number; marker: Phaser.GameObjects.Image; label: Phaser.GameObjects.Text; claimed: boolean }): void {
+    if (event.claimed) return;
+    event.claimed = true;
+    const def = event.def;
+    const tint = this.fieldEventColor(def);
+    audio.fragmentPickup();
+    this.fx.scanRing(event.x, event.y, 82, 420, tint);
+    this.fx.sparks(event.x, event.y, tint, 10);
+    this.fx.floatText(event.x, event.y - 10, def.label, tint);
+    if (def.message) bus.emit(EVT.toast, { text: def.message, color: def.reward === 'health' ? 'green' : def.reward === 'overdrive' ? 'orange' : 'cyan' });
+    this.tweens.add({ targets: [event.marker, event.label], alpha: 0, scale: 1.9, duration: 320, onComplete: () => { event.marker.destroy(); event.label.destroy(); } });
+    if (def.charge) this.addObjectiveProgress(event.x, event.y, def.charge, '+SIGNAL');
+    if (def.shards) {
+      addShards(def.shards);
+      this.shardsEarned += def.shards;
+      this.fx.floatText(event.x, event.y + 6, `+${def.shards} FRAGMENTS`, P.violetGlitch);
+    }
+    switch (def.reward) {
+      case 'boon':
+        this.time.delayedCall(140, () => this.dropBoon(event.x, event.y, def.scout));
+        break;
+      case 'health':
+        this.time.delayedCall(140, () => this.dropHealthPickup(event.x, event.y, true));
+        break;
+      case 'weapon':
+        this.time.delayedCall(140, () => this.dropWeaponPickup(event.x, event.y, def.wid ?? 'pulse', true));
+        break;
+      case 'overdrive':
+        this.overdrive = SWEEP.overdriveMax;
+        this.fx.floatText(event.x, event.y + 8, 'OVERDRIVE READY', P.warning);
+        this.emitHudStats();
+        break;
+    }
+    (def.spawns ?? []).forEach((m, i) => {
+      this.time.delayedCall(240 + i * 160, () => {
+        const T = SWEEP.tile;
+        const p = this.nearestWalkableWorld((m.tx + 0.5) * T, (m.ty + 0.5) * T);
+        this.fx.sparks(p.x, p.y, P.danger, 6);
+        this.addEnemy(new SweepEnemy(this, p.x, p.y, m.type));
+      });
     });
   }
 
@@ -1186,8 +1418,8 @@ export class SweepScene extends Phaser.Scene {
     });
   }
 
-  private dropBoon(x: number, y: number): void {
-    const scout = Phaser.Utils.Array.GetRandom(['will', 'chip', 'henry', 'cameron', 'danny']);
+  private dropBoon(x: number, y: number, scoutOverride?: string): void {
+    const scout = scoutOverride ?? Phaser.Utils.Array.GetRandom(['will', 'chip', 'henry', 'cameron', 'danny']);
     const pk = this.pickups.create(x, y, TEX.sweepPickup) as Phaser.Physics.Arcade.Image;
     pk.setTint(SCOUT_TINT[scout]).setScale(1.7).setDepth(12).setData('ptype', 'boon').setData('scout', scout);
     (pk.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
@@ -1205,7 +1437,7 @@ export class SweepScene extends Phaser.Scene {
         bus.emit(EVT.toast, { text: 'WILLOW — “I marked the whole field for you.”', color: 'cyan' });
         break;
       case 'chip':
-        this.setWeapon(WEAPONS.pulse);
+        this.setWeapon(WEAPONS.pulse, 'boon');
         this.fx.floatText(p.x, p.y - 10, 'SPARK', P.scoutChip);
         bus.emit(EVT.toast, { text: 'SPARK — “Carbine tuned. Go go go!”', color: 'orange' });
         break;
@@ -1216,7 +1448,7 @@ export class SweepScene extends Phaser.Scene {
         bus.emit(EVT.toast, { text: 'ANCHOR — “I’ve got you. Catch your breath.”', color: 'green' });
         break;
       case 'cameron':
-        this.setWeapon(WEAPONS.arc);
+        this.setWeapon(WEAPONS.arc, 'boon');
         this.fx.floatText(p.x, p.y - 10, 'ECHO', P.scoutCameron);
         bus.emit(EVT.toast, { text: 'ECHO — “Arc Blade. Get close, then cut through.”', color: 'cyan' });
         break;
@@ -1270,7 +1502,7 @@ export class SweepScene extends Phaser.Scene {
     this.spawnInterval = w.interval;
     this.spawnAt = this.time.now + 300;
     this.waveActive = true;
-    this.showBanner(`WAVE ${this.waveIdx + 1} / ${waves.length}`);
+    this.showBanner(w.label ?? `WAVE ${this.waveIdx + 1} / ${waves.length}`);
   }
 
   private spawnEnemy(kind: SweepEnemyKind): void {
@@ -1420,12 +1652,15 @@ export class SweepScene extends Phaser.Scene {
   }
 
   /* ------------------------------- firing -------------------------------- */
-  setWeapon(wp: SweepWeapon): void {
+  setWeapon(wp: SweepWeapon, announce: WeaponAnnounce = 'switch'): void {
     this.weapon = wp;
     const idx = WEAPON_LOADOUT.findIndex((id) => id === wp.id);
     if (idx >= 0) this.weaponIndex = idx;
-    bus.emit(EVT.toast, { text: `WEAPON: ${wp.name}`, color: 'green' });
-    this.showBanner(wp.name);
+    if (announce !== 'quiet') {
+      const prefix = announce === 'pickup' ? 'EQUIPPED' : announce === 'boon' ? 'TUNED' : 'WEAPON';
+      bus.emit(EVT.toast, { text: `${prefix}: ${wp.name}`, color: announce === 'pickup' ? 'cyan' : 'green' });
+      this.fx.floatText(this.player.x, this.player.y - 18, wp.name, wp.glow);
+    }
     this.emitHudStats();
   }
 
@@ -1522,11 +1757,13 @@ export class SweepScene extends Phaser.Scene {
     shardsEarned: number;
     nodeCharge: number;
     chargeTarget: number;
-    objectiveActions: number;
-    objectiveActionsRequired: number;
-    breachOpen: boolean;
-    enemiesActive: number;
-    motelScanners?: { disabled: number; total: number };
+      objectiveActions: number;
+      objectiveActionsRequired: number;
+      gravityWellUsed?: boolean;
+      gravityWellRequired?: boolean;
+      breachOpen: boolean;
+      enemiesActive: number;
+      motelScanners?: { disabled: number; total: number };
   } | null {
     if (!this.player?.active) return null;
     const motelScanners = this.motelScannerStatus();
@@ -1541,6 +1778,8 @@ export class SweepScene extends Phaser.Scene {
       chargeTarget: this.chargeTarget,
       objectiveActions: this.objectiveProgressCount,
       objectiveActionsRequired: this.arena.minObjectiveActions ?? 0,
+      gravityWellUsed: this.gravityWell?.used,
+      gravityWellRequired: this.arena.id === 'maze-z4' ? true : undefined,
       breachOpen: this.breachOpen,
       enemiesActive: this.enemies.countActive(true),
       motelScanners: motelScanners.total ? motelScanners : undefined,
@@ -1566,6 +1805,7 @@ export class SweepScene extends Phaser.Scene {
     const seenEnemies = (this.enemies.getChildren() as SweepEnemy[])
       .filter((en) => en.active && inView(en.x, en.y))
       .map((en) => ({
+        kind: en.kind,
         x: Math.round(en.x),
         y: Math.round(en.y),
         distance: Math.round(Phaser.Math.Distance.Between(this.player.x, this.player.y, en.x, en.y)),
@@ -1589,6 +1829,17 @@ export class SweepScene extends Phaser.Scene {
         y: Math.round(c.y),
         distance: Math.round(Phaser.Math.Distance.Between(this.player.x, this.player.y, c.x, c.y)),
       }));
+    const seenFieldEvents = this.fieldEventObjects
+      .filter((event) => !event.claimed && inView(event.x, event.y))
+      .map((event) => ({
+        x: Math.round(event.x),
+        y: Math.round(event.y),
+        label: event.def.label,
+        trigger: event.def.trigger,
+        reward: event.def.reward ?? '',
+        distance: Math.round(Phaser.Math.Distance.Between(this.player.x, this.player.y, event.x, event.y)),
+      }))
+      .sort((a, b) => a.distance - b.distance);
     const seenScanners = this.motelScanners
       .filter((s) => inView((s.ax + s.bx) / 2, (s.ay + s.by) / 2))
       .map((s) => {
@@ -1613,6 +1864,8 @@ export class SweepScene extends Phaser.Scene {
         node: Math.round(Phaser.Math.Clamp(this.nodeCharge / this.chargeTarget, 0, 1) * 100),
         objectiveActions: this.objectiveProgressCount,
         objectiveActionsRequired: this.arena.minObjectiveActions ?? 0,
+        gravityWellUsed: this.gravityWell?.used,
+        gravityWellRequired: this.arena.id === 'maze-z4' ? true : undefined,
         breachOpen: this.breachOpen,
         enemiesActive: this.enemies.countActive(true),
         overdrive: Math.round(Phaser.Math.Clamp(this.overdrive / SWEEP.overdriveMax, 0, 1) * 100),
@@ -1626,6 +1879,7 @@ export class SweepScene extends Phaser.Scene {
         enemies: seenEnemies,
         pickups: seenPickups,
         caches: seenCaches,
+        signals: seenFieldEvents,
         scanners: seenScanners,
         node: inView(this.nodePos.x, this.nodePos.y)
           ? { x: Math.round(this.nodePos.x), y: Math.round(this.nodePos.y), distance: Math.round(Phaser.Math.Distance.Between(this.player.x, this.player.y, this.nodePos.x, this.nodePos.y)) }
@@ -1648,6 +1902,18 @@ export class SweepScene extends Phaser.Scene {
   private currentObjectiveTarget(): { kind: ObjectiveKind; x: number; y: number } | null {
     if (!this.traverse) return { kind: 'survive', x: this.nodePos.x, y: this.nodePos.y };
     const route = ROUTE_BEACONS[this.arena.id];
+    if (this.gravityWell && !this.gravityWell.used && this.arena.id === 'maze-z4') {
+      const routedToWell = route ? this.routeBeaconTarget('objective', route.toObjective.filter((m) => m.label !== 'CROP CIRCLE')) : null;
+      if (routedToWell) return routedToWell;
+      return { kind: 'gravity-well', x: this.gravityWell.x, y: this.gravityWell.y };
+    }
+    if (this.gravityWell?.used && this.arena.id === 'maze-z4' && !this.breachOpen) {
+      const routedToCrop = route ? this.routeBeaconTarget('objective', route.toObjective.filter((m) => m.label === 'CROP CIRCLE')) : null;
+      if (routedToCrop) return routedToCrop;
+      return { kind: 'node', x: this.nodePos.x, y: this.nodePos.y };
+    }
+    const nearbyEvent = this.nearbyFieldEventTarget();
+    if (nearbyEvent) return nearbyEvent;
     if (route) {
       const routed = this.routeBeaconTarget(this.breachOpen ? 'exit' : 'objective', this.breachOpen ? route.toExit : route.toObjective);
       if (routed) return routed;
@@ -1657,13 +1923,27 @@ export class SweepScene extends Phaser.Scene {
     return { kind: 'node', x: this.nodePos.x, y: this.nodePos.y };
   }
 
+  private nearbyFieldEventTarget(): { kind: ObjectiveKind; x: number; y: number } | null {
+    if (!this.fieldEventObjects.length || this.breachOpen) return null;
+    let best: { kind: ObjectiveKind; x: number; y: number; d: number } | null = null;
+    for (const event of this.fieldEventObjects) {
+      if (event.claimed) continue;
+      const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, event.x, event.y);
+      const reach = event.def.trigger === 'scan' ? 170 : event.def.radius ?? 72;
+      if (d > reach) continue;
+      if (!best || d < best.d) best = { kind: 'field-event', x: event.x, y: event.y, d };
+    }
+    return best ? { kind: best.kind, x: best.x, y: best.y } : null;
+  }
+
   private routeBeaconTarget(phase: 'objective' | 'exit', markers: Array<{ tx: number; ty: number; label: string }>): { kind: ObjectiveKind; x: number; y: number } | null {
     for (const m of markers) {
       const x = (m.tx + 0.5) * SWEEP.tile;
       const y = (m.ty + 0.5) * SWEEP.tile;
       const key = `${phase}:${m.label}`;
       const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, x, y);
-      if (d <= 92) {
+      const visitRadius = m.label === 'GRAVITY WELL' ? 46 : 92;
+      if (d <= visitRadius) {
         this.routeVisited.add(key);
         continue;
       }
@@ -1739,7 +2019,7 @@ export class SweepScene extends Phaser.Scene {
         b.setData('recallDisc', wp.id === 'disc');
         b.setData('returnAt', now + 420);
         b.setData('discPhase', 'out');
-        b.setData('returnTrail', wp.id === 'disc' && ownsRicochet);
+        b.setData('returnTrail', wp.id === 'disc');
         b.setData('trailAt', 0);
         // reset per-shot specials every fire — the pool reuses sprites, so stale
         // homing/explode data from a previous weapon must be cleared.
@@ -1751,26 +2031,31 @@ export class SweepScene extends Phaser.Scene {
     // muzzle flash
     const mf = this.add.image(mx, my, TEX.glow8).setDepth(22).setTint(wp.glow).setBlendMode(Phaser.BlendModes.ADD).setScale(0.9).setAlpha(0.9);
     this.tweens.add({ targets: mf, scale: 0.15, alpha: 0, duration: 90, onComplete: () => mf.destroy() });
-    this.fx.sparks(mx, my, wp.glow, surge ? 4 : 2);
+    this.fx.sparks(mx, my, wp.glow, charged || surge || wp.id === 'disc' ? 5 : 2);
+    if (charged) {
+      this.fx.scanRing(mx + Math.cos(base) * 12, my + Math.sin(base) * 12, 38, 180, P.warning);
+    } else if (wp.id === 'disc') {
+      this.fx.scanRing(mx, my, 26, 160, wp.glow);
+    }
     audio.pulseShot();
   }
 
   private swingArcBlade(wp: SweepWeapon): void {
     const base = this.player.aimAngle;
-    const range = 58;
-    const arc = Math.PI * 0.72;
+    const range = 72;
+    const arc = Math.PI * 0.88;
     const px = this.player.x;
     const py = this.player.y;
     const blade = this.add.graphics().setDepth(26);
-    blade.lineStyle(4, wp.glow, 0.8);
+    blade.lineStyle(6, wp.glow, 0.86);
     blade.beginPath();
     blade.arc(px, py, range, base - arc / 2, base + arc / 2, false);
     blade.strokePath();
-    blade.lineStyle(1, P.white, 0.65);
+    blade.lineStyle(2, P.white, 0.72);
     blade.lineBetween(px, py, px + Math.cos(base) * range, py + Math.sin(base) * range);
     this.tweens.add({ targets: blade, alpha: 0, duration: 130, onComplete: () => blade.destroy() });
-    this.fx.sparks(px + Math.cos(base) * 24, py + Math.sin(base) * 24, wp.glow, 6);
-    this.fx.shake(0.003, 80);
+    this.fx.sparks(px + Math.cos(base) * 28, py + Math.sin(base) * 28, wp.glow, 9);
+    this.fx.scanRing(px + Math.cos(base) * 28, py + Math.sin(base) * 28, 34, 160, wp.glow);
     audio.pulseShot();
 
     let hit = false;
@@ -1782,7 +2067,7 @@ export class SweepScene extends Phaser.Scene {
       if (!inside) return;
       hit = true;
       this.impactFx(en.x, en.y, wp.glow);
-      if (en.applyHit(wp.damage, px, py, 340)) this.killEnemy(en);
+      if (en.applyHit(wp.damage, px, py, 430)) this.killEnemy(en);
     });
 
     let reflected = 0;
@@ -1807,7 +2092,7 @@ export class SweepScene extends Phaser.Scene {
       }
       reflected++;
     });
-    if (reflected && loadSave().purchasedUpgrades.includes('ghost-protocol')) this.arcParryShockwave(px, py, wp);
+    if (reflected) this.arcParryShockwave(px, py, wp);
     if (hit || reflected) audio.enemyHit();
     if (reflected) this.fx.floatText(px, py - 12, `PARRY x${reflected}`, wp.glow);
   }
@@ -1894,7 +2179,6 @@ export class SweepScene extends Phaser.Scene {
   private explodeShot(x: number, y: number, ex: { radius: number; damage: number }): void {
     this.fx.mechanicalRupture(x, y, P.warning, 22);
     this.fx.scorch(x, y, Math.max(12, ex.radius * 0.18));
-    this.fx.shake(0.007, 140);
     audio.explode();
     const ring = this.add.image(x, y, TEX.glow8).setDepth(24).setTint(P.warning).setBlendMode(Phaser.BlendModes.ADD).setScale(0.6).setAlpha(0.9);
     this.tweens.add({ targets: ring, scale: Math.max(1, ex.radius / 20), alpha: 0, duration: 220, onComplete: () => ring.destroy() });
@@ -2003,11 +2287,10 @@ export class SweepScene extends Phaser.Scene {
   }
 
   private impactFx(x: number, y: number, tint: number): void {
-    this.fx.sparks(x, y, P.white, 4);
-    this.fx.sparks(x, y, tint, 5);
-    this.fx.shake(0.0014, 42);
-    const fl = this.add.image(x, y, TEX.glow8).setDepth(23).setTint(tint).setBlendMode(Phaser.BlendModes.ADD).setScale(0.6).setAlpha(0.85);
-    this.tweens.add({ targets: fl, scale: 0.1, alpha: 0, duration: 130, onComplete: () => fl.destroy() });
+    this.fx.sparks(x, y, P.white, 5);
+    this.fx.sparks(x, y, tint, 7);
+    const fl = this.add.image(x, y, TEX.glow8).setDepth(23).setTint(tint).setBlendMode(Phaser.BlendModes.ADD).setScale(0.76).setAlpha(0.9);
+    this.tweens.add({ targets: fl, scale: 0.12, alpha: 0, duration: 145, onComplete: () => fl.destroy() });
   }
 
   private killEnemy(en: SweepEnemy): void {
@@ -2016,7 +2299,6 @@ export class SweepScene extends Phaser.Scene {
     const ey = en.y;
     this.fx.mechanicalRupture(ex, ey, P.warning, 18);
     this.fx.scorch(ex, ey, 14);
-    this.fx.shake(0.0052, 115);
     // Mechanical death read: sparks, a hard discharge ring, then lingering damage.
     const ring = this.add.image(ex, ey, TEX.glow8).setDepth(23).setTint(P.warning).setBlendMode(Phaser.BlendModes.ADD).setScale(0.5).setAlpha(0.95);
     this.tweens.add({ targets: ring, scale: 2.05, alpha: 0, duration: 270, onComplete: () => ring.destroy() });
@@ -2042,7 +2324,6 @@ export class SweepScene extends Phaser.Scene {
     } else if (isElite) {
       this.fx.mechanicalRupture(ex, ey, P.danger, 30);
       this.fx.scorch(ex, ey, 22);
-      this.fx.shake(0.01, 260);
       this.dropBoon(ex, ey);
       addShards(SWEEP.eliteCacheShards);
       this.shardsEarned += SWEEP.eliteCacheShards;
@@ -2071,7 +2352,6 @@ export class SweepScene extends Phaser.Scene {
       if (en.applyHit(SWEEP.shotDmg, this.player.x, this.player.y)) {
         this.killEnemy(en);
         if (SWEEP.dashRefundOnPhaseKill) this.player.refreshDash(); // dash-chain flow
-        this.fx.shake(0.006, 90);
       }
       return;
     }
@@ -2092,12 +2372,30 @@ export class SweepScene extends Phaser.Scene {
 
   private onPlayerHurt(): void {
     this.fx.sparks(this.player.x, this.player.y, P.danger, 8);
-    this.fx.shake(0.006, 120);
+    this.fx.shake(0.0032, 80);
     this.heat = Math.min(100, this.heat + SWEEP.heatFillOnHit);
     if (this.player.hp <= 0) this.onDeath();
   }
 
   /* ------------------------------ pickups -------------------------------- */
+  private pickupLabelY(x: number, y: number, baseOffset: number): number {
+    let nearbyLabels = 0;
+    let nearRouteSign = false;
+    this.routeMarkers.forEach((obj) => {
+      if (!obj.getData?.('routeSign') || !(obj as unknown as Phaser.GameObjects.Components.Visible).visible) return;
+      const sx = Number(obj.getData('routeSignX') ?? 0);
+      const sy = Number(obj.getData('routeSignY') ?? 0);
+      if (Math.abs(x - sx) < 92 && Math.abs(y - sy) < 58) nearRouteSign = true;
+    });
+    if (nearRouteSign) return y + 24;
+    (this.pickups?.getChildren?.() as Phaser.Physics.Arcade.Image[] | undefined)?.forEach((pk) => {
+      if (!pk.active) return;
+      if (!pk.getData('label')) return;
+      if (Phaser.Math.Distance.Between(x, y, pk.x, pk.y) < 46) nearbyLabels++;
+    });
+    return y - baseOffset - Math.min(2, nearbyLabels) * 13;
+  }
+
   private dropPickup(x: number, y: number): void {
     // half the time a health orb, otherwise a random WEAPON pickup
     const isWeapon = Math.random() > 0.5;
@@ -2114,9 +2412,9 @@ export class SweepScene extends Phaser.Scene {
     if (isWeapon) {
       const wp = WEAPONS[wid];
       label = this.add
-        .text(x, y - 25, `${wp.name}\n${wp.role}`, {
+        .text(x, this.pickupLabelY(x, y, 25), this.weaponPickupLabel(wp, false), {
           fontFamily: 'monospace',
-          fontSize: '7px',
+          fontSize: '6px',
           fontStyle: 'bold',
           color: css(P.cream),
           align: 'center',
@@ -2133,17 +2431,41 @@ export class SweepScene extends Phaser.Scene {
     this.time.delayedCall(11000, () => { if (pk.active) { glow.destroy(); label?.destroy(); pk.destroy(); } });
   }
 
+  private dropHealthPickup(x: number, y: number, persist = false): void {
+    const pk = this.pickups.create(x, y, TEX.sweepPickup) as Phaser.Physics.Arcade.Image;
+    pk.setTint(P.signalGreen).setScale(1.25).setDepth(12).setData('ptype', 'health');
+    (pk.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
+    const glow = this.add.image(x, y, TEX.glow8).setDepth(11).setTint(P.signalGreen).setBlendMode(Phaser.BlendModes.ADD).setScale(1.25).setAlpha(0.36);
+    const label = this.add
+      .text(x, this.pickupLabelY(x, y, 23), 'RECOVERY', {
+        fontFamily: 'monospace',
+        fontSize: '6px',
+        fontStyle: 'bold',
+        color: css(P.cream),
+        backgroundColor: 'rgba(5,8,14,0.76)',
+        padding: { x: 4, y: 2 },
+      })
+      .setOrigin(0.5)
+      .setResolution(2)
+      .setDepth(13);
+    pk.setData('glow', glow);
+    pk.setData('label', label);
+    this.tweens.add({ targets: pk, scale: { from: 1.05, to: 1.45 }, duration: 520, yoyo: true, repeat: -1 });
+    this.tweens.add({ targets: glow, alpha: { from: 0.22, to: 0.5 }, duration: 640, yoyo: true, repeat: -1 });
+    if (!persist) this.time.delayedCall(11000, () => { if (pk.active) { glow.destroy(); label.destroy(); pk.destroy(); } });
+  }
+
   /** place a specific WEAPON pickup (guaranteed finale loot / boss payout). */
   private dropWeaponPickup(x: number, y: number, wid: string, persist: boolean): void {
     const wp = WEAPONS[wid] ?? WEAPONS.pulse;
     const pk = this.pickups.create(x, y, TEX.sweepPickup) as Phaser.Physics.Arcade.Image;
-    pk.setTint(wp.tint).setScale(1.5).setDepth(12).setData('ptype', 'weapon').setData('wid', wid);
+    pk.setTint(wp.tint).setScale(1.5).setDepth(12).setData('ptype', 'weapon').setData('wid', wp.id).setData('major', persist);
     (pk.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
     const glow = this.add.image(x, y, TEX.glow8).setDepth(11).setTint(wp.tint).setBlendMode(Phaser.BlendModes.ADD).setScale(1.4).setAlpha(0.4);
     const label = this.add
-      .text(x, y - 25, `${wp.name}\n${wp.role}`, {
+      .text(x, this.pickupLabelY(x, y, 25), this.weaponPickupLabel(wp, persist), {
         fontFamily: 'monospace',
-        fontSize: '7px',
+        fontSize: '6px',
         fontStyle: 'bold',
         color: css(P.cream),
         align: 'center',
@@ -2160,6 +2482,15 @@ export class SweepScene extends Phaser.Scene {
     if (!persist) this.time.delayedCall(14000, () => { if (pk.active) { glow.destroy(); label.destroy(); pk.destroy(); } });
   }
 
+  private weaponPickupLabel(wp: SweepWeapon, major: boolean): string {
+    const role = wp.id === 'pulse' ? 'RANGED' : wp.id === 'arc' ? 'PARRY · CLOSE' : 'RETURN PATH';
+    return major ? `${wp.name}\n${role}` : `${wp.name}\nEQUIP`;
+  }
+
+  private weaponRewardIcon(wp: SweepWeapon): string {
+    return wp.id === 'pulse' ? 'pulse' : wp.id === 'arc' ? 'echo' : 'relic';
+  }
+
   /** seed the finale's guaranteed weapon pickups (arena.weaponSpawns) so gun variety is assured. */
   private seedWeaponPickups(): void {
     const T = SWEEP.tile;
@@ -2172,13 +2503,14 @@ export class SweepScene extends Phaser.Scene {
   private onPickup(pk: Phaser.Physics.Arcade.Image): void {
     if (!pk.active) return;
     const type = pk.getData('ptype') as PickupType;
+    const wid = pk.getData('wid') as string | undefined;
+    const scout = pk.getData('scout') as string | undefined;
     (pk.getData('glow') as Phaser.GameObjects.Image | undefined)?.destroy();
     (pk.getData('label') as Phaser.GameObjects.Text | undefined)?.destroy();
     this.impactFx(this.player.x, this.player.y, P.signalGreen); // collect pop
     if (type === 'boon') {
-      const scout = pk.getData('scout') as string;
       pk.destroy();
-      this.applyBoon(scout);
+      this.applyBoon(scout ?? 'will');
       return;
     }
     pk.destroy();
@@ -2187,7 +2519,20 @@ export class SweepScene extends Phaser.Scene {
       this.player.heal(SWEEP.healAmount);
       this.fx.floatText(this.player.x, this.player.y - 10, '+HP', P.signalGreen);
     } else {
-      this.setWeapon(WEAPONS[pk.getData('wid') as string] ?? WEAPONS.pulse);
+      const wp = wid ? WEAPONS[wid] : undefined;
+      const resolved = wp ?? WEAPONS.pulse;
+      this.setWeapon(resolved, 'pickup');
+      if (pk.getData('major') === true) {
+        bus.emit(EVT.rewardBanner, {
+          kind: 'weapon-pickup',
+          title: resolved.name,
+          sub: `WEAPON · ${resolved.id === 'arc' ? 'PARRY / CLOSE RANGE' : resolved.id === 'disc' ? 'POSITIONING / RETURN DAMAGE' : 'RANGED PRESSURE'}`,
+          desc: resolved.role,
+          color: css(resolved.glow),
+          icon: this.weaponRewardIcon(resolved),
+          rarity: 'epic',
+        });
+      }
     }
   }
 
@@ -2220,16 +2565,16 @@ export class SweepScene extends Phaser.Scene {
     }
     // double-duty Scan: reveal + grab buried Signal Caches in range
     this.revealCaches(this.player.x, this.player.y, r);
+    this.triggerScanFieldEvents(this.player.x, this.player.y, r);
   }
 
-  private tryGravityWell(): boolean {
+  private tryGravityWell(maxDistance = 88): boolean {
     const well = this.gravityWell;
     if (!well || well.used) return false;
-    if (Phaser.Math.Distance.Between(this.player.x, this.player.y, well.x, well.y) > 62) return false;
+    if (Phaser.Math.Distance.Between(this.player.x, this.player.y, well.x, well.y) > maxDistance) return false;
     well.used = true;
     audio.hazardZap();
     this.fx.flash(P.cropGlow, 140);
-    this.fx.shake(0.012, 260);
     this.fx.scanRing(well.x, well.y, 126, 520, P.cropGlow);
     this.fx.afterimage(this.player, P.cropGlow);
     const body = this.player.body as Phaser.Physics.Arcade.Body;
@@ -2247,6 +2592,11 @@ export class SweepScene extends Phaser.Scene {
         this.awardRegionReward();
         well.ring.setTint(P.signalGreen);
         well.label.setText('GRAVITY WELL\nRIDGE ROUTE OPEN').setColor(css(P.signalGreen));
+        this.updateRouteMarkerVisibility();
+        this.fx.floatText(this.nodePos.x, this.nodePos.y - 28, 'CROP CIRCLE UNLOCKED', P.cropGlow);
+        bus.emit(EVT.toast, { text: 'Raised Ridge reached — the Crop Circle can open now.', color: 'green' });
+        this.emitHudStats();
+        this.maybeCompleteTraverseObjective();
       },
     });
     bus.emit(EVT.toast, { text: 'GRAVITY WELL REDIRECTED — ridge route opening', color: 'green' });
@@ -2305,7 +2655,6 @@ export class SweepScene extends Phaser.Scene {
     this.heat = Math.min(100, this.heat + 16);
     audio.bossWarning();
     this.fx.flash(P.danger, 110);
-    this.fx.shake(0.006, 150);
     this.fx.floatText(this.player.x, this.player.y - 18, 'SCANNER ALERT', P.danger);
     bus.emit(EVT.toast, { text: 'SCANNER ALERT — fight through or Phase Shift out.', color: 'orange' });
     if (this.motelAlertCount <= 1) {
@@ -2329,7 +2678,9 @@ export class SweepScene extends Phaser.Scene {
     const dt = delta / 1000;
     this.updateObjectiveArrow();
     this.updateRouteMarkerProximity();
+    this.updateExplorationWashes();
     this.updateMotelScanners(now);
+    this.updateEnterFieldEvents();
 
     // ── aim: right stick if pushed · touch auto-aims nearest · else the mouse ──
     let firing = false;
@@ -2371,7 +2722,8 @@ export class SweepScene extends Phaser.Scene {
     }
     const interactJustDown = this.input2.interactJustDown;
     if (this.input2.scanJustDown) this.doScan();
-    const usedGravityWell = interactJustDown ? this.tryGravityWell() : false;
+    const autoGravityWell = this.tryGravityWell(52);
+    const usedGravityWell = autoGravityWell || (interactJustDown ? this.tryGravityWell() : false);
 
     if (firing && now >= this.fireAt && this.player.alive) this.fire(now);
 
@@ -2463,13 +2815,17 @@ export class SweepScene extends Phaser.Scene {
       : this.goal.objective;
     let objectiveSub = this.traverse
       ? this.breachOpen ? this.goal.exitHint : `${this.goal.activeHint} Reward: ${this.goal.rewardName}.`
-      : `Wave ${this.waveIdx + 1} / ${this.arena.waves?.length ?? 0} · Reward: ${this.goal.rewardName}.`;
+      : `${this.arena.waves?.[this.waveIdx]?.label ?? `Wave ${this.waveIdx + 1} / ${this.arena.waves?.length ?? 0}`} · Reward: ${this.goal.rewardName}.`;
     if (this.arena.id === 'circuit-z2' && !this.breachOpen) {
       const status = this.motelScannerStatus();
       const gateCopy = status.total ? `Scanner gates ${status.disabled}/${status.total}. ` : '';
       objectiveSub = this.motelAlertUntil > this.time.now
         ? `${gateCopy}ALERT ACTIVE · fight through it or Phase Shift out. Reward: ${this.goal.rewardName}.`
         : `${gateCopy}Avoid red scanners or Phase Shift through them. Reward: ${this.goal.rewardName}.`;
+    } else if (this.arena.id === 'maze-z4' && !this.breachOpen) {
+      objectiveSub = this.gravityWell && !this.gravityWell.used
+        ? 'Follow LOWER ROWS to the Gravity Well, enter the launch ring, then finish the Crop Circle route.'
+        : `Raised Ridge reached. Return to the Crop Circle and finish opening the storm passage. Reward: ${this.goal.rewardName}.`;
     }
     bus.emit(EVT.hudSweepStats, {
       region: this.arena.label,
@@ -2524,7 +2880,6 @@ export class SweepScene extends Phaser.Scene {
     this.overdrive = 0;
     audio.doorUnlock();
     this.fx.flash(P.signal, 200);
-    this.fx.shake(0.01, 260);
     this.fx.scanRing(this.player.x, this.player.y, SWEEP.overdriveShockRadius, 520, P.signal);
     bus.emit(EVT.toast, { text: '⚡ SIGNAL OVERDRIVE ⚡', color: 'green' });
     this.showBanner('SIGNAL OVERDRIVE');
@@ -2739,6 +3094,8 @@ export class SweepScene extends Phaser.Scene {
     resetVirtualInput();
     this.tdPlayerRim?.destroy();
     this.objectiveArrow?.destroy();
+    this.exploredWashes.forEach((w) => w.area.destroy());
+    this.exploredWashes = [];
     this.objectiveArrow = undefined;
     this.tdPlayerRim = undefined;
     this.tdRigs.forEach((r) => r.destroy());

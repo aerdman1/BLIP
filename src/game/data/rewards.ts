@@ -29,7 +29,7 @@ export interface RarityDef {
   glow: string;
   /** ordering weight — higher = rarer (used for dust value + reveal intensity) */
   rank: number;
-  /** 0..1 how BIG the reveal should feel (screen shake, beams, hold time) */
+  /** 0..1 how big the reveal should feel (beams, burst density, hold time) */
   intensity: number;
   /** Signal Dust granted when a duplicate of this rarity is converted */
   dupeDust: number;

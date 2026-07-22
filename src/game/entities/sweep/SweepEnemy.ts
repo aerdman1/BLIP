@@ -67,11 +67,15 @@ export class SweepEnemy extends Phaser.Physics.Arcade.Sprite {
   private stuckRecoveries = 0;
   private shieldHits = 0;
   private shieldBrokenUntil = 0;
+  private readonly anchorX: number;
+  private readonly anchorY: number;
 
   constructor(scene: Phaser.Scene, x: number, y: number, kind: SweepEnemyKind) {
     super(scene, x, y, TEX_FOR[kind]);
     this.kind = kind;
     this.cfg = SWEEP_ENEMIES[kind];
+    this.anchorX = x;
+    this.anchorY = y;
     this.hp = this.cfg.hp;
     this.maxHp = this.cfg.hp;
     this.points = this.cfg.points;
@@ -83,6 +87,7 @@ export class SweepEnemy extends Phaser.Physics.Arcade.Sprite {
     // hits look like direct hits but register as misses.
     body.setSize(24, 24, true);
     body.setDrag(600, 600);
+    if (this.cfg.behavior === 'turret') body.setImmovable(true);
     this.setDepth(15);
     this.hpBar = scene.add.graphics().setDepth(16);
     this.nextDiveAt = scene.time.now + 700 + Math.random() * 1400;
@@ -246,6 +251,12 @@ export class SweepEnemy extends Phaser.Physics.Arcade.Sprite {
     const ang = Math.atan2(py - this.y, px - this.x);
     this.faceAngle = ang;
     if (this.cfg.shielded) this.setRotation(0); // HD shielded drones should not visually roll onto their side
+    if (this.cfg.behavior === 'turret') {
+      if (Phaser.Math.Distance.Squared(this.x, this.y, this.anchorX, this.anchorY) > 0.25) {
+        this.setPosition(this.anchorX, this.anchorY);
+      }
+      body.setVelocity(0, 0);
+    }
     // while being knocked back, let momentum carry — don't fight it with AI
     if (now < this.knockbackUntil) return;
 
@@ -372,6 +383,11 @@ export class SweepEnemy extends Phaser.Physics.Arcade.Sprite {
     const now = this.scene.time.now;
     this.setTint(0xffffff);
     this.flashUntil = now + 70;
+    if (this.cfg.behavior === 'turret') {
+      this.setPosition(this.anchorX, this.anchorY);
+      (this.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
+      return this.hp <= 0;
+    }
     const ang = Math.atan2(this.y - fromY, this.x - fromX);
     (this.body as Phaser.Physics.Arcade.Body).setVelocity(Math.cos(ang) * force, Math.sin(ang) * force);
     this.knockbackUntil = now + 130;

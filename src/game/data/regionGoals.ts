@@ -49,7 +49,7 @@ export const REGION_GOALS: Record<string, RegionGoal> = {
   'maze-z4': {
     arenaId: 'maze-z4',
     objective: 'Redirect the Orchard Gravity Well',
-    activeHint: 'Activate the well, reach the raised ridge and break the Maze Heart.',
+    activeHint: 'Activate the well, reach the raised ridge and open the Crop Circle route.',
     exitHint: 'Storm passage open: enter the signal storm.',
     rewardId: 'pulse-ricochet',
     rewardName: 'Carbine Ricochet',
@@ -86,7 +86,7 @@ export const SYSTEM_CHECKLIST: Array<{ name: string; status: RegionGoalStatus; n
   { name: 'Major loot comparison/equip presentation', status: 'partial', note: 'Major rewards and weapon pickups show name/type/use; full compare/store/salvage is deferred.' },
   { name: 'Region-specific objectives', status: 'implemented', note: 'HUD, telemetry and rewards now use named region goals instead of generic node copy.' },
   { name: 'Distinct enemy combat roles', status: 'implemented', note: 'Drifter, tagger, diver, warden, turret, sniper, splitter and weaver are already active.' },
-  { name: 'Memorable final encounter', status: 'partial', note: 'Maze Heart and Storm Classifier finale beats exist; future pass can add a larger boss presentation.' },
+  { name: 'Memorable final encounter', status: 'partial', note: 'Storm Classifier finale beats exist; dormant Maze Heart code is deferred until Orchard needs a separate boss.' },
 ];
 
 export function goalForArena(arenaId: string): RegionGoal {

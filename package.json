@@ -16,6 +16,7 @@
     "test:playtest": "playwright test tests/smoke.spec.ts",
     "qa:playtest": "playwright test tests/smoke.spec.ts",
     "qa:ai": "playwright test tests/ai-player-lab.spec.ts",
+    "qa:maps": "node scripts/validate-map-data.mjs",
     "ai:campaign": "node scripts/ai-player-campaign.mjs",
     "qa:full": "npm run typecheck && npm run build && npm run test:e2e",
     "qa:loop": "npm run qa:full",

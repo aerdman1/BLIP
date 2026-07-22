@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="360" viewBox="0 0 1240 360">
+  <rect width="100%" height="100%" fill="#101820" />
+  <text x="32" y="40" font-size="22" fill="#9dff57" font-family="monospace" font-weight="700">BLIP Current Route Overview</text>
+  <text x="32" y="62" font-size="12" fill="#f5efe0" font-family="monospace">Separate Phaser arena scenes connected by charged breach handoffs. Not a seamless single world map yet.</text>
+  <line x1="196" y1="170" x2="264" y2="170" stroke="#67d8ff" stroke-width="4" />
+<polygon points="254,163 264,170 254,177" fill="#67d8ff" />
+<line x1="436" y1="170" x2="504" y2="170" stroke="#67d8ff" stroke-width="4" />
+<polygon points="494,163 504,170 494,177" fill="#67d8ff" />
+<line x1="676" y1="170" x2="744" y2="170" stroke="#67d8ff" stroke-width="4" />
+<polygon points="734,163 744,170 734,177" fill="#67d8ff" />
+<line x1="916" y1="170" x2="984" y2="170" stroke="#67d8ff" stroke-width="4" />
+<polygon points="974,163 984,170 974,177" fill="#67d8ff" />
+  <rect x="24" y="126" width="172" height="88" fill="#18252c" stroke="#9dff57" stroke-width="2" rx="4" />
+<text x="110" y="158" text-anchor="middle" font-size="14" fill="#e8f5de" font-family="monospace" font-weight="700">Miller Surface</text>
+<text x="110" y="177" text-anchor="middle" font-size="10" fill="#f5efe0" font-family="monospace">surface-z1</text>
+<text x="110" y="194" text-anchor="middle" font-size="10" fill="#f5efe0" font-family="monospace">86x52 tiles</text>
+<rect x="264" y="126" width="172" height="88" fill="#18252c" stroke="#9dff57" stroke-width="2" rx="4" />
+<text x="350" y="158" text-anchor="middle" font-size="14" fill="#e8f5de" font-family="monospace" font-weight="700">Motel Circuit</text>
+<text x="350" y="177" text-anchor="middle" font-size="10" fill="#f5efe0" font-family="monospace">circuit-z2</text>
+<text x="350" y="194" text-anchor="middle" font-size="10" fill="#f5efe0" font-family="monospace">86x52 tiles</text>
+<rect x="504" y="126" width="172" height="88" fill="#18252c" stroke="#9dff57" stroke-width="2" rx="4" />
+<text x="590" y="158" text-anchor="middle" font-size="14" fill="#e8f5de" font-family="monospace" font-weight="700">Chagrin Falls Town</text>
+<text x="590" y="177" text-anchor="middle" font-size="10" fill="#f5efe0" font-family="monospace">town-z3</text>
+<text x="590" y="194" text-anchor="middle" font-size="10" fill="#f5efe0" font-family="monospace">92x56 tiles</text>
+<rect x="744" y="126" width="172" height="88" fill="#18252c" stroke="#9dff57" stroke-width="2" rx="4" />
+<text x="830" y="158" text-anchor="middle" font-size="14" fill="#e8f5de" font-family="monospace" font-weight="700">Patterson's Orchard</text>
+<text x="830" y="177" text-anchor="middle" font-size="10" fill="#f5efe0" font-family="monospace">maze-z4</text>
+<text x="830" y="194" text-anchor="middle" font-size="10" fill="#f5efe0" font-family="monospace">92x58 tiles</text>
+<rect x="984" y="126" width="172" height="88" fill="#18252c" stroke="#9dff57" stroke-width="2" rx="4" />
+<text x="1070" y="158" text-anchor="middle" font-size="14" fill="#e8f5de" font-family="monospace" font-weight="700">Signal Storm</text>
+<text x="1070" y="177" text-anchor="middle" font-size="10" fill="#f5efe0" font-family="monospace">anomaly-01</text>
+<text x="1070" y="194" text-anchor="middle" font-size="10" fill="#f5efe0" font-family="monospace">82x54 tiles</text>
+</svg>

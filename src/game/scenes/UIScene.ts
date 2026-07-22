@@ -52,6 +52,10 @@ export class UIScene extends Phaser.Scene {
   private sweepHpFillEl: HTMLElement | null = null;
   private sweepBannerEl: HTMLElement | null = null;
   private sweepBannerTimer: number | null = null;
+  private sweepBannerQueue: string[] = [];
+  private sweepBannerActive = false;
+  private lastSweepBannerText = '';
+  private lastSweepBannerAt = 0;
   private stats: SweepStats = {
     region: 'Miller Surface', heat: 0, node: 0, breachOpen: false, traverse: true, enemies: 0,
     wave: 0, waves: 0, combo: 0, weapon: 'PULSE', overdrive: 0, odReady: false, odActive: false,
@@ -175,6 +179,7 @@ export class UIScene extends Phaser.Scene {
     } else {
       this.sweepG.clear();
       this.sweepGlow.clear();
+      this.sweepBannerQueue = [];
       this.hideSweepBanner();
     }
   }
@@ -237,11 +242,24 @@ export class UIScene extends Phaser.Scene {
 
   private showBanner(text: string): void {
     if (!this.sweepActive) return;
+    const now = performance.now();
+    if (text === this.lastSweepBannerText && now - this.lastSweepBannerAt < 1400) return;
+    this.lastSweepBannerText = text;
+    this.lastSweepBannerAt = now;
+    if (this.sweepBannerQueue.length > 3) this.sweepBannerQueue.shift();
+    this.sweepBannerQueue.push(text);
+    this.pumpSweepBanner();
+  }
+
+  private pumpSweepBanner(): void {
+    if (!this.sweepActive || this.sweepBannerActive || !this.sweepBannerEl || !this.sweepBannerQueue.length) return;
+    const text = this.sweepBannerQueue.shift() as string;
+    this.sweepBannerActive = true;
     if (this.sweepBannerEl) {
       this.sweepBannerEl.textContent = text;
       this.sweepBannerEl.classList.add('on');
       if (this.sweepBannerTimer != null) window.clearTimeout(this.sweepBannerTimer);
-      this.sweepBannerTimer = window.setTimeout(() => this.hideSweepBanner(), 1200);
+      this.sweepBannerTimer = window.setTimeout(() => this.hideSweepBanner(), 900);
     }
   }
 
@@ -251,6 +269,11 @@ export class UIScene extends Phaser.Scene {
       this.sweepBannerTimer = null;
     }
     this.sweepBannerEl?.classList.remove('on');
+    this.sweepBannerActive = false;
+    this.sweepBannerTimer = window.setTimeout(() => {
+      this.sweepBannerTimer = null;
+      this.pumpSweepBanner();
+    }, 180);
   }
 
   update(_t: number, dt: number): void {

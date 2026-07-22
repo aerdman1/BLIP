@@ -55,7 +55,7 @@ const PERSONAS: Persona[] = [
 const SEED_COUNT = Math.max(1, Number(process.env.AI_LAB_SEED_COUNT ?? 2));
 const SEED_BASE = Number(process.env.AI_LAB_SEED_BASE ?? 3107);
 const SEEDS = Array.from({ length: SEED_COUNT }, (_, i) => (SEED_BASE + i * 6007) % 99991);
-const RUN_MS = Number(process.env.AI_LAB_RUN_MS ?? 4200);
+const RUN_MS = Number(process.env.AI_LAB_RUN_MS ?? 5200);
 
 function rng(seed: number): () => number {
   let t = seed >>> 0;
@@ -76,6 +76,10 @@ function sign(v: number): -1 | 0 | 1 {
 function vecTo(from: { x: number; y: number }, to: { x: number; y: number }, error: number, rand: () => number): { x: number; y: number } {
   const a = Math.atan2(to.y - from.y, to.x - from.x) + (rand() - 0.5) * error;
   return { x: Math.cos(a), y: Math.sin(a) };
+}
+
+function seenCachesNearby(perception: any): boolean {
+  return ((perception.visible?.caches ?? []) as Array<{ distance: number }>).some((c) => c.distance < 170);
 }
 
 async function runPersona(page: Page, persona: Persona, seed: number): Promise<RunResult> {
@@ -168,6 +172,8 @@ async function runPersona(page: Page, persona: Persona, seed: number): Promise<R
       const player = perception.player;
       const enemies = perception.visible.enemies as Array<{ x: number; y: number; distance: number }>;
       const pickups = perception.visible.pickups as Array<{ x: number; y: number; type: string; weapon: string; distance: number }>;
+      const signals = (perception.visible.signals ?? []) as Array<{ x: number; y: number; label: string; trigger: string; reward: string; distance: number }>;
+      const scanners = (perception.visible.scanners ?? []) as Array<{ x: number; y: number; disabled: boolean; distance: number }>;
       const visibleBreach = perception.visible.breach as ({ x: number; y: number; open: boolean; distance: number } | null);
       const visibleNode = perception.visible.node as ({ x: number; y: number; distance: number } | null);
       const objectiveHint = perception.objectiveHint as ({ x: number; y: number; distance: number; kind: string } | null);
@@ -176,32 +182,71 @@ async function runPersona(page: Page, persona: Persona, seed: number): Promise<R
       let fire = false;
       let dashQueued = false;
       let scanQueued = false;
+      let interactQueued = false;
       let weaponSlotQueued: 0 | 1 | 2 | null = null;
       let weaponNextQueued = false;
 
       const preferred = persona.weaponPreference[Math.floor(rand() * persona.weaponPreference.length)];
+      const roleEnemy = enemies.find((e: any) => ['warden', 'splitter', 'turret'].includes(e.kind) && e.distance < 120);
       if (rand() < 0.08 + persona.mistakeChance * 0.12) weaponNextQueued = true;
-      if (preferred === 'arc' && perception.weapon.id !== 'arc' && enemies[0]?.distance < 72) weaponSlotQueued = 1;
-      if (preferred === 'disc' && perception.weapon.id !== 'disc' && enemies[0]?.distance > 100) weaponSlotQueued = 2;
+      if (roleEnemy && perception.weapon.id !== 'arc' && persona.name !== 'new-player' && rand() < 0.72 + persona.aggression * 0.18) weaponSlotQueued = 1;
+      else if (enemies[0]?.distance < 70 && perception.weapon.id !== 'arc' && persona.name !== 'new-player' && rand() < 0.72) weaponSlotQueued = 1;
+      else if (enemies[0]?.distance > 128 && enemies[0]?.distance < 230 && perception.weapon.id !== 'disc' && rand() < 0.48 + persona.curiosity * 0.2) weaponSlotQueued = 2;
+      else if (preferred === 'arc' && perception.weapon.id !== 'arc' && enemies[0]?.distance < 86) weaponSlotQueued = 1;
+      else if (preferred === 'disc' && perception.weapon.id !== 'disc' && enemies[0]?.distance > 105) weaponSlotQueued = 2;
       if (weaponNextQueued || weaponSlotQueued !== null) weaponSwitches++;
 
       const usefulPickup = pickups.find((p) => p.type === 'health' && player.hp <= 3) ?? pickups.find((p) => p.type === 'weapon' && (persona.curiosity + rand() * 0.4) > 0.62);
-      if (usefulPickup && rand() > persona.missInstructionChance) {
+      const interestingSignal = signals.find((s) => s.reward === 'health' && player.hp <= 4) ?? signals.find(() => rand() < persona.curiosity * persona.exploration);
+      const nearestEnemy = enemies[0] ?? null;
+      const threatenedByEnemy = nearestEnemy && nearestEnemy.distance < (player.hp <= 2 ? 170 : persona.riskTolerance < 0.45 ? 135 : 112);
+      const urgentThreat = nearestEnemy && nearestEnemy.distance < (player.hp <= 2 ? 105 : 74);
+      const requiredTraversal = objectiveHint?.kind === 'gravity-well';
+      const gravityGateNeeded = perception.progress.gravityWellRequired === true && perception.progress.gravityWellUsed !== true;
+      const scannerPressure = scanners.find((s) => !s.disabled && s.distance < 125);
+      const routeOpenFollowChance = Math.max(persona.objectiveUnderstanding, 1 - persona.missInstructionChance * 0.65);
+      const shouldFightVisibleThreat = threatenedByEnemy && !(perception.progress.breachOpen && objectiveHint && objectiveHint.distance < 120 && rand() < routeOpenFollowChance);
+      const combatMove = (enemy: { x: number; y: number; distance: number }) => {
+        const keepAway = persona.riskTolerance < 0.45 && enemy.distance < 92;
+        const closeIn = persona.aggression > 0.72 && enemy.distance > 78 && perception.weapon.id === 'arc';
+        const strafe = persona.name === 'skilled-action' || persona.name === 'unpredictable' || rand() < persona.aggression * 0.35;
+        if (keepAway) return { x: player.x - (enemy.x - player.x), y: player.y - (enemy.y - player.y) };
+        if (closeIn) return enemy;
+        if (strafe) return { x: player.x - (enemy.y - player.y), y: player.y + (enemy.x - player.x) };
+        return enemy;
+      };
+      if (perception.progress.breachOpen && objectiveHint && rand() < routeOpenFollowChance) {
+        target = objectiveHint;
+        fire = enemies.length > 0 && rand() > persona.mistakeChance;
+      } else if (gravityGateNeeded && objectiveHint && !urgentThreat && rand() < Math.max(0.88, persona.objectiveUnderstanding)) {
+        target = objectiveHint;
+        fire = enemies.length > 0 && rand() > persona.mistakeChance;
+        if (objectiveHint.kind === 'gravity-well' && objectiveHint.distance < 120) interactQueued = true;
+      } else if (requiredTraversal && objectiveHint && !urgentThreat && rand() < Math.max(0.72, persona.objectiveUnderstanding)) {
+        target = objectiveHint;
+        fire = enemies.length > 0 && rand() > persona.mistakeChance;
+        if (objectiveHint.distance < 110) interactQueued = true;
+      } else if (shouldFightVisibleThreat) {
+        target = combatMove(nearestEnemy);
+        fire = rand() > persona.mistakeChance * 0.8;
+        if (rand() < persona.abilityUse * (nearestEnemy.distance < 80 ? 0.34 : 0.16)) { dashQueued = true; phaseShiftUses++; }
+      } else if (scannerPressure && rand() < persona.abilityUse) {
+        target = objectiveHint ?? scannerPressure;
+        dashQueued = scannerPressure.distance < 92;
+        if (dashQueued) phaseShiftUses++;
+      } else if (usefulPickup && rand() > persona.missInstructionChance) {
         target = usefulPickup;
+      } else if (interestingSignal && rand() > persona.missInstructionChance * 0.75) {
+        target = interestingSignal;
+        scanQueued = interestingSignal.trigger === 'scan' && interestingSignal.distance < 170;
       } else if (enemies.length) {
         const enemy = enemies[0];
-        const keepAway = persona.riskTolerance < 0.45 && enemy.distance < 80;
-        const strafe = persona.name === 'skilled-action' || persona.name === 'unpredictable';
-        target = keepAway
-          ? { x: player.x - (enemy.x - player.x), y: player.y - (enemy.y - player.y) }
-          : strafe
-            ? { x: player.x - (enemy.y - player.y), y: player.y + (enemy.x - player.x) }
-            : enemy;
+        target = combatMove(enemy);
         fire = rand() > persona.mistakeChance * 0.7;
         if (rand() < persona.abilityUse * 0.18 && enemy.distance < 105) { dashQueued = true; phaseShiftUses++; }
       } else if (visibleBreach?.open && rand() < persona.objectiveUnderstanding) {
         target = visibleBreach;
-      } else if (visibleNode && rand() < persona.objectiveUnderstanding) {
+      } else if (!gravityGateNeeded && visibleNode && rand() < persona.objectiveUnderstanding) {
         target = visibleNode;
       } else if (objectiveHint && rand() < persona.objectiveUnderstanding * 0.72) {
         target = objectiveHint;
@@ -211,6 +256,10 @@ async function runPersona(page: Page, persona: Persona, seed: number): Promise<R
       }
 
       if (rand() < persona.curiosity * 0.13) scanQueued = true;
+      if ((seenCachesNearby(perception) || interestingSignal?.trigger === 'scan') && rand() < persona.curiosity * 0.42) scanQueued = true;
+      if (objectiveHint?.kind === 'gravity-well' && objectiveHint.distance < 110 && rand() < Math.max(0.62, persona.objectiveUnderstanding)) {
+        interactQueued = true;
+      }
       const aimTarget = enemies[0] ?? target ?? { x: player.x + 1, y: player.y };
       const aim = vecTo(player, aimTarget, persona.aimError, rand);
       const move = target ? vecTo(player, target, persona.mistakeChance * 0.8, rand) : { x: 0, y: 0 };
@@ -222,6 +271,7 @@ async function runPersona(page: Page, persona: Persona, seed: number): Promise<R
         fire,
         dashQueued,
         scanQueued,
+        interactQueued,
         weaponNextQueued,
         weaponSlotQueued,
       })})`);

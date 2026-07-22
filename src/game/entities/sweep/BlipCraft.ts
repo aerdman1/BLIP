@@ -205,7 +205,6 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
     const ang = Math.atan2(this.y - fromY, this.x - fromX);
     body.setVelocity(Math.cos(ang) * SWEEP.knockback, Math.sin(ang) * SWEEP.knockback);
     audio.playerHit();
-    this.fx.shake(0.008, 170);
     this.fx.explode(this.x, this.y, P.danger, 8);
     bus.emit(EVT.hudHp, { hp: this.hp, max: this.maxHp });
     return true;

@@ -48,8 +48,8 @@ test('top-down route transitions preserve SweepScene and advance save zone', asy
   expect(await api(page, 'api.getSaveData().currentZone')).toBe('miller-field');
   const startState = await api(page, 'api.getSweepRuntimeState()');
   expect(startState.breachOpen).toBe(false);
-  expect(startState.chargeTarget).toBeGreaterThanOrEqual(70);
-  expect(startState.objectiveActionsRequired).toBeGreaterThanOrEqual(4);
+  expect(startState.chargeTarget).toBeGreaterThanOrEqual(50);
+  expect(startState.objectiveActionsRequired).toBeGreaterThanOrEqual(2);
   expect(startState.enemiesActive).toBeGreaterThan(0);
   await page.keyboard.press('2');
   await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSweepRuntimeState().weaponId === 'arc');

@@ -309,10 +309,9 @@ export class RewardUI {
       void flash.offsetWidth; // reflow to restart the animation
       flash.classList.add('go');
     }
-    // big rarities get beams + a screen shake + a large burst
+    // big rarities get beams + a large burst. Screen shake is reserved for player damage.
     if (r.rank >= 5) {
       this.cacheEl.querySelector('.rw-beams')?.classList.add('on');
-      this.shake(r.intensity);
       this.burst(cx, cy, r.color, 60);
     } else if (r.rank >= 3) {
       this.burst(cx, cy, r.color, 30);
@@ -476,22 +475,6 @@ export class RewardUI {
     }
     ctx.globalAlpha = 1;
   }
-  private shake(intensity: number): void {
-    const el = this.cacheEl;
-    const mag = 4 + intensity * 12;
-    let t = 0;
-    const dur = 340;
-    const start = performance.now();
-    const step = (now: number) => {
-      t = now - start;
-      if (t >= dur) { el.style.transform = ''; return; }
-      const d = (1 - t / dur) * mag;
-      el.style.transform = `translate(${(Math.random() - 0.5) * d}px, ${(Math.random() - 0.5) * d}px)`;
-      window.requestAnimationFrame(step);
-    };
-    window.requestAnimationFrame(step);
-  }
-
   /* ============================ 3. SIGNAL ARCHIVE ========================== */
 
   private tabs(): ArchiveTab[] {

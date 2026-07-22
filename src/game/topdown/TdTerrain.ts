@@ -489,45 +489,45 @@ export class TdTerrain {
 
   /**
    * A handful of real landmarks — navigation anchors and composition, NOT more
-   * scatter. Placed on open floor well clear of spawn/node/breach so they never
-   * intrude on the traversal route or a combat space.
+   * scatter. Keep them edge-biased and skip flat floor landmarks; central route
+   * structures should be authored so they can get clear purpose/collision.
    */
   private placeLandmarks(): void {
     const { tile: T, floor, markers, art, biome } = this.input;
     if (!art.hd) return;
     const set = biome.landmarks;
-    const open = floor.filter(
-      (p) => !p.edge && !markers.some((m) => Math.abs(p.tx - m.tx) + Math.abs(p.ty - m.ty) < 7)
+    const candidates = floor.filter(
+      (p) => p.edge && !markers.some((m) => Math.abs(p.tx - m.tx) + Math.abs(p.ty - m.ty) < 7)
     );
-    for (let i = open.length - 1; i > 0; i--) {
+    for (let i = candidates.length - 1; i > 0; i--) {
       const j = Math.floor(this.rng() * (i + 1));
-      [open[i], open[j]] = [open[j], open[i]];
+      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
     }
     const placed: Array<{ x: number; y: number }> = [];
     let idx = 0;
     for (const [key, emis, scale] of set) {
-      const spot = open.find((p) => {
+      if (key === biome.flatLandmark) continue;
+      const spot = candidates.find((p) => {
         const x = (p.tx + 0.5) * T;
         const y = (p.ty + 0.5) * T;
-        return placed.every((q) => Math.hypot(q.x - x, q.y - y) > T * 7);
+        return placed.every((q) => Math.hypot(q.x - x, q.y - y) > T * 9);
       });
       if (!spot) continue;
       const x = (spot.tx + 0.5) * T;
       const y = (spot.ty + 1) * T;
       placed.push({ x, y });
-      const isPool = key === biome.flatLandmark;
       const img = this.scene.add
         .image(x, y, key)
-        .setOrigin(0.5, isPool ? 0.5 : 1)
-        .setDepth(isPool ? DEPTH.decal + 5 : sortedDepth(y))
+        .setOrigin(0.5, 1)
+        .setDepth(sortedDepth(y))
         .setScale(scale);
       this.props.push(img);
-      if (!isPool) this.contactAO(x, y - 2, img.displayWidth * 0.8);
+      this.contactAO(x, y - 2, img.displayWidth * 0.8);
       if (emis) {
         const e = this.scene.add
           .image(x, y, emis)
-          .setOrigin(0.5, isPool ? 0.5 : 1)
-          .setDepth((isPool ? DEPTH.decal + 6 : sortedDepth(y)) + 1)
+          .setOrigin(0.5, 1)
+          .setDepth(sortedDepth(y) + 1)
           .setScale(scale)
           .setBlendMode(Phaser.BlendModes.ADD)
           .setAlpha(0.85);
@@ -535,13 +535,13 @@ export class TdTerrain {
       }
       // landmarks carry their own light so they read from across the arena.
       // second landmark in the set is the biome's warm/powered one (z1: the
-      // relay); the flat one glows cool; the rest carry signal green.
-      const lColor = key === set[1]?.[0] ? biome.accents.warm : isPool ? biome.accents.coolA : C.signal;
+      // relay); the rest carry signal green.
+      const lColor = key === set[1]?.[0] ? biome.accents.warm : C.signal;
       // The signal-green landmark glow was a big part of the "too much green"
       // read, so green landmarks are kept much fainter than the biome's own
       // warm/cool accents.
       const lIntensity = lColor === C.signal ? 0.12 : 0.22;
-      this.accentLights?.({ x, y: y - 8, radius: isPool ? 84 : 64, color: lColor, intensity: lIntensity });
+      this.accentLights?.({ x, y: y - 8, radius: 64, color: lColor, intensity: lIntensity });
       idx++;
     }
     void idx;
