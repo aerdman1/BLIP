@@ -16,6 +16,16 @@ set -euo pipefail
 
 ALIAS_DOMAIN="blip-chagrin.vercel.app"
 EXPECTED_PROJECT="blip"
+VERCEL_CLI_VERSION="${VERCEL_CLI_VERSION:-56.5.0}"
+
+if [ "$(node -p 'Number(process.versions.node.split(".")[0])')" -lt 20 ] && [ -s "${HOME}/.nvm/nvm.sh" ]; then
+  # Vercel CLI transitives now expect Node 20+; keep deploy output clean even if the shell defaults to Node 18.
+  # shellcheck disable=SC1091
+  . "${HOME}/.nvm/nvm.sh"
+  nvm use --silent 20 >/dev/null
+fi
+
+VERCEL_CLI=(npx --yes "vercel@${VERCEL_CLI_VERSION}")
 
 # Guard: never deploy unless THIS checkout is linked to the canonical "blip" project.
 # (Running from a worktree can auto-create a stray project named after the directory.)
@@ -32,7 +42,7 @@ npm run build
 echo "==> Deploying to Vercel production..."
 DEPLOY_LOG="$(mktemp)"
 set +e
-npx --yes vercel@latest --prod --yes 2>&1 | tee "${DEPLOY_LOG}"
+"${VERCEL_CLI[@]}" --prod --yes 2>&1 | tee "${DEPLOY_LOG}"
 DEPLOY_STATUS="${PIPESTATUS[0]}"
 set -e
 DEPLOY_OUT="$(cat "${DEPLOY_LOG}")"
@@ -48,10 +58,10 @@ fi
 echo "    Deployment: ${DEPLOY_URL}"
 
 echo "==> Waiting for deployment to be ready..."
-npx --yes vercel@latest inspect "${DEPLOY_URL}" --wait --timeout 5m >/dev/null
+"${VERCEL_CLI[@]}" inspect "${DEPLOY_URL}" --wait --timeout 5m >/dev/null
 
 echo "==> Aliasing ${ALIAS_DOMAIN} -> ${DEPLOY_URL}..."
-npx --yes vercel@latest alias set "${DEPLOY_URL}" "${ALIAS_DOMAIN}"
+"${VERCEL_CLI[@]}" alias set "${DEPLOY_URL}" "${ALIAS_DOMAIN}"
 
 bash scripts/verify-production.sh "${ALIAS_DOMAIN}" "${DEPLOY_URL}"
 

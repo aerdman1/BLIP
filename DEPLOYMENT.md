@@ -9,6 +9,9 @@ npm run dev
 
 Open http://localhost:5173
 
+This repo includes `.nvmrc` with Node 20. Use `nvm use` before local work when your
+shell defaults to an older Node version.
+
 ## Production Build
 
 ```bash
@@ -71,7 +74,10 @@ Manual equivalent to `npm run ship`:
    (the script exits non-zero if it doesn't).
 
 Requires the `vercel` CLI to be authenticated once (`npx vercel login`). The deploy script
-intentionally does not commit or push — keep those as explicit git steps around it.
+uses Node 20 through `nvm` when available, then runs a pinned Vercel CLI version
+(`56.5.0` by default, override with `VERCEL_CLI_VERSION=...`) so deploy output does not
+change unexpectedly when `vercel@latest` moves. The script intentionally does not commit
+or push — keep those as explicit git steps around it.
 
 If GitHub or Vercel has an outage affecting automatic deployments, do not trust the dashboard
 or a stale alias. Deploy from `/Users/aerdman/BLIP`, then run:
