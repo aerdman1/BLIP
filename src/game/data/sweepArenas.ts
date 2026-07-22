@@ -271,7 +271,7 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     // ROSTER — "the firewall circuit": tight corridors reward flanking, so FIREWALL wardens
     // clog the halls (dash through / hit their backs) and a rooted PYLON turret guards the node.
     enemies: [
-      { tx: 18, ty: 35, type: 'warden' }, { tx: 32, ty: 35, type: 'tagger' }, { tx: 24, ty: 15, type: 'diver' },
+      { tx: 18, ty: 35, type: 'drifter' }, { tx: 32, ty: 35, type: 'tagger' }, { tx: 24, ty: 15, type: 'diver' },
       { tx: 34, ty: 17, type: 'warden' }, { tx: 51, ty: 35, type: 'turret' }, { tx: 45, ty: 23, type: 'diver' },
       { tx: 63, ty: 15, type: 'tagger' }, { tx: 56, ty: 34, type: 'drifter' }, { tx: 13, ty: 19, type: 'drifter' },
       { tx: 70, ty: 36, type: 'warden' }, { tx: 72, ty: 11, type: 'sniper' }, { tx: 65, ty: 34, type: 'weaver' },
@@ -279,6 +279,17 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     ],
     caches: [{ tx: 10, ty: 18 }, { tx: 25, ty: 14 }, { tx: 59, ty: 15 }, { tx: 74, ty: 38 }, { tx: 79, ty: 9 }],
     fieldEvents: [
+      {
+        id: 'safe-shadow-battery',
+        label: 'SAFE BATTERY',
+        tx: 16,
+        ty: 35,
+        radius: 52,
+        trigger: 'enter',
+        reward: 'health',
+        charge: 6,
+        message: 'Safe-shadow battery found — enough charge to survive a bad alert.',
+      },
       {
         id: 'maintenance-cache',
         label: 'MAINTENANCE CACHE',
@@ -731,13 +742,15 @@ export const SWEEP_ROUTE_BEACONS: Partial<Record<string, {
       { tx: 39, ty: 26, label: 'CACHE GROVE' },
     ],
     toExit: [
-      { tx: 52, ty: 25, label: 'EAST ROAD' },
+      { tx: 43, ty: 28, label: 'EAST ROAD' },
+      { tx: 52, ty: 25, label: 'ROAD BEND' },
       { tx: 70, ty: 25, label: 'BREACH ROAD' },
       { tx: 76, ty: 21, label: 'MOTEL BREACH' },
     ],
   },
   'circuit-z2': {
     toObjective: [
+      { tx: 14, ty: 40, label: 'DRIVEWAY' },
       { tx: 18, ty: 35, label: 'SAFE SHADOW' },
       { tx: 31, ty: 35, label: 'CHECK-IN' },
       { tx: 45, ty: 23, label: 'POOL COURT' },

@@ -90,6 +90,7 @@
 <circle cx="676.5" cy="224.5" r="5" fill="#ffd166" /><text x="683.5" y="217.5" font-size="10" fill="#e8f5de" font-family="monospace">CACHE 3</text>
 <circle cx="841.5" cy="477.5" r="5" fill="#ffd166" /><text x="848.5" y="470.5" font-size="10" fill="#e8f5de" font-family="monospace">CACHE 4</text>
 <circle cx="896.5" cy="158.5" r="5" fill="#ffd166" /><text x="903.5" y="151.5" font-size="10" fill="#e8f5de" font-family="monospace">CACHE 5</text>
+<rect x="198.5" y="439.5" width="10" height="10" fill="#ffb84d" transform="rotate(45 203.5 444.5)" /><text x="210.5" y="437.5" font-size="10" fill="#e8f5de" font-family="monospace">SAFE BATTERY HEALTH</text>
 <rect x="132.5" y="252.5" width="10" height="10" fill="#ffb84d" transform="rotate(45 137.5 257.5)" /><text x="144.5" y="250.5" font-size="10" fill="#e8f5de" font-family="monospace">MAINTENANCE CACHE BOON</text>
 <rect x="297.5" y="208.5" width="10" height="10" fill="#ffb84d" transform="rotate(45 302.5 213.5)" /><text x="309.5" y="206.5" font-size="10" fill="#e8f5de" font-family="monospace">ROOM ROW STASH SHARDS</text>
 <rect x="517.5" y="307.5" width="10" height="10" fill="#ffb84d" transform="rotate(45 522.5 312.5)" /><text x="529.5" y="305.5" font-size="10" fill="#e8f5de" font-family="monospace">POOL CROSSING OVERDRIVE</text>
@@ -97,6 +98,7 @@
 <rect x="671.5" y="219.5" width="10" height="10" fill="#ffb84d" transform="rotate(45 676.5 224.5)" /><text x="683.5" y="217.5" font-size="10" fill="#e8f5de" font-family="monospace">SIGN LEDGE HEALTH</text>
 <circle cx="368.5" cy="444.5" r="5" fill="#b86dff" /><text x="375.5" y="437.5" font-size="10" fill="#e8f5de" font-family="monospace">WPN ARC</text>
 <circle cx="676.5" cy="224.5" r="5" fill="#b86dff" /><text x="683.5" y="217.5" font-size="10" fill="#e8f5de" font-family="monospace">WPN DISC</text>
+<circle cx="181.5" cy="499.5" r="5" fill="#bcff72" /><text x="188.5" y="492.5" font-size="10" fill="#e8f5de" font-family="monospace">DRIVEWAY</text>
 <circle cx="225.5" cy="444.5" r="5" fill="#bcff72" /><text x="232.5" y="437.5" font-size="10" fill="#e8f5de" font-family="monospace">SAFE SHADOW</text>
 <circle cx="368.5" cy="444.5" r="5" fill="#bcff72" /><text x="375.5" y="437.5" font-size="10" fill="#e8f5de" font-family="monospace">CHECK-IN</text>
 <circle cx="522.5" cy="312.5" r="5" fill="#bcff72" /><text x="529.5" y="305.5" font-size="10" fill="#e8f5de" font-family="monospace">POOL COURT</text>
@@ -105,7 +107,7 @@
 <circle cx="830.5" cy="323.5" r="5" fill="#67d8ff" /><text x="837.5" y="316.5" font-size="10" fill="#e8f5de" font-family="monospace">RIVER RAMP</text>
 <circle cx="830.5" cy="202.5" r="5" fill="#67d8ff" /><text x="837.5" y="195.5" font-size="10" fill="#e8f5de" font-family="monospace">RIVER ROAD</text>
 <circle cx="852.5" cy="180.5" r="5" fill="#67d8ff" /><text x="859.5" y="173.5" font-size="10" fill="#e8f5de" font-family="monospace">TOWN BREACH</text>
-<circle cx="225.5" cy="444.5" r="5" fill="#ff5d73" /><text x="232.5" y="437.5" font-size="10" fill="#e8f5de" font-family="monospace">WARDEN</text>
+<circle cx="225.5" cy="444.5" r="5" fill="#ff5d73" /><text x="232.5" y="437.5" font-size="10" fill="#e8f5de" font-family="monospace">DRIFTER</text>
 <circle cx="379.5" cy="444.5" r="5" fill="#ff5d73" /><text x="386.5" y="437.5" font-size="10" fill="#e8f5de" font-family="monospace">TAGGER</text>
 <circle cx="291.5" cy="224.5" r="5" fill="#ff5d73" /><text x="298.5" y="217.5" font-size="10" fill="#e8f5de" font-family="monospace">DIVER</text>
 <circle cx="401.5" cy="246.5" r="5" fill="#ff5d73" /><text x="408.5" y="239.5" font-size="10" fill="#e8f5de" font-family="monospace">WARDEN</text>

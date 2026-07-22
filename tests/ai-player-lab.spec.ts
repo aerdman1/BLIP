@@ -198,12 +198,14 @@ async function runPersona(page: Page, persona: Persona, seed: number): Promise<R
 
       const routeOpen = perception.progress.breachOpen === true;
       const usefulPickup = pickups.find((p) => p.type === 'health' && player.hp <= 3)
-        ?? (!routeOpen ? pickups.find((p) => p.type === 'weapon' && (persona.curiosity + rand() * 0.4) > 0.62) : undefined);
+        ?? (!routeOpen && enemies.length === 0 ? pickups.find((p) => p.type === 'weapon' && p.distance < 180 && (persona.curiosity + rand() * 0.4) > 0.74) : undefined);
       const interestingSignal = signals.find((s) => s.reward === 'health' && player.hp <= 4)
         ?? (!routeOpen ? signals.find(() => rand() < persona.curiosity * persona.exploration) : undefined);
       const nearestEnemy = enemies[0] ?? null;
       const threatenedByEnemy = nearestEnemy && nearestEnemy.distance < (player.hp <= 2 ? 170 : persona.riskTolerance < 0.45 ? 135 : 112);
       const urgentThreat = nearestEnemy && nearestEnemy.distance < (player.hp <= 2 ? 105 : 74);
+      const routeFocusPressure = objectiveHint && !routeOpen && !urgentThreat && enemies.length === 0
+        && (objectiveFailures > 0 || rand() < Math.max(0.72, persona.objectiveUnderstanding * 0.88));
       const requiredTraversal = objectiveHint?.kind === 'gravity-well';
       const gravityGateNeeded = perception.progress.gravityWellRequired === true && perception.progress.gravityWellUsed !== true;
       const scannerPressure = scanners.find((s) => !s.disabled && s.distance < 125);
@@ -221,9 +223,13 @@ async function runPersona(page: Page, persona: Persona, seed: number): Promise<R
       const routeOpenCommitChance = perception.progress.breachOpen
         ? Math.max(routeOpenFollowChance, 0.96 - persona.mistakeChance * 0.08)
         : routeOpenFollowChance;
-      if (perception.progress.breachOpen && objectiveHint && rand() < routeOpenCommitChance) {
+      if (perception.progress.breachOpen && objectiveHint && !urgentThreat && enemies.length === 0) {
+        target = objectiveHint;
+      } else if (perception.progress.breachOpen && objectiveHint && rand() < routeOpenCommitChance) {
         target = objectiveHint;
         fire = enemies.length > 0 && rand() > persona.mistakeChance;
+      } else if (routeFocusPressure) {
+        target = objectiveHint;
       } else if (gravityGateNeeded && objectiveHint && !urgentThreat && rand() < Math.max(0.88, persona.objectiveUnderstanding)) {
         target = objectiveHint;
         fire = enemies.length > 0 && rand() > persona.mistakeChance;
@@ -252,7 +258,7 @@ async function runPersona(page: Page, persona: Persona, seed: number): Promise<R
         if (rand() < persona.abilityUse * 0.18 && enemy.distance < 105) { dashQueued = true; phaseShiftUses++; }
       } else if (visibleBreach?.open && rand() < routeOpenCommitChance) {
         target = visibleBreach;
-      } else if (!gravityGateNeeded && visibleNode && rand() < persona.objectiveUnderstanding) {
+      } else if (!routeOpen && !gravityGateNeeded && visibleNode && rand() < persona.objectiveUnderstanding) {
         target = visibleNode;
       } else if (objectiveHint && rand() < persona.objectiveUnderstanding * 0.72) {
         target = objectiveHint;

@@ -80,7 +80,8 @@
 <circle cx="258.5" cy="510.5" r="5" fill="#bcff72" /><text x="265.5" y="503.5" font-size="10" fill="#e8f5de" font-family="monospace">FIELD TRACK</text>
 <circle cx="412.5" cy="477.5" r="5" fill="#bcff72" /><text x="419.5" y="470.5" font-size="10" fill="#e8f5de" font-family="monospace">WILLOW TRAIL</text>
 <circle cx="456.5" cy="345.5" r="5" fill="#bcff72" /><text x="463.5" y="338.5" font-size="10" fill="#e8f5de" font-family="monospace">CACHE GROVE</text>
-<circle cx="599.5" cy="334.5" r="5" fill="#67d8ff" /><text x="606.5" y="327.5" font-size="10" fill="#e8f5de" font-family="monospace">EAST ROAD</text>
+<circle cx="500.5" cy="367.5" r="5" fill="#67d8ff" /><text x="507.5" y="360.5" font-size="10" fill="#e8f5de" font-family="monospace">EAST ROAD</text>
+<circle cx="599.5" cy="334.5" r="5" fill="#67d8ff" /><text x="606.5" y="327.5" font-size="10" fill="#e8f5de" font-family="monospace">ROAD BEND</text>
 <circle cx="797.5" cy="334.5" r="5" fill="#67d8ff" /><text x="804.5" y="327.5" font-size="10" fill="#e8f5de" font-family="monospace">BREACH ROAD</text>
 <circle cx="863.5" cy="290.5" r="5" fill="#67d8ff" /><text x="870.5" y="283.5" font-size="10" fill="#e8f5de" font-family="monospace">MOTEL BREACH</text>
 <circle cx="247.5" cy="510.5" r="5" fill="#ff5d73" /><text x="254.5" y="503.5" font-size="10" fill="#e8f5de" font-family="monospace">DRIFTER</text>

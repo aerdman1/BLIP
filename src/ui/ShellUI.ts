@@ -491,7 +491,7 @@ export class ShellUI {
     bus.on(EVT.transmissionClosed, (d) => {
       if ((d as { force?: boolean } | undefined)?.force) this.hideTransmission();
     });
-    bus.on(EVT.toast, (d) => this.showToast(d as { text: string; color?: string }));
+    bus.on(EVT.toast, (d) => this.showToast(d as { text: string; color?: string; priority?: 'routine' | 'important'; durationMs?: number }));
     bus.on(EVT.questObjective, (d) => {
       const q = d as { objective: string; hint: string };
       $('objective-text').textContent = q.objective;
@@ -633,7 +633,7 @@ export class ShellUI {
 
   /* --------------------------------- toasts --------------------------------- */
 
-  private showToast({ text, color }: { text: string; color?: string }): void {
+  private showToast({ text, color, priority, durationMs }: { text: string; color?: string; priority?: 'routine' | 'important'; durationMs?: number }): void {
     const now = performance.now();
     if (text === this.lastToastText && now - this.lastToastAt < 900) return;
     this.lastToastText = text;
@@ -644,12 +644,17 @@ export class ShellUI {
     });
     const el = document.createElement('div');
     const cls = color === 'cyan' ? 'cyan' : color === 'orange' ? 'orange' : color === 'green' ? 'lime' : color === 'red' ? 'red' : '';
+    const inferredImportant = priority === 'important' || /ROUTE|REWARD|ALERT|ONLINE|OFFLINE|CLEARED|OPEN|READY|COMPLETE/i.test(text);
+    const inCombatHud = document.body.classList.contains('td-hud-active');
+    const maxToasts = inCombatHud ? 2 : 3;
+    const life = durationMs ?? (inCombatHud ? (inferredImportant ? 2200 : 1500) : (inferredImportant ? 3000 : 2400));
     el.className = `toast ${cls}`;
+    el.dataset.priority = inferredImportant ? 'important' : 'routine';
     el.textContent = text;
     stack.appendChild(el);
-    while (stack.children.length > 3) stack.removeChild(stack.firstChild as Node);
-    window.setTimeout(() => el.classList.add('out'), 2400);
-    window.setTimeout(() => el.remove(), 2900);
+    while (stack.children.length > maxToasts) stack.removeChild(stack.firstChild as Node);
+    window.setTimeout(() => el.classList.add('out'), life);
+    window.setTimeout(() => el.remove(), life + 450);
   }
 
   /* -------------------------------- main menu -------------------------------- */

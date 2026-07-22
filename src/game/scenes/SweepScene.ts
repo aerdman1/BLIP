@@ -2452,7 +2452,8 @@ export class SweepScene extends Phaser.Scene {
     const type = isWeapon ? 'weapon' : 'health';
     const tint = isWeapon ? WEAPONS[wid].tint : P.signalGreen;
     const pk = this.pickups.create(x, y, TEX.sweepPickup) as Phaser.Physics.Arcade.Image;
-    pk.setTint(tint).setScale(isWeapon ? 1.5 : 1.1).setDepth(12).setData('ptype', type).setData('wid', wid);
+    pk.setTint(tint).setScale(isWeapon ? 1.5 : 1.1).setDepth(12).setData('ptype', type);
+    if (isWeapon) pk.setData('wid', wid);
     (pk.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
     // a soft light pool so pickups read against the dark ground
     const glow = this.add.image(x, y, TEX.glow8).setDepth(11).setTint(tint).setBlendMode(Phaser.BlendModes.ADD).setScale(1.4).setAlpha(0.4);
@@ -2698,7 +2699,7 @@ export class SweepScene extends Phaser.Scene {
           this.fx.floatText((s.ax + s.bx) / 2, (s.ay + s.by) / 2 - 10, 'SCANNER DISABLED', P.neonCyan);
           this.fx.scanRing((s.ax + s.bx) / 2, (s.ay + s.by) / 2, 36, 260, P.neonCyan);
           const status = this.motelScannerStatus();
-          bus.emit(EVT.toast, { text: `SCANNER GATE ${status.disabled}/${status.total} OFFLINE`, color: status.disabled >= status.total ? 'green' : 'orange' });
+          bus.emit(EVT.toast, { text: `SCANNERS ${status.disabled}/${status.total} OFFLINE`, color: status.disabled >= status.total ? 'green' : 'orange' });
         }
         return;
       }

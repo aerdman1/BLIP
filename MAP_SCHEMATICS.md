@@ -53,9 +53,9 @@ Key locations:
 - Spawn: `10,44`
 - Objective: `51,34`
 - Exit: `75,11`
-- Enemies: 3 warden, 3 tagger, 2 diver, 1 turret, 2 drifter, 1 sniper, 1 weaver
+- Enemies: 3 drifter, 3 tagger, 2 diver, 2 warden, 1 turret, 1 sniper, 1 weaver
 - Caches: `10,18`, `25,14`, `59,15`, `74,38`, `79,9`
-- Field events: `MAINTENANCE CACHE@10,18:scan:boon`, `ROOM ROW STASH@25,14:scan:shards`, `POOL CROSSING@45,23:enter:overdrive`, `SERVICE LOCKER@74,38:scan:weapon`, `SIGN LEDGE@59,15:scan:health`
+- Field events: `SAFE BATTERY@16,35:enter:health`, `MAINTENANCE CACHE@10,18:scan:boon`, `ROOM ROW STASH@25,14:scan:shards`, `POOL CROSSING@45,23:enter:overdrive`, `SERVICE LOCKER@74,38:scan:weapon`, `SIGN LEDGE@59,15:scan:health`
 - Weapon pickups: `arc@31,35`, `disc@59,15`
 - Current intent: Motel is now a stealth/infiltration graph with scanner route, upper room-row branch, hidden maintenance path, service-lot fallback, drainage loop and River Road exit.
 

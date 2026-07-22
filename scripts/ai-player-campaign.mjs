@@ -40,7 +40,7 @@ const PERSONAS = [
 const SCENARIOS = [
   { name: 'full-route', zone: 'miller-field', goalZone: 'skyline-array', runMul: 8.5, objectiveBias: 1.25 },
   { name: 'route-miller-motel', zone: 'miller-field', goalZone: 'motel-nowhere', runMul: 3.4, objectiveBias: 1.35, arrivalGoal: true },
-  { name: 'route-first-three', zone: 'miller-field', goalZone: 'tiger-stadium', runMul: 5.9, objectiveBias: 1.35, arrivalGoal: true },
+  { name: 'route-first-three', zone: 'miller-field', goalZone: 'tiger-stadium', runMul: 7.2, objectiveBias: 1.35, arrivalGoal: true },
   { name: 'region-miller', zone: 'miller-field', goalZone: 'miller-field', runMul: 1.75, objectiveBias: 1.05 },
   { name: 'region-motel', zone: 'motel-nowhere', goalZone: 'motel-nowhere', runMul: 1.8, objectiveBias: 1.1 },
   { name: 'region-town', zone: 'tiger-stadium', goalZone: 'tiger-stadium', runMul: 1.8, objectiveBias: 1.1 },
@@ -276,7 +276,7 @@ async function runOne(page, idx) {
       const routeOpen = perception.progress.breachOpen === true;
       const routeScenario = scenario.arrivalGoal || scenario.name === 'full-route';
       const usefulPickup = pickups.find((p) => p.type === 'health' && player.hp <= 3)
-        ?? (!routeOpen ? pickups.find((p) => p.type === 'weapon' && (persona.curiosity + rand() * 0.4) > 0.62) : undefined);
+        ?? (!routeOpen && enemies.length === 0 ? pickups.find((p) => p.type === 'weapon' && p.distance < 180 && (persona.curiosity + rand() * 0.4) > 0.74) : undefined);
       const interestingSignal = signals.find((s) => s.reward === 'health' && player.hp <= 4)
         ?? (!routeOpen ? signals.find((s) => rand() < persona.curiosity * persona.exploration) : undefined);
       const routeOpenFollowChance = Math.max(
@@ -286,6 +286,8 @@ async function runOne(page, idx) {
       const nearestEnemy = enemies[0] ?? null;
       const threatenedByEnemy = nearestEnemy && nearestEnemy.distance < (player.hp <= 2 ? 170 : persona.riskTolerance < 0.45 ? 135 : 112);
       const urgentThreat = nearestEnemy && nearestEnemy.distance < (player.hp <= 2 ? 105 : 74);
+      const routeFocusPressure = routeScenario && objectiveHint && !routeOpen && !urgentThreat && enemies.length === 0
+        && (objectiveFailures > 0 || rand() < Math.max(0.72, persona.objectiveUnderstanding * scenario.objectiveBias * 0.88));
       const requiredTraversal = objectiveHint?.kind === 'gravity-well';
       const gravityGateNeeded = perception.progress.gravityWellRequired === true && perception.progress.gravityWellUsed !== true;
       const scannerPressure = scanners.find((s) => !s.disabled && s.distance < 125);
@@ -302,10 +304,16 @@ async function runOne(page, idx) {
       const routeOpenCommitChance = perception.progress.breachOpen
         ? Math.max(routeOpenFollowChance, routeScenario ? 0.96 - persona.mistakeChance * 0.08 : 0.9 - persona.mistakeChance * 0.22)
         : routeOpenFollowChance;
-      if (perception.progress.breachOpen && objectiveHint && rand() < routeOpenCommitChance) {
+      if (routeScenario && perception.progress.breachOpen && objectiveHint && !urgentThreat && enemies.length === 0) {
+        target = objectiveHint;
+        targetReason = 'commit-open-route';
+      } else if (perception.progress.breachOpen && objectiveHint && rand() < routeOpenCommitChance) {
         target = objectiveHint;
         targetReason = 'follow-open-route';
         fire = enemies.length > 0 && rand() > persona.mistakeChance;
+      } else if (routeFocusPressure) {
+        target = objectiveHint;
+        targetReason = 'route-objective-focus';
       } else if (gravityGateNeeded && objectiveHint && !urgentThreat && rand() < Math.max(0.88, persona.objectiveUnderstanding * scenario.objectiveBias)) {
         target = objectiveHint;
         targetReason = 'required-gravity-route';
@@ -342,7 +350,7 @@ async function runOne(page, idx) {
       } else if (visibleBreach?.open && rand() < routeOpenCommitChance) {
         target = visibleBreach;
         targetReason = 'enter-visible-breach';
-      } else if (!gravityGateNeeded && visibleNode && rand() < persona.objectiveUnderstanding * scenario.objectiveBias) {
+      } else if (!routeOpen && !gravityGateNeeded && visibleNode && rand() < persona.objectiveUnderstanding * scenario.objectiveBias) {
         target = visibleNode;
         targetReason = 'work-visible-node';
       } else if (objectiveHint && rand() < persona.objectiveUnderstanding * scenario.objectiveBias * 0.78) {
