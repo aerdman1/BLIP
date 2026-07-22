@@ -25,7 +25,7 @@ export const CURRENT_STATUS = [
   'Route objective math is hardened: traverse breaches require both enough charge and enough distinct objective actions. Miller/Town/Orchard were retuned for the enlarged maps so authored field events and normal combat can open routes without excessive wandering.',
   'Region objectives now use named goals and rewards instead of presenting every area as the same generic node loop.',
   'Phase Shift is the current SHIFT ability: a short-range teleport with i-frames, start/end bursts, restrained trailing echoes and cooldown. The label Dash should not be used for new design docs.',
-  'Focused AI campaigns are wired for region and route slices. Latest public AI JSON is `orchard-ai-gravity-priority-v1`: 6 Orchard-focused runs, 100% objective completion, 0 soft-lock risks, 0 deaths, and a +66.7 point improvement over `orchard-phased-signs-v1`. The broader rebuilt route-tuning sample `ai-objective-tuning-v2` hit 45.8% across Miller/Motel/Town/Orchard with 0 soft-lock risks and 0 deaths. AI numbers are design evidence, not a hard deploy gate.',
+  'Focused AI campaigns are wired for region and route slices. Latest public AI JSON is `route-exit-sign-fix-v1`: 6 Miller→Motel runs, 2/6 completions, 0 soft-lock risks and 0 deaths, improving over the 0/6 `route-exit-duration-check-v1` baseline after Miller exit signs were corrected to East Road → Breach Road → Motel Breach. Orchard-focused `orchard-ai-gravity-priority-v1` remains 6/6 with 0 soft-lock risks/deaths. AI numbers are design evidence, not a hard deploy gate.',
   'Schematic-first expanded layouts are implemented across all five route regions. The latest gameplay-design/content pass gives every named area a purpose: main route, optional branch, secret pocket, shortcut/return loop, worthwhile reward pocket, intentional enemy spaces, field-event rewards, visible scan/power markers, subtle discovered-area lighting, clear objective completion and satisfying exit approach. Manual live feel review is still needed before calling the maps final.',
   'Experimental Tripo CONTACT-47 model import is live as a rendered eight-facing transparent PNG set with the original HD CONTACT-47 atlas kept as fallback. CONTACT-47 now reads as a low-hover robot with cyan underside thrusters, which covers the missing leg animation. The GLB has a skin but no animation clips, so walk/shoot animation remains a future rigging/retarget pass.',
   'Tone target is stylized teen/young-adult sci-fi action: colorful and strange, but dangerous, mysterious, forceful and never toy-like.',
@@ -150,11 +150,11 @@ export const MASTER_BACKLOG_COUNTS: BacklogCountItem[] = [
 ];
 
 export const MASTER_BACKLOG_CRITICAL_PATH: BacklogPathItem[] = [
-  { priority: 'P0', item: 'Region scale/layout creation', status: 'PARTIAL', note: 'Schematic-first expanded layouts are implemented for all five route regions. Map validation, typecheck, build, combat validation and smoke tests pass; manual live feel review remains.' },
-  { priority: 'P0', item: 'Miller Surface gameplay/content pass', status: 'PARTIAL', note: 'Old Mill Spur, Substation Overlook, Scout Shelter Pocket, lower recovery shortcut, far-east Motel breach, authored scan/power events, early weapon pickups and ambush rewards are live; AI still needs better route completion.' },
+  { priority: 'P0', item: 'Region scale/layout creation', status: 'PARTIAL', note: 'Schematic-first expanded layouts are implemented for all five route regions. qa:maps now checks route distances, purposeful branches, reward density and mechanic hooks; qa:route checks HD rendering/objective/route-open state. Only subjective feel review remains.' },
+  { priority: 'P0', item: 'Miller Surface gameplay/content pass', status: 'PARTIAL', note: 'Old Mill Spur, Substation Overlook, Scout Shelter Pocket, lower recovery shortcut, far-east Motel breach, authored scan/power events, early weapon pickups and ambush rewards are live. Miller exit signs now follow East Road → Breach Road → Motel Breach, improving focused Miller→Motel AI from 0/6 to 2/6.' },
   { priority: 'P0', item: 'Remaining-region gameplay/content pass', status: 'PARTIAL', note: 'Motel, Town, Orchard and Signal Storm now have purposeful named branches/loops/pockets plus field-event rewards and ambushes. Orchard Crop Circle gates on Gravity Well/ridge completion, and Signal Storm waves use named phases. Needs live feel review and encounter tuning.' },
   { priority: 'P1', item: 'AI safety and route guidance after layouts', status: 'PARTIAL', note: 'AI personas use visible signal markers, objective hints, scanners, enemies, visible enemy roles and pickups from perception snapshots. Human-like combat priority and route-sign guidance are live; Orchard-focused AI now completes 6/6 after prioritizing the visible Gravity Well gate; broader route evidence still needs a fresh sample.' },
-  { priority: 'P1', item: 'First-route clarity after layout pass', status: 'PARTIAL', note: 'Miller and Town now complete more reliably in focused AI samples. Orchard now has phased signs, a 72% pre-well Crop Circle cap, explicit Gravity Well telemetry, and a 6/6 focused AI completion sample. Needs manual feel review and broader first-route/full-route evidence.' },
+  { priority: 'P1', item: 'First-route clarity after layout pass', status: 'PARTIAL', note: 'Miller→Motel route completion improved from 0/6 to 2/6 after fixing the East Road breadcrumb sequence. Orchard has phased signs, a 72% pre-well Crop Circle cap, explicit Gravity Well telemetry, and a 6/6 focused AI completion sample. Needs more automated first-three/full-route evidence.' },
   { priority: 'P0', item: 'Unified notification/reward UI', status: 'PARTIAL', note: 'Objective card is the primary instruction surface, routine toasts dedupe into a smaller activity feed, center HUD banners queue one at a time with shorter dwell, and reward banners queue one at a time. A single shared notification manager/showcase is still unfinished.' },
   { priority: 'P0', item: 'Major reward presentation', status: 'PARTIAL', note: 'Named region rewards use major reward banners and important weapon drops now show name, combat role and a queued weapon reward card. Full compare/equip/store/salvage flow is still deferred.' },
   { priority: 'P0', item: 'Meaningful weapon progression', status: 'PARTIAL', note: 'First behavior hooks are live: charged Pulse chain, Arc parry shockwave, and Recall return trail. Arc pickups now advertise PARRY/CLOSE and AI personas can react to visible warden/splitter/turret roles. Needs tests, clearer mutation HUD, and additional mutations.' },
@@ -195,8 +195,8 @@ export const VERTICAL_SLICE_SYSTEMS: SliceSystemItem[] = [
   { name: 'Region-specific objectives', status: 'PLAYABLE', note: 'HUD, telemetry and rewards use named goals/rewards for each region.' },
   { name: 'Phase Shift', status: 'PLAYABLE', note: 'SHIFT is now a short-range teleport with i-frames, start/end bursts, a smaller behind-the-player echo and cooldown.' },
   { name: 'Motel stealth onboarding', status: 'IN DEVELOPMENT', note: 'Scanner beams, alert state, Phase Shift prompt and combat fallback are live. Alerts add pressure without direct beam damage, but Motel still needs reliable legitimate arrivals before broader testing.' },
-  { name: 'First-route clarity', status: 'NEEDS POLISH', note: 'Phase-specific holographic route signposts are live and simplified. Broad road auto-warp zones were removed; transitions require a short hold inside the actual charged breach. AI still stalls in Miller after breach=true.' },
-  { name: 'Region scale/layout pass', status: 'IN DEVELOPMENT', note: 'Schematic-first expanded layouts, named-area purpose pass, field-event content pass and subtle discovered-room dimming are live across all five regions; generated planning SVGs/PNGs live under docs/map-schematics. Manual feel review is still required.' },
+  { name: 'First-route clarity', status: 'NEEDS POLISH', note: 'Phase-specific holographic route signposts are live and simplified. Broad road auto-warp zones were removed; transitions require a short hold inside the actual charged breach. Miller exit breadcrumb fix improved focused Miller→Motel AI from 0/6 to 2/6; continue automated route tuning.' },
+  { name: 'Region scale/layout pass', status: 'IN DEVELOPMENT', note: 'Schematic-first expanded layouts, named-area purpose pass, field-event content pass and subtle discovered-room dimming are live across all five regions. qa:maps and qa:route now automate structural/readability checks; remaining review is subjective feel/taste.' },
   { name: 'Field-event reward pockets', status: 'PLAYABLE', note: 'All five route regions have visible scan/power events that grant shards, health, overdrive, weapon prototypes or specific Scout boons, with optional ambush spawns and AI-visible perception markers.' },
   { name: 'Enemy combat roles', status: 'PLAYABLE', note: 'Drifter, tagger, diver, warden, turret, sniper, splitter and weaver are live.' },
   { name: 'Signal Tube', status: 'PLANNED', note: 'One simple traversal route first; future branching deferred.' },
@@ -205,7 +205,7 @@ export const VERTICAL_SLICE_SYSTEMS: SliceSystemItem[] = [
   { name: 'Signal Rail', status: 'DEFERRED', note: 'Track in the design, but do not build until the slice needs faster traversal.' },
   { name: 'Scout Contraptions', status: 'PLANNED', note: 'One story-tied route device or secret opener in the first slice.' },
   { name: 'Raised / underground spaces', status: 'IN DEVELOPMENT', note: 'Orchard raised ridge is playable; underground shelters remain planned.' },
-  { name: 'AI Player Lab', status: 'TESTED', note: 'Personas, campaign runner, evidence JSON and E2E coverage are live. Runner aliases/progress output are fixed. AI behavior prioritizes visible threats, then visible rewards/objectives; Orchard-focused run `orchard-ai-gravity-priority-v1` reached 6/6 completions with 0 soft locks/deaths.' },
+  { name: 'AI Player Lab', status: 'TESTED', note: 'Personas, campaign runner, evidence JSON and E2E coverage are live. Latest public run `route-exit-sign-fix-v1` reached 2/6 Miller→Motel completions with 0 soft locks/deaths after the exit-sign fix. Orchard-focused `orchard-ai-gravity-priority-v1` remains 6/6.' },
 ];
 
 export interface RegionPlanItem {
@@ -228,7 +228,7 @@ export const REGION_VERTICAL_SLICE_PLAN: RegionPlanItem[] = [
     combat: 'Pulse Carbine fundamentals against readable drones.',
     secret: 'Early Scout marker / Phase Door candidate.',
     connection: 'Miller road exits toward Motel Circuit.',
-    state: 'IN DEVELOPMENT; gameplay-design/content pass is live with Field Track, Willow Trail, Cache Grove, Old Mill Spur hidden log/cache, Substation Overlook power-shortcut beat, lower recovery lane shortcut, Scout Shelter pocket, early Arc/Disc prototypes, field-event rewards/ambushes and far-east Motel Breach. Needs manual feel review before AI guidance tuning.',
+    state: 'IN DEVELOPMENT; gameplay-design/content pass is live with Field Track, Willow Trail, Cache Grove, Old Mill Spur hidden log/cache, Substation Overlook power-shortcut beat, lower recovery lane shortcut, Scout Shelter pocket, early Arc/Disc prototypes, field-event rewards/ambushes and far-east Motel Breach. East Road exit breadcrumbs were corrected and automated Miller→Motel AI now has a 2/6 baseline; remaining review is subjective feel plus continued route tuning.',
   },
   {
     region: 'Motel Circuit',
@@ -238,7 +238,7 @@ export const REGION_VERTICAL_SLICE_PLAN: RegionPlanItem[] = [
     combat: 'Arc Blade parry timing and scanner beam counterplay.',
     secret: 'Stealth reward behind a detection route.',
     connection: 'Motel access road feeds Chagrin Falls Town.',
-    state: 'IN DEVELOPMENT; gameplay-design/content pass is live with motel entry, safe-shadow parking, optional Room Row stealth branch, Phase Shift-only Maintenance Pocket, Pool Courtyard scanner crossing, Service Lot fallback, motel sign ledge, field-event rewards/ambushes, early Arc/Disc prototypes and unmistakable River Road/Town breach. Need manual feel review and legitimate arrivals before judging Town handoff.',
+    state: 'IN DEVELOPMENT; gameplay-design/content pass is live with motel entry, safe-shadow parking, optional Room Row stealth branch, Phase Shift-only Maintenance Pocket, Pool Courtyard scanner crossing, Service Lot fallback, motel sign ledge recovery cache, field-event rewards/ambushes, early Arc/Disc prototypes and unmistakable River Road/Town breach. Needs more automated first-route arrivals and subjective stealth feel review.',
   },
   {
     region: 'Chagrin Falls Town',
@@ -331,7 +331,8 @@ export const BUILD_TODO: TodoItem[] = [
   { label: 'Orchard Gravity Well order pass: Crop Circle pre-well charge caps at 72%, CROP CIRCLE signs hide until the well is used, and `orchard-ai-gravity-priority-v1` improved focused Orchard AI completion from 2/6 to 6/6', done: true },
   { label: 'First pass: validate expanded route geometry, combat archetypes, smoke route, typecheck and production build', done: true },
   { label: 'Next: manual feel pass for travel time, empty space, cover placement, route readability and reward motivation on expanded maps', done: false },
-  { label: 'Next: improve route-following after breach=true, starting with Miller east road into Motel', done: false },
+  { label: 'Miller exit breadcrumb fix: East Road → Breach Road → Motel Breach improved focused Miller→Motel AI from 0/6 to 2/6', done: true },
+  { label: 'Next: continue automated first-route route-following and reduce remaining Miller→Motel stalls', done: false },
   { label: 'Later: resume AI Player Lab route-guidance safety after all route layouts are stable', done: false },
   { label: 'Next: AI full-route completion after the first three-region route stabilizes', done: false },
   { label: 'Next: deeper stealth alert rules and weapon-specific secret gates', done: false },

@@ -94,7 +94,7 @@
 <rect x="297.5" y="208.5" width="10" height="10" fill="#ffb84d" transform="rotate(45 302.5 213.5)" /><text x="309.5" y="206.5" font-size="10" fill="#e8f5de" font-family="monospace">ROOM ROW STASH SHARDS</text>
 <rect x="517.5" y="307.5" width="10" height="10" fill="#ffb84d" transform="rotate(45 522.5 312.5)" /><text x="529.5" y="305.5" font-size="10" fill="#e8f5de" font-family="monospace">POOL CROSSING OVERDRIVE</text>
 <rect x="836.5" y="472.5" width="10" height="10" fill="#ffb84d" transform="rotate(45 841.5 477.5)" /><text x="848.5" y="470.5" font-size="10" fill="#e8f5de" font-family="monospace">SERVICE LOCKER WEAPON</text>
-<rect x="671.5" y="219.5" width="10" height="10" fill="#ffb84d" transform="rotate(45 676.5 224.5)" /><text x="683.5" y="217.5" font-size="10" fill="#e8f5de" font-family="monospace">SIGN LEDGE SHARDS</text>
+<rect x="671.5" y="219.5" width="10" height="10" fill="#ffb84d" transform="rotate(45 676.5 224.5)" /><text x="683.5" y="217.5" font-size="10" fill="#e8f5de" font-family="monospace">SIGN LEDGE HEALTH</text>
 <circle cx="368.5" cy="444.5" r="5" fill="#b86dff" /><text x="375.5" y="437.5" font-size="10" fill="#e8f5de" font-family="monospace">WPN ARC</text>
 <circle cx="676.5" cy="224.5" r="5" fill="#b86dff" /><text x="683.5" y="217.5" font-size="10" fill="#e8f5de" font-family="monospace">WPN DISC</text>
 <circle cx="225.5" cy="444.5" r="5" fill="#bcff72" /><text x="232.5" y="437.5" font-size="10" fill="#e8f5de" font-family="monospace">SAFE SHADOW</text>

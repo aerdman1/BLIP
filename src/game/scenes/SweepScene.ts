@@ -965,10 +965,10 @@ export class SweepScene extends Phaser.Scene {
 
   private quietRoutePressure(): void {
     (this.enemyShots.getChildren() as Projectile[]).forEach((b) => b.active && b.kill());
-    (this.enemies.getChildren() as SweepEnemy[]).forEach((en) => {
+    ([...(this.enemies.getChildren() as SweepEnemy[])]).forEach((en) => {
       if (!en.active) return;
       this.fx.sparks(en.x, en.y, P.signalGreen, 4);
-      en.destroy();
+      this.removeEnemy(en);
     });
     this.eliteBeam?.clear();
     this.eliteAura?.destroy();
@@ -1085,6 +1085,24 @@ export class SweepScene extends Phaser.Scene {
       );
     }
     return e;
+  }
+
+  private removeEnemy(en: SweepEnemy): void {
+    const rig = this.tdRigs.get(en);
+    rig?.destroy();
+    this.tdRigs.delete(en);
+    const body = en.body as Phaser.Physics.Arcade.Body | null;
+    body?.stop();
+    if (body) body.enable = false;
+    en.setActive(false).setVisible(false);
+    this.enemies.remove(en, true, true);
+  }
+
+  private activeEnemyCount(): number {
+    return (this.enemies.getChildren() as SweepEnemy[]).filter((en) => {
+      const body = en.body as Phaser.Physics.Arcade.Body | null;
+      return en.active && en.hp > 0 && body?.enable !== false;
+    }).length;
   }
 
   /** charge the local objective; opens the breach only after enough distinct progress actions. */
@@ -1781,7 +1799,7 @@ export class SweepScene extends Phaser.Scene {
       gravityWellUsed: this.gravityWell?.used,
       gravityWellRequired: this.arena.id === 'maze-z4' ? true : undefined,
       breachOpen: this.breachOpen,
-      enemiesActive: this.enemies.countActive(true),
+      enemiesActive: this.activeEnemyCount(),
       motelScanners: motelScanners.total ? motelScanners : undefined,
     };
   }
@@ -1867,7 +1885,7 @@ export class SweepScene extends Phaser.Scene {
         gravityWellUsed: this.gravityWell?.used,
         gravityWellRequired: this.arena.id === 'maze-z4' ? true : undefined,
         breachOpen: this.breachOpen,
-        enemiesActive: this.enemies.countActive(true),
+        enemiesActive: this.activeEnemyCount(),
         overdrive: Math.round(Phaser.Math.Clamp(this.overdrive / SWEEP.overdriveMax, 0, 1) * 100),
       },
       objective: {
@@ -2314,7 +2332,7 @@ export class SweepScene extends Phaser.Scene {
     const isElite = en.getData('elite') === true;
     const isBoss = en.getData('boss') === true;
     const splitN = en.splitInto; // REPLICATOR bursts into chasing shards
-    en.destroy();
+    this.removeEnemy(en);
     if (splitN > 0) this.spawnSplitShards(ex, ey, splitN);
     // kills charge the Node (double near it); the breach opens at full charge
     this.addNodeCharge(ex, ey);
@@ -2767,7 +2785,7 @@ export class SweepScene extends Phaser.Scene {
         this.spawnAt = now + (this.spawnInterval * 1000) / aggro;
         this.spawnEnemy(this.spawnQueue.shift()!);
       }
-      if (this.waveActive && !this.spawnQueue.length && this.enemies.countActive(true) === 0) {
+      if (this.waveActive && !this.spawnQueue.length && this.activeEnemyCount() === 0) {
         this.waveActive = false;
         this.awaitingWave = true;
         this.nextWaveAt = now + (this.arena.waves?.[this.waveIdx]?.clearDelay ?? 2) * 1000;
@@ -2801,7 +2819,7 @@ export class SweepScene extends Phaser.Scene {
         x: Math.round(this.player.x),
         y: Math.round(this.player.y),
         hp: this.player.hp,
-        enemies: this.enemies.countActive(true),
+        enemies: this.activeEnemyCount(),
         heat: Math.round(this.heat),
         shards: this.shardsEarned,
       });
@@ -2835,7 +2853,7 @@ export class SweepScene extends Phaser.Scene {
       node: this.breachOpen ? 1 : Phaser.Math.Clamp(this.nodeCharge / this.chargeTarget, 0, 1),
       breachOpen: this.breachOpen,
       traverse: this.traverse,
-      enemies: this.enemies.countActive(true),
+      enemies: this.activeEnemyCount(),
       wave: this.traverse ? 0 : this.waveIdx + 1,
       waves: this.arena.waves?.length ?? 0,
       combo: this.combo,
