@@ -196,8 +196,11 @@ async function runPersona(page: Page, persona: Persona, seed: number): Promise<R
       else if (preferred === 'disc' && perception.weapon.id !== 'disc' && enemies[0]?.distance > 105) weaponSlotQueued = 2;
       if (weaponNextQueued || weaponSlotQueued !== null) weaponSwitches++;
 
-      const usefulPickup = pickups.find((p) => p.type === 'health' && player.hp <= 3) ?? pickups.find((p) => p.type === 'weapon' && (persona.curiosity + rand() * 0.4) > 0.62);
-      const interestingSignal = signals.find((s) => s.reward === 'health' && player.hp <= 4) ?? signals.find(() => rand() < persona.curiosity * persona.exploration);
+      const routeOpen = perception.progress.breachOpen === true;
+      const usefulPickup = pickups.find((p) => p.type === 'health' && player.hp <= 3)
+        ?? (!routeOpen ? pickups.find((p) => p.type === 'weapon' && (persona.curiosity + rand() * 0.4) > 0.62) : undefined);
+      const interestingSignal = signals.find((s) => s.reward === 'health' && player.hp <= 4)
+        ?? (!routeOpen ? signals.find(() => rand() < persona.curiosity * persona.exploration) : undefined);
       const nearestEnemy = enemies[0] ?? null;
       const threatenedByEnemy = nearestEnemy && nearestEnemy.distance < (player.hp <= 2 ? 170 : persona.riskTolerance < 0.45 ? 135 : 112);
       const urgentThreat = nearestEnemy && nearestEnemy.distance < (player.hp <= 2 ? 105 : 74);
@@ -216,7 +219,7 @@ async function runPersona(page: Page, persona: Persona, seed: number): Promise<R
         return enemy;
       };
       const routeOpenCommitChance = perception.progress.breachOpen
-        ? Math.max(routeOpenFollowChance, 0.9 - persona.mistakeChance * 0.22)
+        ? Math.max(routeOpenFollowChance, 0.96 - persona.mistakeChance * 0.08)
         : routeOpenFollowChance;
       if (perception.progress.breachOpen && objectiveHint && rand() < routeOpenCommitChance) {
         target = objectiveHint;
@@ -286,7 +289,8 @@ async function runPersona(page: Page, persona: Persona, seed: number): Promise<R
   const save = await api<any>(page, 'api.getSaveData()');
   for (const z of save.completedZones ?? []) regionsCompleted.add(z);
   if ((save.completedZones ?? []).includes('skyline-array')) result = 'completed';
-  if (stuckEvents >= 3 && result === 'alive-timeout') result = 'soft-lock-risk';
+  const finalTimeWithoutProgressMs = Math.max(0, Date.now() - lastProgressAt);
+  if (stuckEvents >= 3 && finalTimeWithoutProgressMs > 7000 && result === 'alive-timeout') result = 'soft-lock-risk';
   if (damageEvents >= 3) frustrationFlags.push('heavy-damage');
   if (stuckEvents) frustrationFlags.push('stuck-against-geometry');
   if ((weaponUsage.pulse ?? 0) > ((weaponUsage.arc ?? 0) + (weaponUsage.disc ?? 0)) * 4) boredomFlags.push('pulse-dominates');
@@ -311,7 +315,7 @@ async function runPersona(page: Page, persona: Persona, seed: number): Promise<R
     lootIgnored: Math.max(0, lootSeen - lootCollected),
     lootCollected,
     damageEvents,
-    timeWithoutProgressMs: Math.max(0, Date.now() - lastProgressAt),
+    timeWithoutProgressMs: finalTimeWithoutProgressMs,
     screenshots,
   };
 }

@@ -36,6 +36,7 @@ import { ActorRig, SignalNodeRig } from '../topdown/TdActors';
 
 type PickupType = 'health' | 'weapon' | 'boon';
 type ObjectiveKind = 'node' | 'breach' | 'survive' | 'gravity-well' | 'route-beacon' | 'field-event';
+type ObjectiveTarget = { kind: ObjectiveKind; x: number; y: number; label?: string };
 type WeaponAnnounce = 'switch' | 'pickup' | 'boon' | 'quiet';
 
 interface SweepWorldHandoff {
@@ -1927,6 +1928,7 @@ export class SweepScene extends Phaser.Scene {
       objectiveHint: objectiveTarget
         ? {
             kind: objectiveTarget.kind,
+            label: objectiveTarget.label ?? '',
             x: Math.round(objectiveTarget.x),
             y: Math.round(objectiveTarget.y),
             distance: Math.round(Phaser.Math.Distance.Between(this.player.x, this.player.y, objectiveTarget.x, objectiveTarget.y)),
@@ -1935,7 +1937,7 @@ export class SweepScene extends Phaser.Scene {
     };
   }
 
-  private currentObjectiveTarget(): { kind: ObjectiveKind; x: number; y: number } | null {
+  private currentObjectiveTarget(): ObjectiveTarget | null {
     if (!this.traverse) return { kind: 'survive', x: this.nodePos.x, y: this.nodePos.y };
     const route = ROUTE_BEACONS[this.arena.id];
     if (this.gravityWell && !this.gravityWell.used && this.arena.id === 'maze-z4') {
@@ -1950,41 +1952,45 @@ export class SweepScene extends Phaser.Scene {
     }
     const nearbyEvent = this.nearbyFieldEventTarget();
     if (nearbyEvent) return nearbyEvent;
+    if (this.breachOpen) {
+      const breachDistance = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.breachPos.x, this.breachPos.y);
+      if (breachDistance < 260) return { kind: 'breach', label: this.arena.nextLabel ?? 'OPEN BREACH', x: this.breachPos.x, y: this.breachPos.y };
+    }
     if (route) {
       const routed = this.routeBeaconTarget(this.breachOpen ? 'exit' : 'objective', this.breachOpen ? route.toExit : route.toObjective);
       if (routed) return routed;
     }
-    if (this.breachOpen) return { kind: 'breach', x: this.breachPos.x, y: this.breachPos.y };
-    if (this.gravityWell && !this.gravityWell.used) return { kind: 'gravity-well', x: this.gravityWell.x, y: this.gravityWell.y };
-    return { kind: 'node', x: this.nodePos.x, y: this.nodePos.y };
+    if (this.breachOpen) return { kind: 'breach', label: this.arena.nextLabel ?? 'OPEN BREACH', x: this.breachPos.x, y: this.breachPos.y };
+    if (this.gravityWell && !this.gravityWell.used) return { kind: 'gravity-well', label: 'GRAVITY WELL', x: this.gravityWell.x, y: this.gravityWell.y };
+    return { kind: 'node', label: this.goal.objective, x: this.nodePos.x, y: this.nodePos.y };
   }
 
-  private nearbyFieldEventTarget(): { kind: ObjectiveKind; x: number; y: number } | null {
+  private nearbyFieldEventTarget(): ObjectiveTarget | null {
     if (!this.fieldEventObjects.length || this.breachOpen) return null;
-    let best: { kind: ObjectiveKind; x: number; y: number; d: number } | null = null;
+    let best: { kind: ObjectiveKind; label: string; x: number; y: number; d: number } | null = null;
     for (const event of this.fieldEventObjects) {
       if (event.claimed) continue;
       const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, event.x, event.y);
       const reach = event.def.trigger === 'scan' ? 170 : event.def.radius ?? 72;
       if (d > reach) continue;
-      if (!best || d < best.d) best = { kind: 'field-event', x: event.x, y: event.y, d };
+      if (!best || d < best.d) best = { kind: 'field-event', label: event.def.label, x: event.x, y: event.y, d };
     }
-    return best ? { kind: best.kind, x: best.x, y: best.y } : null;
+    return best ? { kind: best.kind, label: best.label, x: best.x, y: best.y } : null;
   }
 
-  private routeBeaconTarget(phase: 'objective' | 'exit', markers: Array<{ tx: number; ty: number; label: string }>): { kind: ObjectiveKind; x: number; y: number } | null {
+  private routeBeaconTarget(phase: 'objective' | 'exit', markers: Array<{ tx: number; ty: number; label: string }>): ObjectiveTarget | null {
     for (const m of markers) {
       const x = (m.tx + 0.5) * SWEEP.tile;
       const y = (m.ty + 0.5) * SWEEP.tile;
       const key = `${phase}:${m.label}`;
       const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, x, y);
-      const visitRadius = m.label === 'GRAVITY WELL' ? 46 : 92;
+      const visitRadius = m.label === 'GRAVITY WELL' ? 46 : phase === 'exit' ? 140 : 110;
       if (d <= visitRadius) {
         this.routeVisited.add(key);
         continue;
       }
       if (!this.routeVisited.has(key)) {
-        return { kind: 'route-beacon', x, y };
+        return { kind: 'route-beacon', label: m.label, x, y };
       }
     }
     return null;

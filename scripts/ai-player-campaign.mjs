@@ -147,8 +147,19 @@ async function runOne(page, idx) {
   const weaponUsage = {};
   const boredomFlags = [];
   const frustrationFlags = [];
+  const decisionTrace = [];
+  const stallSamples = [];
   let result = 'alive-timeout';
   let combatShotTaken = false;
+  let lastDecisionKey = '';
+
+  const recordDecision = (entry) => {
+    const key = `${entry.region}:${entry.reason}:${entry.targetKind ?? ''}:${entry.targetLabel ?? ''}:${entry.breachOpen ? 1 : 0}`;
+    if (key === lastDecisionKey && decisionTrace.length) return;
+    lastDecisionKey = key;
+    decisionTrace.push(entry);
+    if (decisionTrace.length > 50) decisionTrace.shift();
+  };
 
   while (Date.now() - started < runMs) {
     const scene = await api(page, 'api.getSceneName()');
@@ -187,6 +198,23 @@ async function runOne(page, idx) {
         if (!lowMoveSince) lowMoveSince = now;
         if (now - lowMoveSince > 1400) {
           stuckEvents++;
+          stallSamples.push({
+            atMs: now - started,
+            region,
+            x: Math.round(perception.player.x),
+            y: Math.round(perception.player.y),
+            objective: perception.objective?.title ?? '',
+            hint: perception.objectiveHint
+              ? {
+                  kind: perception.objectiveHint.kind,
+                  label: perception.objectiveHint.label ?? '',
+                  distance: perception.objectiveHint.distance,
+                }
+              : null,
+            enemies: perception.visible.enemies.length,
+            breachOpen: perception.progress.breachOpen,
+          });
+          if (stallSamples.length > 16) stallSamples.shift();
           wallFollowUntil = now + 1800;
           wallFollowSide = rand() < 0.5 ? -1 : 1;
           lowMoveSince = now;
@@ -227,6 +255,7 @@ async function runOne(page, idx) {
       const visibleNode = perception.visible.node;
       const objectiveHint = perception.objectiveHint;
       let target = null;
+      let targetReason = 'wander';
       let fire = false;
       let dashQueued = false;
       let scanQueued = false;
@@ -244,8 +273,12 @@ async function runOne(page, idx) {
       else if (preferred === 'disc' && perception.weapon.id !== 'disc' && enemies[0]?.distance > 105) weaponSlotQueued = 2;
       if (weaponNextQueued || weaponSlotQueued !== null) weaponSwitches++;
 
-      const usefulPickup = pickups.find((p) => p.type === 'health' && player.hp <= 3) ?? pickups.find((p) => p.type === 'weapon' && (persona.curiosity + rand() * 0.4) > 0.62);
-      const interestingSignal = signals.find((s) => s.reward === 'health' && player.hp <= 4) ?? signals.find((s) => rand() < persona.curiosity * persona.exploration);
+      const routeOpen = perception.progress.breachOpen === true;
+      const routeScenario = scenario.arrivalGoal || scenario.name === 'full-route';
+      const usefulPickup = pickups.find((p) => p.type === 'health' && player.hp <= 3)
+        ?? (!routeOpen ? pickups.find((p) => p.type === 'weapon' && (persona.curiosity + rand() * 0.4) > 0.62) : undefined);
+      const interestingSignal = signals.find((s) => s.reward === 'health' && player.hp <= 4)
+        ?? (!routeOpen ? signals.find((s) => rand() < persona.curiosity * persona.exploration) : undefined);
       const routeOpenFollowChance = Math.max(
         persona.objectiveUnderstanding * scenario.objectiveBias,
         1 - persona.missInstructionChance * 0.65
@@ -267,46 +300,58 @@ async function runOne(page, idx) {
         return enemy;
       };
       const routeOpenCommitChance = perception.progress.breachOpen
-        ? Math.max(routeOpenFollowChance, 0.9 - persona.mistakeChance * 0.22)
+        ? Math.max(routeOpenFollowChance, routeScenario ? 0.96 - persona.mistakeChance * 0.08 : 0.9 - persona.mistakeChance * 0.22)
         : routeOpenFollowChance;
       if (perception.progress.breachOpen && objectiveHint && rand() < routeOpenCommitChance) {
         target = objectiveHint;
+        targetReason = 'follow-open-route';
         fire = enemies.length > 0 && rand() > persona.mistakeChance;
       } else if (gravityGateNeeded && objectiveHint && !urgentThreat && rand() < Math.max(0.88, persona.objectiveUnderstanding * scenario.objectiveBias)) {
         target = objectiveHint;
+        targetReason = 'required-gravity-route';
         fire = enemies.length > 0 && rand() > persona.mistakeChance;
         if (objectiveHint.kind === 'gravity-well' && objectiveHint.distance < 120) interactQueued = true;
       } else if (requiredTraversal && objectiveHint && !urgentThreat && rand() < Math.max(0.72, persona.objectiveUnderstanding * scenario.objectiveBias)) {
         target = objectiveHint;
+        targetReason = 'required-traversal';
         fire = enemies.length > 0 && rand() > persona.mistakeChance;
         if (objectiveHint.distance < 110) interactQueued = true;
       } else if (shouldFightVisibleThreat) {
         target = combatMove(nearestEnemy);
+        targetReason = 'fight-threat';
         fire = rand() > persona.mistakeChance * 0.8;
         if (rand() < persona.abilityUse * (nearestEnemy.distance < 80 ? 0.34 : 0.16)) { dashQueued = true; phaseShiftUses++; }
       } else if (scannerPressure && rand() < persona.abilityUse * scenario.objectiveBias) {
         target = objectiveHint ?? scannerPressure;
+        targetReason = 'phase-scanner';
         dashQueued = scannerPressure.distance < 92;
         if (dashQueued) phaseShiftUses++;
       } else if (usefulPickup && rand() > persona.missInstructionChance) {
         target = usefulPickup;
+        targetReason = 'collect-pickup';
       } else if (interestingSignal && rand() > persona.missInstructionChance * 0.75) {
         target = interestingSignal;
+        targetReason = 'inspect-signal';
         scanQueued = interestingSignal.trigger === 'scan' && interestingSignal.distance < 170;
       } else if (enemies.length) {
         const enemy = enemies[0];
         target = combatMove(enemy);
+        targetReason = 'fight-visible-enemy';
         fire = rand() > persona.mistakeChance * 0.72;
         if (rand() < persona.abilityUse * 0.18 && enemy.distance < 110) { dashQueued = true; phaseShiftUses++; }
       } else if (visibleBreach?.open && rand() < routeOpenCommitChance) {
         target = visibleBreach;
+        targetReason = 'enter-visible-breach';
       } else if (!gravityGateNeeded && visibleNode && rand() < persona.objectiveUnderstanding * scenario.objectiveBias) {
         target = visibleNode;
+        targetReason = 'work-visible-node';
       } else if (objectiveHint && rand() < persona.objectiveUnderstanding * scenario.objectiveBias * 0.78) {
         target = objectiveHint;
+        targetReason = 'follow-objective-hint';
       } else {
         const angle = rand() * Math.PI * 2 + persona.exploration * 0.7;
         target = { x: player.x + Math.cos(angle) * 90, y: player.y + Math.sin(angle) * 90 };
+        targetReason = 'explore';
       }
 
       if (rand() < persona.curiosity * 0.13) scanQueued = true;
@@ -317,6 +362,17 @@ async function runOne(page, idx) {
       const aimTarget = enemies[0] ?? target ?? { x: player.x + 1, y: player.y };
       const aim = vecTo(player, aimTarget, persona.aimError, rand);
       const move = target ? vecTo(player, target, persona.mistakeChance * 0.8, rand) : { x: 0, y: 0 };
+      recordDecision({
+        atMs: now - started,
+        region,
+        reason: targetReason,
+        targetKind: target?.kind ?? target?.type ?? '',
+        targetLabel: target?.label ?? target?.weapon ?? '',
+        targetDistance: target?.distance ?? Math.round(Math.hypot((target?.x ?? player.x) - player.x, (target?.y ?? player.y) - player.y)),
+        objectiveTitle: perception.objective?.title ?? '',
+        breachOpen: perception.progress.breachOpen,
+        enemies: enemies.length,
+      });
       const followingWall = target && now < wallFollowUntil;
       const adjustedMove = followingWall
         ? { x: move.x * 0.25 - move.y * wallFollowSide, y: move.y * 0.25 + move.x * wallFollowSide }
@@ -336,7 +392,8 @@ async function runOne(page, idx) {
   if (scenario.arrivalGoal && save.currentZone === scenario.goalZone) result = 'completed';
   else if ((save.completedZones ?? []).includes(scenario.goalZone)) result = 'completed';
   else if (!scenario.arrivalGoal && scenario.name !== 'full-route' && breachOpened) result = 'objective-complete';
-  if (stuckEvents >= 4 && result === 'alive-timeout') result = 'soft-lock-risk';
+  const finalTimeWithoutProgressMs = Math.max(0, Date.now() - lastProgressAt);
+  if (stuckEvents >= 4 && finalTimeWithoutProgressMs > 7000 && result === 'alive-timeout') result = 'soft-lock-risk';
   if (damageEvents >= 3) frustrationFlags.push('heavy-damage');
   if (stuckEvents) frustrationFlags.push('stuck-against-geometry');
   if ((weaponUsage.pulse ?? 0) > ((weaponUsage.arc ?? 0) + (weaponUsage.disc ?? 0)) * 4) boredomFlags.push('pulse-dominates');
@@ -370,7 +427,9 @@ async function runOne(page, idx) {
     lootIgnored: Math.max(0, lootSeen - lootCollected),
     lootCollected,
     damageEvents,
-    timeWithoutProgressMs: Math.max(0, Date.now() - lastProgressAt),
+    timeWithoutProgressMs: finalTimeWithoutProgressMs,
+    decisionTrace,
+    stallSamples,
     screenshots,
     consoleErrors,
     menuOverlayVisible,
