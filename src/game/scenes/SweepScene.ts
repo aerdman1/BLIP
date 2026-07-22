@@ -6,10 +6,10 @@
  * fire yourself. Tuning in config.SWEEP.
  */
 import Phaser from 'phaser';
-import { EVT, PALETTE as P, RENDER_ZOOM, SCENES, SWEEP, SWEEP_BOSS, SWEEP_ELITE, TD_ENEMY_TEX, TD_PALETTE, TD_VISUALS, TEX, TRIPO_CONTACT47_FRAMES, VIEW_W, css, type SweepEnemyKind } from '../config';
+import { EVT, PALETTE as P, RENDER_ZOOM, SCENES, SWEEP, SWEEP_BOSS, SWEEP_ELITE, SWEEP_ENEMIES, TD_ENEMY_TEX, TD_PALETTE, TD_VISUALS, TEX, TRIPO_CONTACT47_FRAMES, VIEW_W, css, type SweepEnemyKind } from '../config';
 import { buildSweepTextures } from '../art/sweepTextures';
 import { BlipCraft } from '../entities/sweep/BlipCraft';
-import { SweepEnemy } from '../entities/sweep/SweepEnemy';
+import { SweepEnemy, type SweepEnemyDebugState } from '../entities/sweep/SweepEnemy';
 import { Projectile, fireFrom, makeProjectileGroup } from '../entities/Projectile';
 import { DEFAULT_ARENA, SWEEP_ARENAS, type SweepArena } from '../data/sweepArenas';
 import { goalForArena, type RegionGoal } from '../data/regionGoals';
@@ -73,6 +73,7 @@ const ROUTE_BEACONS: Record<string, {
     toExit: [
       { tx: 23, ty: 12, label: 'EAST ROAD' },
       { tx: 29, ty: 10, label: 'MOTEL BEND' },
+      { tx: 28, ty: 4, label: 'MOTEL BREACH' },
     ],
   },
   'circuit-z2': {
@@ -85,6 +86,7 @@ const ROUTE_BEACONS: Record<string, {
       { tx: 24, ty: 11, label: 'SIDE LOT' },
       { tx: 30, ty: 9, label: 'EXIT HALL' },
       { tx: 30, ty: 5, label: 'RIVER ROAD' },
+      { tx: 28, ty: 4, label: 'TOWN BREACH' },
     ],
   },
   'town-z3': {
@@ -125,11 +127,15 @@ export class SweepScene extends Phaser.Scene {
   private breachPos = { x: 0, y: 0 };
   private walls!: Phaser.Physics.Arcade.StaticGroup;
   private floorTiles: Array<{ x: number; y: number }> = [];
+  private walkableTiles: boolean[][] = [];
+  private enemyPathDist: number[][] = [];
+  private enemyPathBuiltAt = 0;
   private mapW = 0;
   private mapH = 0;
   private nodePos = { x: 0, y: 0 };
   private nodeCharge = 0;
   private chargeTarget = 100;
+  private objectiveProgressCount = 0;
   private breachOpen = false;
   private breachEntryStartedAt = 0;
   private breachGlow?: Phaser.GameObjects.Image;
@@ -181,6 +187,7 @@ export class SweepScene extends Phaser.Scene {
     label: string;
     line: Phaser.GameObjects.Graphics;
     emitter: Phaser.GameObjects.Image;
+    text: Phaser.GameObjects.Text;
     disabled?: boolean;
   }> = [];
   private motelAlertUntil = 0;
@@ -212,6 +219,7 @@ export class SweepScene extends Phaser.Scene {
   private gameOverShown = false;
   private isPaused = false;
   private debugEmitAt = 0;
+  private entryGraceUntil = 0;
   private unsubs: Array<() => void> = [];
 
   constructor() {
@@ -299,6 +307,7 @@ export class SweepScene extends Phaser.Scene {
     this.nodePos = { x: (this.arena.node.tx + 0.5) * T, y: (this.arena.node.ty + 0.5) * T };
     this.nodeCharge = 0;
     this.chargeTarget = this.arena.chargeTarget ?? SWEEP.nodeChargeDefault;
+    this.objectiveProgressCount = 0;
     this.breachOpen = !this.traverse; // waves mode has no node gate
 
     this.cameras.main.setBackgroundColor(
@@ -328,11 +337,14 @@ export class SweepScene extends Phaser.Scene {
     this.enemies = this.physics.add.group();
     this.pickups = this.physics.add.group();
 
-    const spawnX = (this.arena.spawn.tx + 0.5) * T;
-    const spawnY = (this.arena.spawn.ty + 0.5) * T;
+    const spawn = this.nearestWalkableWorld((this.arena.spawn.tx + 0.5) * T, (this.arena.spawn.ty + 0.5) * T);
+    const spawnX = spawn.x;
+    const spawnY = spawn.y;
     this.player = new BlipCraft(this, spawnX, spawnY, this.fx);
     (this.player.body as Phaser.Physics.Arcade.Body).setCollideWorldBounds(true);
     this.applyWorldHandoff();
+    this.entryGraceUntil = this.time.now + 1600;
+    this.player.grantShield(1600);
     this.cameras.main.startFollow(this.player, true, 0.16, 0.16);
     if (this.td) {
       const tripoReady = TRIPO_CONTACT47_FRAMES.every((frame) => this.textures.exists(frame.key));
@@ -364,6 +376,7 @@ export class SweepScene extends Phaser.Scene {
           px: tripoReady ? 46 : TD_VISUALS.actorPx.player,
           hoverThrusters: tripoReady,
           hoverColor: 0x39dfff,
+          collisionPx: { w: 24, h: 24 },
           lighting: this.tdLight,
           lightRadius: 92,
           lightColor: TD_PALETTE.rim,
@@ -464,6 +477,9 @@ export class SweepScene extends Phaser.Scene {
     };
     this.arena.rooms.forEach(carve);
     this.arena.halls.forEach(carve);
+    this.walkableTiles = solid.map((row) => row.map((isSolid) => !isSolid));
+    this.enemyPathDist = [];
+    this.enemyPathBuiltAt = 0;
 
     // floor tile lists (world centres + tile coords + wall-adjacency)
     this.floorTiles = [];
@@ -640,8 +656,9 @@ export class SweepScene extends Phaser.Scene {
   private buildBreach(): void {
     const T = SWEEP.tile;
     const m = this.arena.breach ?? { tx: this.arena.grid.w - 2, ty: 2 };
-    const bx = (m.tx + 0.5) * T;
-    const by = (m.ty + 0.5) * T;
+    const p = this.nearestWalkableWorld((m.tx + 0.5) * T, (m.ty + 0.5) * T);
+    const bx = p.x;
+    const by = p.y;
     this.breachPos = { x: bx, y: by };
     // starts DORMANT (grey, no pulse) — charging the Node opens it (openBreach)
     this.breachGlow = this.add.image(bx, by, TEX.glow8).setDepth(11).setTint(P.uiDim).setBlendMode(Phaser.BlendModes.ADD).setScale(6).setAlpha(0.16);
@@ -789,11 +806,11 @@ export class SweepScene extends Phaser.Scene {
         .setResolution(2)
         .setDepth(16);
       this.routeMarkers.push(text);
-      this.motelScanners.push({ ax, ay, bx, by, label, line, emitter });
+      this.motelScanners.push({ ax, ay, bx, by, label, line, emitter, text });
     };
 
-    addScanner(2.7, 12.5, 5.3, 12.5, 'SHIFT THROUGH');
-    addScanner(12.5, 7.8, 12.5, 10.2, 'SCANNER GRID');
+    addScanner(2.7, 12.5, 5.3, 12.5, 'PHASE SHIFT');
+    addScanner(12.5, 7.8, 12.5, 10.2, 'SCANNER GATE');
     addScanner(15.3, 6.5, 18.7, 6.5, 'BLINK WINDOW');
     addScanner(28.3, 9.5, 31.2, 9.5, 'RIVER ROAD EXIT');
     bus.emit(EVT.toast, { text: 'MOTEL SECURITY — Phase Shift through red beams or fight the alert.', color: 'orange' });
@@ -812,11 +829,10 @@ export class SweepScene extends Phaser.Scene {
       this.breachGlow.setTint(P.signal).setAlpha(0.4);
       this.tweens.add({ targets: this.breachGlow, scale: { from: 6, to: 9 }, alpha: { from: 0.3, to: 0.6 }, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
+    this.updateRouteMarkerVisibility();
     this.quietRoutePressure();
     bus.emit(EVT.toast, { text: this.goal.exitHint, color: 'green' });
     this.showBanner(this.arena.nextLabel ? `ROUTE OPEN — ${this.arena.nextLabel.toUpperCase()}` : this.goal.completionBanner);
-    // reward system: a Signal Storm was cleared → medal + cache (RewardTriggers)
-    bus.emit(EVT.sweepCleared, { combo: this.combo, noHit: this.player.hp >= this.player.maxHp });
     // boss-finale arenas bloom the crop circle when the Node charges (see beginBossFinale),
     // not here — avoid a double bloom.
     if (this.arena.biome === 'orchard' && !this.arena.bossFinale) this.cropBloom();
@@ -881,11 +897,33 @@ export class SweepScene extends Phaser.Scene {
     this.fx.flash(P.signal, 150);
     this.fx.scanRing(this.player.x, this.player.y, 96, 460, P.signal);
     this.fx.floatText(this.player.x, this.player.y - 16, goal.rewardName.toUpperCase(), P.signal);
-    bus.emit(EVT.toast, {
-      text: `${goal.rewardName} · ${goal.rewardType}: ${goal.rewardDescription}`,
-      color: 'green',
+    bus.emit(EVT.rewardBanner, {
+      kind: 'region-reward',
+      title: goal.rewardName.toUpperCase(),
+      sub: goal.rewardType.toUpperCase(),
+      desc: goal.rewardDescription,
+      color: this.regionRewardColor(),
+      icon: this.regionRewardIcon(),
+      rarity: goal.rewardType === 'Major story unlock' ? 'mythic' : 'epic',
+      big: true,
     });
     this.showBanner(`${goal.completionBanner} · ${goal.rewardName.toUpperCase()}`);
+  }
+
+  private regionRewardColor(): string {
+    if (this.goal.rewardId.includes('pulse') || this.goal.rewardId.includes('carbine')) return '#a8ff3e';
+    if (this.goal.rewardId === 'emp-burst') return '#3df0ff';
+    if (this.goal.rewardId === 'ghost-protocol') return '#b06bff';
+    if (this.goal.rewardId === 'refuse-label') return '#ff4b5c';
+    return '#f2a93b';
+  }
+
+  private regionRewardIcon(): string {
+    if (this.goal.rewardId.includes('pulse') || this.goal.rewardId.includes('carbine')) return 'pulse';
+    if (this.goal.rewardId === 'emp-burst') return 'badge';
+    if (this.goal.rewardId === 'ghost-protocol') return 'echo';
+    if (this.goal.rewardId === 'refuse-label') return 'trophy-refuse';
+    return 'relic';
   }
 
   /** Single funnel for every enemy spawn — guarantees the HD rig is attached no
@@ -894,6 +932,9 @@ export class SweepScene extends Phaser.Scene {
     this.enemies.add(e);
     if (this.td) {
       const art = TD_ENEMY_TEX[e.kind];
+      const isBoss = e.getData('boss') === true;
+      const isElite = e.getData('elite') === true;
+      const hitbox = isBoss ? 34 : isElite ? 32 : 24;
       this.tdRigs.set(
         e,
         new ActorRig(this, e, {
@@ -907,6 +948,7 @@ export class SweepScene extends Phaser.Scene {
           emissiveAlpha: 0.4,
           emissivePulse: 0.1,
           px: TD_VISUALS.actorPx.drone,
+          collisionPx: { w: hitbox, h: hitbox },
           lift: 10, // drones hover — their shadow detaches and softens
           lighting: this.tdLight,
           // trimmed from 54/0.22 alongside the 2026-07 HD enemy art replacement —
@@ -922,18 +964,33 @@ export class SweepScene extends Phaser.Scene {
     return e;
   }
 
-  /** charge the Node from a kill (double near the node); opens the breach at target */
-  private addNodeCharge(x: number, y: number): void {
+  /** charge the local objective; opens the breach only after enough distinct progress actions. */
+  private addObjectiveProgress(x: number, y: number, amount: number, label = '+CHARGE'): void {
     if (!this.traverse || this.breachOpen || this.nodeFull) return;
-    const near = Phaser.Math.Distance.Between(x, y, this.nodePos.x, this.nodePos.y) < SWEEP.nodeChargeRadius;
-    this.nodeCharge = Math.min(this.chargeTarget, this.nodeCharge + SWEEP.nodeChargePerKill * (near ? 2 : 1));
-    if (near) this.fx.floatText(x, y - 6, '+CHARGE', P.signalGreen);
-    if (this.nodeCharge >= this.chargeTarget) {
+    this.objectiveProgressCount++;
+    this.nodeCharge = Math.min(this.chargeTarget, this.nodeCharge + amount);
+    if (label) this.fx.floatText(x, y - 6, label, P.signalGreen);
+    const minActions = this.arena.minObjectiveActions ?? 0;
+    if (this.nodeCharge >= this.chargeTarget && this.objectiveProgressCount >= minActions) {
       this.nodeFull = true;
       // FINALE: charging the Node wakes the Maze Heart; the breach stays sealed until it dies.
       if (this.arena.bossFinale) this.beginBossFinale();
       else this.openBreach();
+    } else if (this.nodeCharge >= this.chargeTarget && minActions > 0) {
+      this.fx.floatText(this.nodePos.x, this.nodePos.y - 26, `SIGNALS ${this.objectiveProgressCount}/${minActions}`, P.warning);
     }
+  }
+
+  /** charge the Node from a kill (double near the node). */
+  private addNodeCharge(x: number, y: number): void {
+    const near = Phaser.Math.Distance.Between(x, y, this.nodePos.x, this.nodePos.y) < SWEEP.nodeChargeRadius;
+    this.addObjectiveProgress(x, y, SWEEP.nodeChargePerKill * (near ? 2 : 1), near ? '+CHARGE' : '');
+  }
+
+  private motelScannerStatus(): { disabled: number; total: number } {
+    const total = this.motelScanners.length;
+    const disabled = this.motelScanners.filter((s) => s.disabled === true).length;
+    return { disabled, total };
   }
 
   /** Zone-4 finale — the charged Node wakes the Maze Heart boss; breach gates on its death. */
@@ -950,12 +1007,13 @@ export class SweepScene extends Phaser.Scene {
 
   /** the Maze Heart — an enhanced Classifier construct (reuses the elite beam machinery). */
   private spawnBoss(): void {
-    const e = new SweepEnemy(this, this.nodePos.x, this.nodePos.y, 'drifter');
+    const p = this.nearestWalkableWorld(this.nodePos.x, this.nodePos.y);
+    const e = new SweepEnemy(this, p.x, p.y, 'drifter');
     e.setTexture(TEX.sweepMazeHeart);
     e.hp = SWEEP_BOSS.hp;
     e.maxHp = SWEEP_BOSS.hp;
     e.setDepth(16);
-    (e.body as Phaser.Physics.Arcade.Body).setSize(24, 24);
+    (e.body as Phaser.Physics.Arcade.Body).setSize(34, 34, true);
     e.setData('elite', true).setData('boss', true);
     this.eliteAura = this.add.image(e.x, e.y, TEX.glow8).setDepth(15).setTint(P.danger).setBlendMode(Phaser.BlendModes.ADD).setScale(3).setAlpha(0.45);
     this.tweens.add({ targets: this.eliteAura, alpha: { from: 0.3, to: 0.62 }, scale: { from: 2.6, to: 3.4 }, duration: 640, yoyo: true, repeat: -1 });
@@ -1037,12 +1095,13 @@ export class SweepScene extends Phaser.Scene {
     // (getting caught spikes heat); drops a guaranteed Scout Boon + shard cache.
     const T = SWEEP.tile;
     const m = this.arena.elite ?? this.arena.node;
-    const e = new SweepEnemy(this, (m.tx + 0.5) * T, (m.ty + 0.5) * T, 'drifter');
+    const p = this.nearestWalkableWorld((m.tx + 0.5) * T, (m.ty + 0.5) * T);
+    const e = new SweepEnemy(this, p.x, p.y, 'drifter');
     e.setTexture(TEX.sweepElite);
     e.hp = SWEEP_ELITE.hp;
     e.maxHp = SWEEP_ELITE.hp;
     e.setDepth(16);
-    (e.body as Phaser.Physics.Arcade.Body).setSize(16, 16);
+    (e.body as Phaser.Physics.Arcade.Body).setSize(32, 32, true);
     e.setData('elite', true);
     // menacing threat glow around the elite
     this.eliteAura = this.add.image(e.x, e.y, TEX.glow8).setDepth(15).setTint(P.danger).setBlendMode(Phaser.BlendModes.ADD).setScale(2).setAlpha(0.4);
@@ -1100,7 +1159,7 @@ export class SweepScene extends Phaser.Scene {
     } else {
       g.lineStyle(cfg.beamHalfWidth * 2, P.danger, 0.85).lineBetween(ex, ey, tx, ty);
       g.lineStyle(2, P.white, 0.9).lineBetween(ex, ey, tx, ty);
-      if (this.player.alive && !this.player.invulnerable) {
+      if (this.player.alive && !this.player.invulnerable && now >= this.entryGraceUntil) {
         const d = pointToSegment(this.player.x, this.player.y, ex, ey, tx, ty);
         if (d < cfg.beamHalfWidth + 4) {
           this.heat = Math.min(100, this.heat + cfg.beamHeatOnHit);
@@ -1121,10 +1180,9 @@ export class SweepScene extends Phaser.Scene {
     bus.emit(EVT.toast, { text: 'THE HEART CALLS ITS SWARM', color: 'orange' });
     SWEEP_BOSS.addsKinds.forEach((kind, i) => {
       const a = (i / SWEEP_BOSS.addsKinds.length) * Math.PI * 2 + Math.random();
-      const sx = x + Math.cos(a) * 34;
-      const sy = y + Math.sin(a) * 34;
-      this.fx.sparks(sx, sy, P.danger, 6);
-      this.addEnemy(new SweepEnemy(this, sx, sy, kind as SweepEnemyKind));
+      const p = this.nearestWalkableWorld(x + Math.cos(a) * 34, y + Math.sin(a) * 34);
+      this.fx.sparks(p.x, p.y, P.danger, 6);
+      this.addEnemy(new SweepEnemy(this, p.x, p.y, kind as SweepEnemyKind));
     });
   }
 
@@ -1176,7 +1234,8 @@ export class SweepScene extends Phaser.Scene {
     this.fx.sparks(x, y, P.violetGlitch, 8);
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2 + Math.random();
-      const shard = new SweepEnemy(this, x + Math.cos(a) * 8, y + Math.sin(a) * 8, 'drifter');
+      const p = this.nearestWalkableWorld(x + Math.cos(a) * 8, y + Math.sin(a) * 8);
+      const shard = new SweepEnemy(this, p.x, p.y, 'drifter');
       shard.hp = 1;
       shard.maxHp = 1;
       shard.setScale(0.7).setTint(P.violetGlitch);
@@ -1189,7 +1248,8 @@ export class SweepScene extends Phaser.Scene {
     const T = SWEEP.tile;
     // authored placements — enemies live in the rooms/corridors the designer chose
     (this.arena.enemies ?? []).forEach((m) => {
-      this.addEnemy(new SweepEnemy(this, (m.tx + 0.5) * T, (m.ty + 0.5) * T, m.type));
+      const p = this.nearestWalkableWorld((m.tx + 0.5) * T, (m.ty + 0.5) * T);
+      this.addEnemy(new SweepEnemy(this, p.x, p.y, m.type));
     });
   }
 
@@ -1221,6 +1281,138 @@ export class SweepScene extends Phaser.Scene {
     const pool = edgeTiles.length ? edgeTiles : this.floorTiles;
     const p = pool.length ? Phaser.Utils.Array.GetRandom(pool) : { x: this.mapW / 2, y: 20 };
     this.addEnemy(new SweepEnemy(this, p.x, p.y, kind));
+  }
+
+  private nearestWalkableWorld(x: number, y: number): { x: number; y: number } {
+    const start = this.tileAt(x, y);
+    if (this.isWalkableTile(start.tx, start.ty)) return this.tileCenter(start.tx, start.ty);
+
+    const maxRadius = Math.max(this.arena.grid.w, this.arena.grid.h);
+    let best: { tx: number; ty: number; d2: number } | null = null;
+    for (let r = 1; r <= maxRadius && !best; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+          const tx = start.tx + dx;
+          const ty = start.ty + dy;
+          if (!this.isWalkableTile(tx, ty)) continue;
+          const c = this.tileCenter(tx, ty);
+          const d2 = Phaser.Math.Distance.Squared(x, y, c.x, c.y);
+          if (!best || d2 < best.d2) best = { tx, ty, d2 };
+        }
+      }
+    }
+
+    return best ? this.tileCenter(best.tx, best.ty) : { x: this.mapW / 2, y: this.mapH / 2 };
+  }
+
+  private debugCombatLane(): { player: { x: number; y: number }; enemy: { x: number; y: number } } {
+    const W = this.arena.grid.w;
+    const H = this.arena.grid.h;
+    let best = { y: 0, x0: 0, x1: 0, len: 0 };
+    for (let ty = 1; ty < H - 1; ty++) {
+      let tx = 1;
+      while (tx < W - 1) {
+        while (tx < W - 1 && !this.isWalkableTile(tx, ty)) tx++;
+        const x0 = tx;
+        while (tx < W - 1 && this.isWalkableTile(tx, ty)) tx++;
+        const len = tx - x0;
+        if (len > best.len) best = { y: ty, x0, x1: tx - 1, len };
+      }
+    }
+
+    if (best.len >= 7) {
+      const enemyTx = Math.min(best.x1 - 1, best.x0 + 12);
+      return {
+        player: this.tileCenter(best.x0 + 1, best.y),
+        enemy: this.tileCenter(enemyTx, best.y),
+      };
+    }
+    return {
+      player: this.nearestWalkableWorld((this.arena.spawn.tx + 0.5) * SWEEP.tile, (this.arena.spawn.ty + 0.5) * SWEEP.tile),
+      enemy: this.nearestWalkableWorld(this.nodePos.x, this.nodePos.y),
+    };
+  }
+
+  private tileAt(x: number, y: number): { tx: number; ty: number } {
+    const T = SWEEP.tile;
+    return {
+      tx: Phaser.Math.Clamp(Math.floor(x / T), 0, this.arena.grid.w - 1),
+      ty: Phaser.Math.Clamp(Math.floor(y / T), 0, this.arena.grid.h - 1),
+    };
+  }
+
+  private tileCenter(tx: number, ty: number): { x: number; y: number } {
+    const T = SWEEP.tile;
+    return { x: (tx + 0.5) * T, y: (ty + 0.5) * T };
+  }
+
+  private isWalkableTile(tx: number, ty: number): boolean {
+    return this.walkableTiles[ty]?.[tx] === true;
+  }
+
+  private hasWalkableLine(x1: number, y1: number, x2: number, y2: number): boolean {
+    const steps = Math.max(1, Math.ceil(Phaser.Math.Distance.Between(x1, y1, x2, y2) / (SWEEP.tile * 0.45)));
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const p = this.tileAt(Phaser.Math.Linear(x1, x2, t), Phaser.Math.Linear(y1, y2, t));
+      if (!this.isWalkableTile(p.tx, p.ty)) return false;
+    }
+    return true;
+  }
+
+  private buildEnemyPathField(now: number): number[][] {
+    if (this.enemyPathDist.length && now - this.enemyPathBuiltAt < 160) return this.enemyPathDist;
+    const W = this.arena.grid.w;
+    const H = this.arena.grid.h;
+    const dist = Array.from({ length: H }, () => new Array<number>(W).fill(Infinity));
+    const start = this.tileAt(this.player.x, this.player.y);
+    if (!this.isWalkableTile(start.tx, start.ty)) {
+      this.enemyPathDist = dist;
+      this.enemyPathBuiltAt = now;
+      return dist;
+    }
+
+    const qx: number[] = [start.tx];
+    const qy: number[] = [start.ty];
+    dist[start.ty][start.tx] = 0;
+    for (let qi = 0; qi < qx.length; qi++) {
+      const tx = qx[qi];
+      const ty = qy[qi];
+      const next = dist[ty][tx] + 1;
+      const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
+      for (const [dx, dy] of dirs) {
+        const nx = tx + dx;
+        const ny = ty + dy;
+        if (!this.isWalkableTile(nx, ny) || dist[ny][nx] <= next) continue;
+        dist[ny][nx] = next;
+        qx.push(nx);
+        qy.push(ny);
+      }
+    }
+    this.enemyPathDist = dist;
+    this.enemyPathBuiltAt = now;
+    return dist;
+  }
+
+  private enemyDriveTarget(en: SweepEnemy, pathDist: number[][]): { x: number; y: number; pathing: boolean } {
+    if (this.hasWalkableLine(en.x, en.y, this.player.x, this.player.y)) return { x: this.player.x, y: this.player.y, pathing: false };
+    const here = this.tileAt(en.x, en.y);
+    let bestTx = here.tx;
+    let bestTy = here.ty;
+    let best = pathDist[here.ty]?.[here.tx] ?? Infinity;
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
+    for (const [dx, dy] of dirs) {
+      const tx = here.tx + dx;
+      const ty = here.ty + dy;
+      const d = pathDist[ty]?.[tx] ?? Infinity;
+      if (!this.isWalkableTile(tx, ty) || d >= best) continue;
+      best = d;
+      bestTx = tx;
+      bestTy = ty;
+    }
+    if (!Number.isFinite(best)) return { x: this.player.x, y: this.player.y, pathing: false };
+    return { ...this.tileCenter(bestTx, bestTy), pathing: true };
   }
 
   private get aggro(): number {
@@ -1256,8 +1448,88 @@ export class SweepScene extends Phaser.Scene {
     return true;
   }
 
-  debugRuntimeState(): { hp: number; maxHp: number; weaponId: string; weaponIndex: number; overdrive: number; shardsEarned: number } | null {
+  debugStartEnemyProbe(kind: SweepEnemyKind): boolean {
+    if (!this.player?.active || !SWEEP_ENEMIES[kind]) return false;
+    resetVirtualInput();
+    this.enemies.clear(true, true);
+    (this.playerShots.getChildren() as Projectile[]).forEach((b) => b.active && b.kill());
+    (this.enemyShots.getChildren() as Projectile[]).forEach((b) => b.active && b.kill());
+    this.eliteBeam?.clear();
+    this.eliteAura?.destroy();
+    this.eliteAura = undefined;
+    this.elite = undefined;
+    this.bossActive = false;
+    this.bossAddsSpawned = false;
+    this.heat = 0;
+    this.combo = 0;
+    this.fireAt = 0;
+    this.setWeapon(WEAPONS.pulse);
+
+    const lane = this.debugCombatLane();
+    this.player.setPosition(lane.player.x, lane.player.y);
+    this.player.setAim(Math.atan2(lane.enemy.y - lane.player.y, lane.enemy.x - lane.player.x));
+    this.player.hp = 99;
+    const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
+    playerBody.setVelocity(0, 0);
+    playerBody.setAcceleration(0, 0);
+    bus.emit(EVT.hudHp, { hp: this.player.hp, max: this.player.maxHp });
+
+    this.addEnemy(new SweepEnemy(this, lane.enemy.x, lane.enemy.y, kind));
+    return true;
+  }
+
+  debugCombatSnapshot(): {
+    arenaId: string;
+    player: { x: number; y: number; hp: number };
+    enemies: SweepEnemyDebugState[];
+    playerShots: number;
+    enemyShots: number;
+  } | null {
     if (!this.player?.active) return null;
+    return {
+      arenaId: this.arena.id,
+      player: { x: Math.round(this.player.x), y: Math.round(this.player.y), hp: this.player.hp },
+      enemies: (this.enemies.getChildren() as SweepEnemy[]).filter((en) => en.active).map((en) => en.debugState()),
+      playerShots: (this.playerShots.getChildren() as Projectile[]).filter((b) => b.active).length,
+      enemyShots: (this.enemyShots.getChildren() as Projectile[]).filter((b) => b.active).length,
+    };
+  }
+
+  debugFireAtProbeEnemy(): boolean {
+    if (!this.player?.active) return false;
+    const en = (this.enemies.getChildren() as SweepEnemy[]).find((candidate) => candidate.active);
+    if (!en) return false;
+    this.player.setAim(Math.atan2(en.y - this.player.y, en.x - this.player.x));
+    const now = this.time.now;
+    if (now >= this.fireAt) this.fire(now);
+    return true;
+  }
+
+  debugForceDeath(): boolean {
+    if (!this.player?.active || this.gameOverShown) return false;
+    this.player.hp = 0;
+    bus.emit(EVT.hudHp, { hp: 0, max: this.player.maxHp });
+    this.onDeath();
+    return true;
+  }
+
+  debugRuntimeState(): {
+    hp: number;
+    maxHp: number;
+    weaponId: string;
+    weaponIndex: number;
+    overdrive: number;
+    shardsEarned: number;
+    nodeCharge: number;
+    chargeTarget: number;
+    objectiveActions: number;
+    objectiveActionsRequired: number;
+    breachOpen: boolean;
+    enemiesActive: number;
+    motelScanners?: { disabled: number; total: number };
+  } | null {
+    if (!this.player?.active) return null;
+    const motelScanners = this.motelScannerStatus();
     return {
       hp: this.player.hp,
       maxHp: this.player.maxHp,
@@ -1265,7 +1537,20 @@ export class SweepScene extends Phaser.Scene {
       weaponIndex: this.weaponIndex,
       overdrive: this.overdrive,
       shardsEarned: this.shardsEarned,
+      nodeCharge: this.nodeCharge,
+      chargeTarget: this.chargeTarget,
+      objectiveActions: this.objectiveProgressCount,
+      objectiveActionsRequired: this.arena.minObjectiveActions ?? 0,
+      breachOpen: this.breachOpen,
+      enemiesActive: this.enemies.countActive(true),
+      motelScanners: motelScanners.total ? motelScanners : undefined,
     };
+  }
+
+  debugOpenRouteForInspection(): boolean {
+    if (!this.traverse || !this.player?.active || this.exiting) return false;
+    if (!this.breachOpen) this.openBreach();
+    return true;
   }
 
   debugAiPerception(): unknown {
@@ -1304,6 +1589,21 @@ export class SweepScene extends Phaser.Scene {
         y: Math.round(c.y),
         distance: Math.round(Phaser.Math.Distance.Between(this.player.x, this.player.y, c.x, c.y)),
       }));
+    const seenScanners = this.motelScanners
+      .filter((s) => inView((s.ax + s.bx) / 2, (s.ay + s.by) / 2))
+      .map((s) => {
+        const x = (s.ax + s.bx) / 2;
+        const y = (s.ay + s.by) / 2;
+        return {
+          x: Math.round(x),
+          y: Math.round(y),
+          label: s.disabled ? 'GATE DOWN' : s.label,
+          disabled: s.disabled === true,
+          alert: this.time.now < this.motelAlertUntil,
+          distance: Math.round(Phaser.Math.Distance.Between(this.player.x, this.player.y, x, y)),
+        };
+      })
+      .sort((a, b) => a.distance - b.distance);
     const objectiveTarget = this.currentObjectiveTarget();
     return {
       arena: { id: this.arena.id, label: this.arena.label, mode: this.arena.mode, zoneId: this.arena.zoneId ?? '' },
@@ -1311,6 +1611,8 @@ export class SweepScene extends Phaser.Scene {
       weapon: { id: this.weapon.id, name: this.weapon.name },
       progress: {
         node: Math.round(Phaser.Math.Clamp(this.nodeCharge / this.chargeTarget, 0, 1) * 100),
+        objectiveActions: this.objectiveProgressCount,
+        objectiveActionsRequired: this.arena.minObjectiveActions ?? 0,
         breachOpen: this.breachOpen,
         enemiesActive: this.enemies.countActive(true),
         overdrive: Math.round(Phaser.Math.Clamp(this.overdrive / SWEEP.overdriveMax, 0, 1) * 100),
@@ -1324,6 +1626,7 @@ export class SweepScene extends Phaser.Scene {
         enemies: seenEnemies,
         pickups: seenPickups,
         caches: seenCaches,
+        scanners: seenScanners,
         node: inView(this.nodePos.x, this.nodePos.y)
           ? { x: Math.round(this.nodePos.x), y: Math.round(this.nodePos.y), distance: Math.round(Phaser.Math.Distance.Between(this.player.x, this.player.y, this.nodePos.x, this.nodePos.y)) }
           : null,
@@ -1344,27 +1647,31 @@ export class SweepScene extends Phaser.Scene {
 
   private currentObjectiveTarget(): { kind: ObjectiveKind; x: number; y: number } | null {
     if (!this.traverse) return { kind: 'survive', x: this.nodePos.x, y: this.nodePos.y };
-    if (this.breachOpen) return { kind: 'breach', x: this.breachPos.x, y: this.breachPos.y };
     const route = ROUTE_BEACONS[this.arena.id];
     if (route) {
-      const markers = route.toObjective;
-      const phase = 'objective';
-      for (const m of markers) {
-        const x = (m.tx + 0.5) * SWEEP.tile;
-        const y = (m.ty + 0.5) * SWEEP.tile;
-        const key = `${phase}:${m.label}`;
-        const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, x, y);
-        if (d <= 56) {
-          this.routeVisited.add(key);
-          continue;
-        }
-        if (!this.routeVisited.has(key)) {
-          return { kind: 'route-beacon', x, y };
-        }
-      }
+      const routed = this.routeBeaconTarget(this.breachOpen ? 'exit' : 'objective', this.breachOpen ? route.toExit : route.toObjective);
+      if (routed) return routed;
     }
+    if (this.breachOpen) return { kind: 'breach', x: this.breachPos.x, y: this.breachPos.y };
     if (this.gravityWell && !this.gravityWell.used) return { kind: 'gravity-well', x: this.gravityWell.x, y: this.gravityWell.y };
     return { kind: 'node', x: this.nodePos.x, y: this.nodePos.y };
+  }
+
+  private routeBeaconTarget(phase: 'objective' | 'exit', markers: Array<{ tx: number; ty: number; label: string }>): { kind: ObjectiveKind; x: number; y: number } | null {
+    for (const m of markers) {
+      const x = (m.tx + 0.5) * SWEEP.tile;
+      const y = (m.ty + 0.5) * SWEEP.tile;
+      const key = `${phase}:${m.label}`;
+      const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, x, y);
+      if (d <= 92) {
+        this.routeVisited.add(key);
+        continue;
+      }
+      if (!this.routeVisited.has(key)) {
+        return { kind: 'route-beacon', x, y };
+      }
+    }
+    return null;
   }
 
   private isHoldingAtOpenBreach(now: number): boolean {
@@ -1424,14 +1731,16 @@ export class SweepScene extends Phaser.Scene {
         const uni = wp.scale ?? 1; // heavy shells (RUPTURE) read bigger
         b.setTint(charged || surge ? P.warning : wp.tint);
         b.setScale((charged ? 2.2 : (wp.scaleX ?? 1)) * uni, (charged ? 1.25 : 1) * uni);
-        const mutationDmg = wp.id === 'pulse' && ownsPulseResonance ? 1 : 0;
-        b.setData('dmg', (wp.damage + mutationDmg) * (surge || charged ? 2 : 1));
+        b.setData('dmg', wp.damage * (surge || charged ? 2 : 1));
         b.setData('pierce', wp.pierce === true || charged);
         b.setData('bounce', wp.id === 'pulse' && ownsRicochet ? Math.max(1, wp.bounce ?? 0) : wp.bounce ?? 0);
+        b.setData('chain', wp.id === 'pulse' && ownsPulseResonance && charged ? 2 : 0);
         b.setData('hits', null);
         b.setData('recallDisc', wp.id === 'disc');
         b.setData('returnAt', now + 420);
         b.setData('discPhase', 'out');
+        b.setData('returnTrail', wp.id === 'disc' && ownsRicochet);
+        b.setData('trailAt', 0);
         // reset per-shot specials every fire — the pool reuses sprites, so stale
         // homing/explode data from a previous weapon must be cleared.
         b.setData('homing', wp.homing ? (wp.homingRate ?? 5) : 0);
@@ -1491,13 +1800,27 @@ export class SweepScene extends Phaser.Scene {
         rb.setData('bounce', 0);
         rb.setData('hits', null);
         rb.setData('recallDisc', false);
+        rb.setData('returnTrail', false);
+        rb.setData('chain', 0);
         rb.setData('homing', 0);
         rb.setData('explode', null);
       }
       reflected++;
     });
+    if (reflected && loadSave().purchasedUpgrades.includes('ghost-protocol')) this.arcParryShockwave(px, py, wp);
     if (hit || reflected) audio.enemyHit();
     if (reflected) this.fx.floatText(px, py - 12, `PARRY x${reflected}`, wp.glow);
+  }
+
+  private arcParryShockwave(x: number, y: number, wp: SweepWeapon): void {
+    this.fx.scanRing(x, y, 74, 260, wp.glow);
+    this.fx.sparks(x, y, wp.glow, 10);
+    (this.enemies.getChildren() as SweepEnemy[]).forEach((en) => {
+      if (!en.active) return;
+      const d = Phaser.Math.Distance.Between(x, y, en.x, en.y);
+      if (d > 74) return;
+      if (en.applyHit(1, x, y, 260)) this.killEnemy(en);
+    });
   }
 
   /* ---------------------------- collisions ------------------------------- */
@@ -1506,12 +1829,19 @@ export class SweepScene extends Phaser.Scene {
     const pierce = shot.getData('pierce') === true;
     // FIREWALL: a bolt into the warden's front shield is deflected (flank / dash / Scan instead)
     const b = shot.body as Phaser.Physics.Arcade.Body;
-    if (en.blocksShot(b.velocity.x, b.velocity.y)) {
+    const blockState = en.shotBlockState(b.velocity.x, b.velocity.y);
+    if (blockState === 'blocked') {
       this.impactFx(shot.x, shot.y, P.neonCyan);
       this.fx.sparks(shot.x, shot.y, P.neonCyan, 3);
+      this.fx.floatText(en.x, en.y - 14, 'SHIELD', P.neonCyan);
       audio.enemyHit();
       if (!pierce) shot.kill();
       return;
+    } else if (blockState === 'overloaded') {
+      this.impactFx(en.x, en.y, P.warning);
+      this.fx.scanRing(en.x, en.y, 42, 240, P.warning);
+      this.fx.floatText(en.x, en.y - 16, 'SHIELD BREAK', P.warning);
+      audio.enemyHit();
     }
     if (pierce) {
       let hits = shot.getData('hits') as Set<SweepEnemy> | null;
@@ -1523,13 +1853,41 @@ export class SweepScene extends Phaser.Scene {
     const sy = shot.y;
     const dmg = (shot.getData('dmg') as number) ?? SWEEP.shotDmg;
     const explode = shot.getData('explode') as { radius: number; damage: number } | null;
+    const chain = (shot.getData('chain') as number) ?? 0;
     const ix = en.x;
     const iy = en.y;
     if (!pierce) shot.kill();
     this.impactFx(en.x, en.y, shot.getData('bounce') ? P.signalGreen : P.warning);
     audio.enemyHit();
     if (en.applyHit(dmg, sx, sy)) this.killEnemy(en);
+    if (chain > 0) this.pulseResonanceChain(ix, iy, chain);
     if (explode) this.explodeShot(ix, iy, explode);
+  }
+
+  private pulseResonanceChain(x: number, y: number, chains: number): void {
+    let origin = { x, y };
+    for (let i = 0; i < chains; i++) {
+      let best: SweepEnemy | null = null;
+      let bestD = Infinity;
+      (this.enemies.getChildren() as SweepEnemy[]).forEach((en) => {
+        if (!en.active) return;
+        const d = Phaser.Math.Distance.Squared(origin.x, origin.y, en.x, en.y);
+        if (d < bestD && d <= 120 * 120) {
+          best = en;
+          bestD = d;
+        }
+      });
+      if (!best) return;
+      const target = best as SweepEnemy;
+      this.fx.sparks(target.x, target.y, P.signal, 7);
+      const line = this.add
+        .line(0, 0, origin.x, origin.y, target.x, target.y, P.signal, 0.5)
+        .setOrigin(0)
+        .setDepth(24);
+      this.time.delayedCall(90, () => line.destroy());
+      if (target.applyHit(1, origin.x, origin.y, 180)) this.killEnemy(target);
+      origin = { x: target.x, y: target.y };
+    }
   }
 
   /** RUPTURE detonation — AoE damage + palette-locked burst on impact (enemy or wall). */
@@ -1550,6 +1908,7 @@ export class SweepScene extends Phaser.Scene {
 
   /** SEEKER: curve every homing bolt toward its nearest live drone (rate-capped → fair). */
   private steerHomingShots(dt: number): void {
+    const ownsRecallTrail = loadSave().purchasedUpgrades.includes('pulse-ricochet');
     (this.playerShots.getChildren() as Projectile[]).forEach((b) => {
       if (!b.active) return;
       if (b.getData('recallDisc') === true) {
@@ -1565,6 +1924,7 @@ export class SweepScene extends Phaser.Scene {
           const want = Math.atan2(this.player.y - b.y, this.player.x - b.x);
           body.setVelocity(Math.cos(want) * speed, Math.sin(want) * speed);
           b.setRotation(want);
+          if (ownsRecallTrail && b.getData('returnTrail') === true) this.recallReturnTrail(b);
           if (Phaser.Math.Distance.Between(b.x, b.y, this.player.x, this.player.y) < 18) {
             this.fx.sparks(this.player.x, this.player.y, P.warning, 3);
             b.kill();
@@ -1589,6 +1949,18 @@ export class SweepScene extends Phaser.Scene {
       const na = Phaser.Math.Angle.RotateTo(cur, want, rate * dt);
       body.setVelocity(Math.cos(na) * speed, Math.sin(na) * speed);
       b.setRotation(na);
+    });
+  }
+
+  private recallReturnTrail(b: Projectile): void {
+    const now = this.time.now;
+    if (now < ((b.getData('trailAt') as number) ?? 0)) return;
+    b.setData('trailAt', now + 130);
+    this.fx.sparks(b.x, b.y, P.neonCyan, 3);
+    (this.enemies.getChildren() as SweepEnemy[]).forEach((en) => {
+      if (!en.active) return;
+      if (Phaser.Math.Distance.Between(b.x, b.y, en.x, en.y) > 30) return;
+      if (en.applyHit(1, b.x, b.y, 120)) this.killEnemy(en);
     });
   }
 
@@ -1686,11 +2058,13 @@ export class SweepScene extends Phaser.Scene {
     const bx = bolt.x;
     const by = bolt.y;
     bolt.kill();
+    if (this.time.now < this.entryGraceUntil) return;
     if (this.player.damage(bx, by)) this.onPlayerHurt();
   }
 
   private onTouch(en: SweepEnemy): void {
     if (!en.active || !this.player.alive) return;
+    if (this.time.now < this.entryGraceUntil) return;
     // ROCKET Phase-Strike: dashing through a drone damages IT (you're invulnerable mid-dash)
     if (this.player.isDashing && activeSkin().abilities.phaseStrike === true) {
       this.fx.sparks(en.x, en.y, P.scoutDanny, 4);
@@ -1705,6 +2079,7 @@ export class SweepScene extends Phaser.Scene {
   }
 
   private applyEnemyContactPressure(): void {
+    if (this.time.now < this.entryGraceUntil) return;
     if (!this.player.alive || this.player.invulnerable) return;
     const r = SWEEP.enemyContactRadius;
     for (const en of this.enemies.getChildren() as SweepEnemy[]) {
@@ -1735,9 +2110,27 @@ export class SweepScene extends Phaser.Scene {
     // a soft light pool so pickups read against the dark ground
     const glow = this.add.image(x, y, TEX.glow8).setDepth(11).setTint(tint).setBlendMode(Phaser.BlendModes.ADD).setScale(1.4).setAlpha(0.4);
     pk.setData('glow', glow);
+    let label: Phaser.GameObjects.Text | undefined;
+    if (isWeapon) {
+      const wp = WEAPONS[wid];
+      label = this.add
+        .text(x, y - 25, `${wp.name}\n${wp.role}`, {
+          fontFamily: 'monospace',
+          fontSize: '7px',
+          fontStyle: 'bold',
+          color: css(P.cream),
+          align: 'center',
+          backgroundColor: 'rgba(5,8,14,0.82)',
+          padding: { x: 4, y: 3 },
+        })
+        .setOrigin(0.5)
+        .setResolution(2)
+        .setDepth(13);
+      pk.setData('label', label);
+    }
     this.tweens.add({ targets: [pk], scale: { from: pk.scale * 0.85, to: pk.scale * 1.15 }, duration: 520, yoyo: true, repeat: -1 });
     this.tweens.add({ targets: glow, alpha: { from: 0.25, to: 0.55 }, duration: 640, yoyo: true, repeat: -1 });
-    this.time.delayedCall(11000, () => { if (pk.active) { glow.destroy(); pk.destroy(); } });
+    this.time.delayedCall(11000, () => { if (pk.active) { glow.destroy(); label?.destroy(); pk.destroy(); } });
   }
 
   /** place a specific WEAPON pickup (guaranteed finale loot / boss payout). */
@@ -1872,6 +2265,10 @@ export class SweepScene extends Phaser.Scene {
       s.line.lineBetween(s.ax, s.ay, s.bx, s.by);
       s.line.lineStyle(1, P.white, disabled ? 0.22 : alert ? 0.5 : 0.28);
       s.line.lineBetween(s.ax, s.ay, s.bx, s.by);
+      s.text
+        .setText(disabled ? 'GATE DOWN' : s.label)
+        .setColor(css(disabled ? P.neonCyan : alert ? P.danger : P.warning))
+        .setAlpha(disabled ? 0.66 : 1);
       s.emitter
         .setTint(disabled ? P.neonCyan : P.danger)
         .setAlpha(disabled ? 0.34 : alert ? 0.95 : 0.55 + pulse * 0.25)
@@ -1887,13 +2284,12 @@ export class SweepScene extends Phaser.Scene {
         }
         if (!s.disabled) {
           s.disabled = true;
-          this.nodeCharge = Math.min(this.chargeTarget, this.nodeCharge + SWEEP.nodeChargePerKill);
+          const scannerCharge = Math.ceil(this.chargeTarget / Math.max(1, this.motelScanners.length));
+          this.addObjectiveProgress((s.ax + s.bx) / 2, (s.ay + s.by) / 2, scannerCharge, '+GRID');
           this.fx.floatText((s.ax + s.bx) / 2, (s.ay + s.by) / 2 - 10, 'SCANNER DISABLED', P.neonCyan);
           this.fx.scanRing((s.ax + s.bx) / 2, (s.ay + s.by) / 2, 36, 260, P.neonCyan);
-          if (this.nodeCharge >= this.chargeTarget) {
-            this.nodeFull = true;
-            this.openBreach();
-          }
+          const status = this.motelScannerStatus();
+          bus.emit(EVT.toast, { text: `SCANNER GATE ${status.disabled}/${status.total} OFFLINE`, color: status.disabled >= status.total ? 'green' : 'orange' });
         }
         return;
       }
@@ -1915,7 +2311,8 @@ export class SweepScene extends Phaser.Scene {
     if (this.motelAlertCount <= 1) {
       const mx = (scanner.ax + scanner.bx) / 2;
       const my = (scanner.ay + scanner.by) / 2;
-      this.addEnemy(new SweepEnemy(this, mx + Phaser.Math.Between(-22, 22), my + Phaser.Math.Between(-22, 22), 'drifter'));
+      const p = this.nearestWalkableWorld(mx + Phaser.Math.Between(-22, 22), my + Phaser.Math.Between(-22, 22));
+      this.addEnemy(new SweepEnemy(this, p.x, p.y, 'drifter'));
     }
   }
 
@@ -1991,7 +2388,11 @@ export class SweepScene extends Phaser.Scene {
         (en.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
       });
     } else {
-      (this.enemies.getChildren() as SweepEnemy[]).forEach((en) => en.drive(this.player.x, this.player.y, now, fireBolt, aggro));
+      const pathDist = this.buildEnemyPathField(now);
+      (this.enemies.getChildren() as SweepEnemy[]).forEach((en) => {
+        const target = this.enemyDriveTarget(en, pathDist);
+        en.drive(target.x, target.y, now, fireBolt, aggro, target.pathing);
+      });
       this.applyEnemyContactPressure();
     }
     if (!(this.traverse && this.breachOpen)) this.updateElite(now);
@@ -2064,9 +2465,11 @@ export class SweepScene extends Phaser.Scene {
       ? this.breachOpen ? this.goal.exitHint : `${this.goal.activeHint} Reward: ${this.goal.rewardName}.`
       : `Wave ${this.waveIdx + 1} / ${this.arena.waves?.length ?? 0} · Reward: ${this.goal.rewardName}.`;
     if (this.arena.id === 'circuit-z2' && !this.breachOpen) {
+      const status = this.motelScannerStatus();
+      const gateCopy = status.total ? `Scanner gates ${status.disabled}/${status.total}. ` : '';
       objectiveSub = this.motelAlertUntil > this.time.now
-        ? `ALERT ACTIVE · Fight through it or Phase Shift out. Reward: ${this.goal.rewardName}.`
-        : `Avoid red scanners or Phase Shift through them. Reward: ${this.goal.rewardName}.`;
+        ? `${gateCopy}ALERT ACTIVE · fight through it or Phase Shift out. Reward: ${this.goal.rewardName}.`
+        : `${gateCopy}Avoid red scanners or Phase Shift through them. Reward: ${this.goal.rewardName}.`;
     }
     bus.emit(EVT.hudSweepStats, {
       region: this.arena.label,
@@ -2236,6 +2639,8 @@ export class SweepScene extends Phaser.Scene {
       if (!s.completedZones.includes('skyline-array')) s.completedZones.push('skyline-array');
       s.flags.stormNodeCharged = true;
     });
+    // reward system: a Signal Storm was cleared → medal + cache (RewardTriggers)
+    bus.emit(EVT.sweepCleared, { combo: this.combo, noHit: this.player.hp >= this.player.maxHp });
     this.time.delayedCall(1200, () => this.exitToMenu());
   }
 

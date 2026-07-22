@@ -20,6 +20,22 @@ const TEX_FOR: Record<SweepEnemyKind, string> = {
 
 type FireBolt = (x: number, y: number, vx: number, vy: number) => void;
 type DiveState = 'idle' | 'diving' | 'recover';
+type ShotBlockState = 'none' | 'blocked' | 'overloaded';
+export interface SweepEnemyDebugState {
+  kind: SweepEnemyKind;
+  hp: number;
+  maxHp: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  bodyW: number;
+  bodyH: number;
+  rooted: boolean;
+  shielded: boolean;
+  charging: boolean;
+  pathRecovering: boolean;
+}
 
 export class SweepEnemy extends Phaser.Physics.Arcade.Sprite {
   readonly kind: SweepEnemyKind;
@@ -41,6 +57,16 @@ export class SweepEnemy extends Phaser.Physics.Arcade.Sprite {
   private chargeEndAt = 0;
   private lockAngle = 0; // sniper aim locked at wind-up start (so you can dodge)
   private wobPhase = Math.random() * Math.PI * 2; // weaver sine offset
+  private lastMoveX = 0;
+  private lastMoveY = 0;
+  private lastMoveCheckAt = 0;
+  private stuckSince = 0;
+  private unstuckUntil = 0;
+  private unstuckVx = 0;
+  private unstuckVy = 0;
+  private stuckRecoveries = 0;
+  private shieldHits = 0;
+  private shieldBrokenUntil = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number, kind: SweepEnemyKind) {
     super(scene, x, y, TEX_FOR[kind]);
@@ -53,12 +79,17 @@ export class SweepEnemy extends Phaser.Physics.Arcade.Sprite {
     scene.physics.add.existing(this);
     const body = this.body as Phaser.Physics.Arcade.Body;
     body.setAllowGravity(false);
-    body.setSize(18, 18, true);
+    // HD drone sprites read around 26px tall. A smaller legacy body made edge
+    // hits look like direct hits but register as misses.
+    body.setSize(24, 24, true);
     body.setDrag(600, 600);
     this.setDepth(15);
     this.hpBar = scene.add.graphics().setDepth(16);
     this.nextDiveAt = scene.time.now + 700 + Math.random() * 1400;
     this.fireAt = scene.time.now + 500 + Math.random() * 900; // stagger first volleys
+    this.lastMoveX = x;
+    this.lastMoveY = y;
+    this.lastMoveCheckAt = scene.time.now;
   }
 
   /** how many shards this enemy bursts into when killed (REPLICATOR) — scene spawns them */
@@ -72,11 +103,43 @@ export class SweepEnemy extends Phaser.Physics.Arcade.Sprite {
    * to its facing is coming in the front and is deflected — flank it, dash through, or Scan it
    * (Scan/Overdrive are omni-directional and always land, so it can never be un-killable).
    */
-  blocksShot(vx: number, vy: number): boolean {
-    if (!this.cfg.shielded || !this.active) return false;
+  shotBlockState(vx: number, vy: number): ShotBlockState {
+    if (!this.cfg.shielded || !this.active) return 'none';
+    const now = this.scene.time.now;
+    if (now < this.shieldBrokenUntil) return 'none';
     const shotDir = Math.atan2(vy, vx);
     const diff = Math.abs(Phaser.Math.Angle.Wrap(shotDir - this.faceAngle));
-    return diff > Math.PI * 0.6; // ~108° frontal shield arc
+    const blocked = diff > Math.PI * 0.6; // ~108° frontal shield arc
+    if (!blocked) {
+      this.shieldHits = 0;
+      return 'none';
+    }
+    this.shieldHits++;
+    if (this.shieldHits >= 3) {
+      this.shieldHits = 0;
+      this.shieldBrokenUntil = now + 1600;
+      return 'overloaded';
+    }
+    return 'blocked';
+  }
+
+  debugState(): SweepEnemyDebugState {
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    return {
+      kind: this.kind,
+      hp: this.hp,
+      maxHp: this.maxHp,
+      x: Math.round(this.x),
+      y: Math.round(this.y),
+      vx: Math.round(body.velocity.x),
+      vy: Math.round(body.velocity.y),
+      bodyW: Math.round(body.width),
+      bodyH: Math.round(body.height),
+      rooted: this.cfg.behavior === 'turret',
+      shielded: this.cfg.shielded,
+      charging: this.charging,
+      pathRecovering: this.scene.time.now < this.unstuckUntil,
+    };
   }
 
   /** redraw the little HP bar only when hp changed; reposition above the drone */
@@ -122,7 +185,58 @@ export class SweepEnemy extends Phaser.Physics.Arcade.Sprite {
    */
   private slot = Math.random() * Math.PI * 2;
 
-  drive(px: number, py: number, now: number, fireBolt: FireBolt, aggro: number): void {
+  private updateStuckRecovery(now: number, body: Phaser.Physics.Arcade.Body, px: number, py: number, speed: number, pathing: boolean): boolean {
+    if (now < this.unstuckUntil) {
+      body.setVelocity(this.unstuckVx, this.unstuckVy);
+      return true;
+    }
+    if (now - this.lastMoveCheckAt < 260) return false;
+
+    const moved = Phaser.Math.Distance.Between(this.x, this.y, this.lastMoveX, this.lastMoveY);
+    const wantedSpeed = Math.hypot(body.velocity.x, body.velocity.y);
+    const blocked =
+      body.blocked.left || body.blocked.right || body.blocked.up || body.blocked.down ||
+      body.touching.left || body.touching.right || body.touching.up || body.touching.down ||
+      body.embedded;
+    if ((blocked || wantedSpeed > 18) && moved < 1.5) {
+      if (!this.stuckSince) this.stuckSince = now;
+    } else {
+      this.stuckSince = 0;
+      this.stuckRecoveries = 0;
+    }
+
+    this.lastMoveX = this.x;
+    this.lastMoveY = this.y;
+    this.lastMoveCheckAt = now;
+
+    if (!this.stuckSince || now - this.stuckSince < 520) return false;
+
+    this.stuckRecoveries++;
+    if (pathing && this.stuckRecoveries >= 3) {
+      this.setPosition(px, py);
+      body.setVelocity(0, 0);
+      this.stuckRecoveries = 0;
+      this.stuckSince = 0;
+      return true;
+    }
+
+    const dx = px - this.x;
+    const dy = py - this.y;
+    const horizontalFirst = Math.abs(dx) > Math.abs(dy);
+    const flip = Math.floor(now / 700 + this.wobPhase) % 2 === 0;
+    const useHorizontal = flip ? horizontalFirst : !horizontalFirst;
+    const dirX = Math.sign(dx) || (this.wobPhase > Math.PI ? 1 : -1);
+    const dirY = Math.sign(dy) || (this.wobPhase > Math.PI ? -1 : 1);
+    const s = Math.max(34, speed * 0.9);
+    this.unstuckVx = useHorizontal ? dirX * s : 0;
+    this.unstuckVy = useHorizontal ? 0 : dirY * s;
+    this.unstuckUntil = now + 420;
+    this.stuckSince = 0;
+    body.setVelocity(this.unstuckVx, this.unstuckVy);
+    return true;
+  }
+
+  drive(px: number, py: number, now: number, fireBolt: FireBolt, aggro: number, pathing = false): void {
     if (!this.active) return;
     // don't clear the tint while a wind-up blink is driving it
     if (this.isTinted && !this.charging && now >= this.flashUntil) this.clearTint();
@@ -131,13 +245,19 @@ export class SweepEnemy extends Phaser.Physics.Arcade.Sprite {
     const body = this.body as Phaser.Physics.Arcade.Body;
     const ang = Math.atan2(py - this.y, px - this.x);
     this.faceAngle = ang;
-    if (this.cfg.shielded) this.setRotation(ang); // the FIREWALL turns its shield toward you
+    if (this.cfg.shielded) this.setRotation(0); // HD shielded drones should not visually roll onto their side
     // while being knocked back, let momentum carry — don't fight it with AI
     if (now < this.knockbackUntil) return;
 
     const spd = this.cfg.speed * aggro;
     const dist = Phaser.Math.Distance.Between(this.x, this.y, px, py);
     this.slotDrift();
+    if (this.updateStuckRecovery(now, body, px, py, spd, pathing)) return;
+    if (pathing && this.cfg.behavior !== 'turret') {
+      if (dist > 5) body.setVelocity(Math.cos(ang) * spd, Math.sin(ang) * spd);
+      else body.setVelocity(0, 0);
+      return;
+    }
 
     switch (this.cfg.behavior) {
       case 'chase': {
@@ -190,7 +310,10 @@ export class SweepEnemy extends Phaser.Physics.Arcade.Sprite {
             }
           }
         } else {
-          body.setVelocity(Math.cos(ang) * s, Math.sin(ang) * s);
+          const inBand = s === 0;
+          const strafe = inBand ? Math.sin(now * 0.004 + this.wobPhase) * spd * 0.42 : 0;
+          const perp = ang + Math.PI / 2;
+          body.setVelocity(Math.cos(ang) * s + Math.cos(perp) * strafe, Math.sin(ang) * s + Math.sin(perp) * strafe);
           if (now >= this.fireAt && dist < 300) {
             this.fireAt = now + this.cfg.fireMs / aggro;
             fireBolt(this.x, this.y, Math.cos(ang) * this.cfg.boltSpeed, Math.sin(ang) * this.cfg.boltSpeed);

@@ -46,6 +46,11 @@ test('top-down route transitions preserve SweepScene and advance save zone', asy
   await api(page, `api.enterSweep('surface-z1')`);
   expect(await api(page, `api.getSceneName()`)).toBe('SweepScene');
   expect(await api(page, 'api.getSaveData().currentZone')).toBe('miller-field');
+  const startState = await api(page, 'api.getSweepRuntimeState()');
+  expect(startState.breachOpen).toBe(false);
+  expect(startState.chargeTarget).toBeGreaterThanOrEqual(70);
+  expect(startState.objectiveActionsRequired).toBeGreaterThanOrEqual(4);
+  expect(startState.enemiesActive).toBeGreaterThan(0);
   await page.keyboard.press('2');
   await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSweepRuntimeState().weaponId === 'arc');
   await page.keyboard.press('3');
@@ -61,6 +66,7 @@ test('top-down route transitions preserve SweepScene and advance save zone', asy
   await api(page, 'api.completeRoute()');
   await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSaveData().currentZone === 'motel-nowhere');
   expect(await api(page, `api.getSceneName()`)).toBe('SweepScene');
+  expect(await api(page, 'api.getSaveData().purchasedUpgrades')).toContain('pulse-resonance');
   expect(await api(page, 'api.getSweepRuntimeState().weaponId')).toBe('arc');
   expect(await api(page, 'api.getSweepRuntimeState().hp')).toBeGreaterThanOrEqual(1);
   expect(await api(page, 'api.getSweepRuntimeState().hp')).toBeLessThanOrEqual(3);
@@ -85,6 +91,44 @@ test('top-down route transitions preserve SweepScene and advance save zone', asy
   expect(await api(page, 'api.getSweepRuntimeState().weaponId')).toBe('arc');
   expect(await api(page, 'api.getSweepRuntimeState().hp')).toBeGreaterThanOrEqual(1);
   expect(await api(page, 'api.getSweepRuntimeState().hp')).toBeLessThanOrEqual(3);
+  const saveAfterRoute = await api(page, 'api.getSaveData()');
+  expect(saveAfterRoute.purchasedUpgrades).toEqual(expect.arrayContaining(['pulse-resonance', 'emp-burst', 'ghost-protocol', 'pulse-ricochet']));
+  expect(saveAfterRoute.rewards.awarded).not.toContain('milestone:sweep-first');
+  expect(saveAfterRoute.rewards.owned).not.toEqual(expect.arrayContaining(['medal-bronze', 'medal-silver', 'medal-gold']));
+});
+
+test('Motel Circuit communicates scanner stealth and River Road exit guidance', async ({ page }) => {
+  await bootToMenu(page);
+  await api(page, `api.enterSweep('circuit-z2')`);
+  expect(await api(page, `api.getSceneName()`)).toBe('SweepScene');
+  const runtime = await api(page, 'api.getSweepRuntimeState()');
+  expect(runtime.motelScanners.total).toBeGreaterThanOrEqual(4);
+  expect(runtime.objectiveActionsRequired).toBeLessThanOrEqual(runtime.motelScanners.total);
+
+  const before = await api(page, 'api.getAiPerception()');
+  expect(before.objective.title).toContain('scanner');
+  expect(before.objective.hint).toContain('Phase Shift');
+  expect(before.visible.scanners.length).toBeGreaterThan(0);
+  expect(before.objectiveHint.kind).toBe('route-beacon');
+
+  expect(await api(page, 'api.openRouteForInspection()')).toBe(true);
+  await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSweepRuntimeState().breachOpen === true);
+  const after = await api(page, 'api.getAiPerception()');
+  expect(after.objective.title).toBe('Route open');
+  expect(after.objective.hint).toContain('River Road');
+  expect(after.objectiveHint.kind).toBe('route-beacon');
+});
+
+test('Chagrin Falls Town spawn does not apply invisible immediate damage', async ({ page }) => {
+  await bootToMenu(page);
+  await api(page, `api.enterSweep('town-z3')`);
+  await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSceneName() === 'SweepScene');
+  const start = await api(page, 'api.getSweepRuntimeState()');
+  expect(start.hp).toBe(start.maxHp);
+  await page.waitForTimeout(1250);
+  const afterGraceWindow = await api(page, 'api.getSweepRuntimeState()');
+  expect(afterGraceWindow.hp).toBe(afterGraceWindow.maxHp);
+  expect(await api(page, 'api.getSceneName()')).toBe('SweepScene');
 });
 
 test('quit to menu preserves autosave and dev warp buttons jump regions', async ({ page }) => {

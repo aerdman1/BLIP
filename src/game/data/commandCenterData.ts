@@ -13,14 +13,18 @@ export const SUBTITLE = 'A top-down sci-fi action adventure about staying unknow
 export const CURRENT_STATUS = [
   'Top-down-only route-connected arena chain is live: Miller Surface → Motel Circuit → Chagrin Falls Town → Patterson’s Orchard → Signal Storm.',
   'This is not a seamless single-map world yet. Areas still restart the same Phaser scene through fast breach handoffs.',
+  'MASTER_GAME_BACKLOG.md is the authoritative backlog. The Command Center mirrors its summary, blockers and next critical path.',
   'All current route regions render through the HD top-down pipeline. Chagrin Falls Town currently reuses the hard-edge HD town/lot asset vocabulary until a dedicated topdown-z3 pack exists.',
   'One canonical save exists at localStorage blip_save_v1; no alternate save files or file picker are part of the game.',
   'Region transitions preserve runtime health, equipped weapon, overdrive, boons, inventory/save progress and world flags.',
+  'Main-menu dev warps are intentionally local/test/god-only. Production hides them by default unless an explicit tester mode is chosen later.',
   'Current weapon foundation is Pulse Carbine, Arc Blade and Recall Disc. Older weapon names are future mutation ideas, not live standalone weapons.',
-  'Combat collision was corrected: HD-sized player/enemy/projectile hitboxes are live, enemy close-range pressure damages within a threat radius, and standing still in Miller now reaches Game Over instead of being harmless.',
+  'Combat collision was corrected: HD visual scaling no longer shrinks physics hitboxes, player/enemy/projectile bodies are world-space honest, enemy close-range pressure damages within a threat radius, and standing still in Miller now reaches Game Over instead of being harmless.',
+  'Enemy pursuit is hardened with a shared walkable-tile distance field, line-of-sight fallback, ranged-drone strafing, collision stuck recovery, and safe snapping for authored player/enemy/exit markers.',
+  'Route objective math is hardened: traverse breaches require both enough charge and enough distinct objective actions. Miller is intentionally tuned as onboarding now: 70 charge plus 4 progress actions, with no early elite beam.',
   'Region objectives now use named goals and rewards instead of presenting every area as the same generic node loop.',
-  'Phase Shift is the current SHIFT ability: a short-range teleport with i-frames, start/end bursts and cooldown. The label Dash should not be used for new design docs.',
-  'Focused first-route AI testing is wired for Miller → Motel and Miller → Motel → Town arrivals, but extended AI validation is paused for the next overnight campaign. The latest retained-code 18-run sample was a heuristic playtest signal, not a deploy gate: 61.1% scenario completion overall, 0 soft-lock flags, 2 deaths, Miller → Motel at 83.3%, and Miller → Motel → Town still weak at 16.7%. A later experiment regressed and was not kept.',
+  'Phase Shift is the current SHIFT ability: a short-range teleport with i-frames, start/end bursts, restrained trailing echoes and cooldown. The label Dash should not be used for new design docs.',
+  'Focused first-route AI testing is wired for Miller → Motel and Miller → Motel → Town arrivals, but extended AI validation is paused for the next overnight campaign. Latest public AI JSON is a 6-run Miller → Motel sample after onboarding/marker tuning: 0 soft-locks, 1 death, 0 arrivals. Treat it as evidence that route-following still needs work, not a hard deploy gate.',
   'Experimental Tripo CONTACT-47 model import is live as a rendered eight-facing transparent PNG set with the original HD CONTACT-47 atlas kept as fallback. CONTACT-47 now reads as a low-hover robot with cyan underside thrusters, which covers the missing leg animation. The GLB has a skin but no animation clips, so walk/shoot animation remains a future rigging/retarget pass.',
   'Tone target is stylized teen/young-adult sci-fi action: colorful and strange, but dangerous, mysterious, forceful and never toy-like.',
 ];
@@ -32,8 +36,9 @@ export interface MechanicDef {
 
 export const MECHANICS: MechanicDef[] = [
   { name: 'Move / Aim / Fire', description: 'The whole game uses one top-down controller: 8-directional movement, mouse or right-stick aim, and responsive combat.' },
-  { name: 'Combat Collision', description: 'HD-sized hitboxes, enemy contact pressure and shorter post-hit invulnerability make idle play punishable and shots land closer to what the player sees.' },
-  { name: 'Phase Shift', description: 'A short-range blink with afterimages and brief invulnerability. Use it to reposition, cross scanner pressure and dodge Classifier beams.' },
+  { name: 'Combat Collision', description: 'HD visual scale is decoupled from world-space hitboxes, so shots and contact damage match what the player sees.' },
+  { name: 'Drone Pursuit Hardening', description: 'Enemies pursue through walkable lanes instead of pushing into walls, recover from blocked bodies, and ranged drones strafe while holding firing distance.' },
+  { name: 'Phase Shift', description: 'A short-range blink with restrained trailing echoes and brief invulnerability. Use it to reposition, cross scanner pressure and dodge Classifier beams.' },
   { name: 'Scan Pulse', description: 'An expanding ring that stuns nearby threats, reveals caches and scout marks, and makes hidden signal routes readable.' },
   { name: 'Route-Connected Areas', description: 'Miller Surface, Motel Circuit, Chagrin Falls Town, Patterson’s Orchard, and Signal Storm are separate top-down arena maps linked by gates, roads, trails, bridges, and signal breaches.' },
   { name: 'Region Goals', description: 'Each area now has named objective language, a visible reward and a route-opening payoff instead of generic node-only framing.' },
@@ -117,6 +122,49 @@ export interface TodoItem {
   done: boolean;
 }
 
+export interface BacklogCountItem {
+  status: string;
+  count: number;
+}
+
+export interface BacklogPathItem {
+  priority: 'P0' | 'P1' | 'P2' | 'P3' | 'CUT';
+  item: string;
+  status: string;
+  note: string;
+}
+
+export const MASTER_BACKLOG_COUNTS: BacklogCountItem[] = [
+  { status: 'COMPLETE', count: 30 },
+  { status: 'PARTIAL', count: 57 },
+  { status: 'PLANNED', count: 17 },
+  { status: 'MISSING', count: 7 },
+  { status: 'DEFERRED', count: 13 },
+  { status: 'CUT / NO LONGER APPLICABLE', count: 4 },
+  { status: 'NEEDS DECISION', count: 2 },
+];
+
+export const MASTER_BACKLOG_CRITICAL_PATH: BacklogPathItem[] = [
+  { priority: 'P0', item: 'First-route clarity', status: 'PARTIAL', note: 'Miller is safer after onboarding tuning, but AI still opens the breach and stalls before Motel. Next work should improve visible route-following, not hidden bot navigation.' },
+  { priority: 'P0', item: 'Unified notification/reward UI', status: 'PARTIAL', note: 'Objective card exists, routine toasts dedupe into a smaller activity feed, and reward banners queue one at a time. A single shared notification manager/showcase is still unfinished.' },
+  { priority: 'P0', item: 'Major reward presentation', status: 'PARTIAL', note: 'Named region rewards now use major reward banners and important weapon drops show name/role; compare/equip presentation still needs polish.' },
+  { priority: 'P0', item: 'Meaningful weapon progression', status: 'PARTIAL', note: 'First behavior hooks are live: charged Pulse chain, Arc parry shockwave, and Recall return trail. Needs tests, clearer HUD, and additional mutations.' },
+  { priority: 'P1', item: 'Motel stealth identity', status: 'PARTIAL', note: 'Scanner beams, alert and Phase Shift onboarding exist; safe/danger zones, stealth reward and legitimate Town arrivals still need proof.' },
+  { priority: 'P1', item: 'Town identity', status: 'PARTIAL', note: 'Cover/tower/street route exists; dedicated Chagrin Falls HD identity and two clear approaches need work.' },
+  { priority: 'P1', item: 'Orchard puzzle identity', status: 'PARTIAL', note: 'Gravity Well launch/raised ridge exists; deeper interaction and purpose are still shallow.' },
+  { priority: 'P1', item: 'Signal Storm finale', status: 'PARTIAL', note: 'Wave finale and rewards exist; needs a named multi-stage climax and clearer slice completion.' },
+  { priority: 'P1', item: 'AI Player Lab extended campaign', status: 'MISSING', note: 'Harness exists; 500-run overnight campaign has not been completed and should wait until the route is stable.' },
+];
+
+export const MASTER_BACKLOG_DEFERRED: BacklogPathItem[] = [
+  { priority: 'P3', item: 'Signal Rails', status: 'DEFERRED', note: 'Not needed for the current five-region slice.' },
+  { priority: 'P3', item: 'Full inventory/store/salvage/crafting', status: 'DEFERRED', note: 'Simple acquire/activate/equip is the near-term target.' },
+  { priority: 'P3', item: 'Full CONTACT-47 skeletal animation', status: 'DEFERRED', note: 'The Tripo eight-facing hover sprite is acceptable until clean animation clips exist.' },
+  { priority: 'P3', item: 'Additional regions and large world expansion', status: 'DEFERRED', note: 'Polish the existing five-region route first.' },
+  { priority: 'P3', item: 'Every building enterable', status: 'CUT', note: 'Buildings should mostly be exterior obstacles, cover, landmarks and route boundaries.' },
+  { priority: 'CUT', item: 'Side-scroller return', status: 'CUT / NO LONGER APPLICABLE', note: 'Do not revive side-scrolling code, controls, cameras, scenes, docs or level-select ideas.' },
+];
+
 export interface SliceSystemItem {
   name: string;
   status: 'PLAYABLE' | 'IN DEVELOPMENT' | 'PLANNED' | 'NEEDS ASSETS' | 'NEEDS POLISH' | 'TESTED' | 'DEFERRED';
@@ -131,13 +179,14 @@ export const VERTICAL_SLICE_SYSTEMS: SliceSystemItem[] = [
   { name: 'Arc Blade', status: 'PLAYABLE', note: 'Close-range combo foundation with parry/reflection behavior.' },
   { name: 'Recall Disc', status: 'PLAYABLE', note: 'Outbound and return damage path for positioning-focused combat.' },
   { name: 'Fast weapon switching', status: 'PLAYABLE', note: 'Keyboard 1/2/3/R, mouse wheel, gamepad stick-clicks and touch WPN.' },
-  { name: 'Combat collision / damage pressure', status: 'TESTED', note: 'Idle Miller test reaches GameOver; active firing test kills enemies and advances objective charge.' },
+  { name: 'Combat collision / damage pressure', status: 'TESTED', note: 'HD rig preserves world-space body sizes; isolated combat validation proves every enemy archetype can be killed by real player projectiles.' },
+  { name: 'Route objective gating', status: 'TESTED', note: 'Traverse arenas require charge plus minimum objective actions before opening a breach; Miller onboarding now needs 70 charge and 4 progress actions.' },
   { name: 'Tripo CONTACT-47 model import', status: 'IN DEVELOPMENT', note: 'Optimized GLB, eight full-body transparent rendered facings and cyan low-hover thrusters are live. Old CONTACT-47 remains fallback. No GLB animations exist yet.' },
-  { name: 'Major loot presentation', status: 'NEEDS POLISH', note: 'Weapon pickups show names/roles; full compare/equip/store/salvage flow is not built yet.' },
+  { name: 'Major loot presentation', status: 'NEEDS POLISH', note: 'Region rewards use queued major banners and important weapon pickups show names/roles; full compare/equip/store/salvage flow is not built yet.' },
   { name: 'Region-specific objectives', status: 'PLAYABLE', note: 'HUD, telemetry and rewards use named goals/rewards for each region.' },
-  { name: 'Phase Shift', status: 'PLAYABLE', note: 'SHIFT is now a short-range teleport with i-frames, visual bursts and cooldown.' },
-  { name: 'Motel stealth onboarding', status: 'IN DEVELOPMENT', note: 'Scanner beams, alert state, Phase Shift prompt and combat fallback are live. Alerts now add pressure without direct beam damage, but Motel still needs a focused clarity pass before claiming reliable Town arrivals.' },
-  { name: 'First-route clarity', status: 'NEEDS POLISH', note: 'Phase-specific holographic route signposts are live. Broad road auto-warp zones were removed; transitions now require a short hold inside the actual charged breach. Miller → Motel is much more reliable; Motel → Town still needs a focused pass.' },
+  { name: 'Phase Shift', status: 'PLAYABLE', note: 'SHIFT is now a short-range teleport with i-frames, start/end bursts, a smaller behind-the-player echo and cooldown.' },
+  { name: 'Motel stealth onboarding', status: 'IN DEVELOPMENT', note: 'Scanner beams, alert state, Phase Shift prompt and combat fallback are live. Alerts add pressure without direct beam damage, but Motel still needs reliable legitimate arrivals before broader testing.' },
+  { name: 'First-route clarity', status: 'NEEDS POLISH', note: 'Phase-specific holographic route signposts are live and simplified. Broad road auto-warp zones were removed; transitions require a short hold inside the actual charged breach. AI still stalls in Miller after breach=true.' },
   { name: 'Enemy combat roles', status: 'PLAYABLE', note: 'Drifter, tagger, diver, warden, turret, sniper, splitter and weaver are live.' },
   { name: 'Signal Tube', status: 'PLANNED', note: 'One simple traversal route first; future branching deferred.' },
   { name: 'Gravity Well', status: 'IN DEVELOPMENT', note: 'Orchard has a playable introductory launch to a raised ridge; deeper object/enemy redirection is deferred.' },
@@ -145,7 +194,7 @@ export const VERTICAL_SLICE_SYSTEMS: SliceSystemItem[] = [
   { name: 'Signal Rail', status: 'DEFERRED', note: 'Track in the design, but do not build until the slice needs faster traversal.' },
   { name: 'Scout Contraptions', status: 'PLANNED', note: 'One story-tied route device or secret opener in the first slice.' },
   { name: 'Raised / underground spaces', status: 'IN DEVELOPMENT', note: 'Orchard raised ridge is playable; underground shelters remain planned.' },
-  { name: 'AI Player Lab', status: 'TESTED', note: 'Personas, campaign runner, evidence JSON and E2E coverage are live. Overnight/full-route AI campaigns are intentionally deferred for now; current deployment relies on hard gates plus the retained focused sample notes.' },
+  { name: 'AI Player Lab', status: 'TESTED', note: 'Personas, campaign runner, evidence JSON and E2E coverage are live. Latest focused 6-run Miller → Motel sample had 0 soft-locks, 1 death and 0 arrivals, so route-following remains a known gameplay/AI friction point.' },
 ];
 
 export interface RegionPlanItem {
@@ -168,7 +217,7 @@ export const REGION_VERTICAL_SLICE_PLAN: RegionPlanItem[] = [
     combat: 'Pulse Carbine fundamentals against readable drones.',
     secret: 'Early Scout marker / Phase Door candidate.',
     connection: 'Miller road exits toward Motel Circuit.',
-    state: 'PLAYABLE; named objective/reward is live.',
+    state: 'PLAYABLE; named objective/reward is live, early elite removed, and onboarding pressure is gentler. AI still stalls after breach=true.',
   },
   {
     region: 'Motel Circuit',
@@ -178,7 +227,7 @@ export const REGION_VERTICAL_SLICE_PLAN: RegionPlanItem[] = [
     combat: 'Arc Blade parry timing and scanner beam counterplay.',
     secret: 'Stealth reward behind a detection route.',
     connection: 'Motel access road feeds Chagrin Falls Town.',
-    state: 'IN DEVELOPMENT; scanner beams, alert state, Phase Shift prompt and softer combat fallback are live, but focused AI still stalls here most often.',
+    state: 'IN DEVELOPMENT; scanner beams, alert state, Phase Shift prompt and softer combat fallback are live. Need more legitimate arrivals before judging Town handoff.',
   },
   {
     region: 'Chagrin Falls Town',
@@ -232,15 +281,18 @@ export const BUILD_TODO: TodoItem[] = [
   { label: 'Phase Shift as a scoped combat/exploration mechanic', done: true },
   { label: 'Region-specific objectives and first traversal identity pass', done: true },
   { label: 'Combat hitbox/contact-pressure fix: standing still can kill the player and visible hits register more reliably', done: true },
+  { label: 'Enemy archetype validation: every enemy moves or is intentionally rooted, and every enemy can be killed by real projectiles', done: true },
+  { label: 'Route objective hardening: charge plus minimum progress actions before breach opens', done: true },
+  { label: 'Enemy AI hardening: walkable path field, stuck recovery, ranged strafe and safe spawn/exit marker resolution', done: true },
   { label: 'AI Player Lab campaign runner and latest evidence export', done: true },
   { label: 'Focused Miller → Motel → Town AI route scenarios and visible route beacons', done: true },
   { label: 'Holographic route signposts with phase-specific objective/exit visibility', done: true },
   { label: 'Experimental Tripo CONTACT-47 rendered sprite import with old-character fallback', done: true },
   { label: 'Route sign readability/depth polish: raised high-contrast foreground signs with proximity fade', done: true },
-  { label: 'Next: improve route-following after breach=true, especially Motel exit to Town', done: false },
+  { label: 'Next: improve route-following after breach=true, starting with Miller east road into Motel', done: false },
   { label: 'Next: AI full-route completion after the first three-region route stabilizes', done: false },
   { label: 'Next: deeper stealth alert rules and weapon-specific secret gates', done: false },
-  { label: 'Next: weapon mutation tree and equip/store/salvage decisions', done: false },
+  { label: 'Next: test and polish the first live mutation hooks before adding more', done: false },
 ];
 
 export const ART_DIRECTION: string[] = [
@@ -251,7 +303,7 @@ export const ART_DIRECTION: string[] = [
   'Combat effects should read as forceful machine damage: sparks, debris, oil-dark scorch, electrical discharge, short hit pause/shake and heavier enemy stagger.',
   'Avoid childish presentation: no confetti-like ordinary actions, toy-like important rewards, bubbly UI motion, or jokes that deflate serious threats.',
   'Most Chagrin Falls structures are exterior obstacles, cover, streets, alleys, landmarks, and route boundaries.',
-  'Silhouettes, shadow, glow, scan ripples, afterimages, screen shake, and glitch flashes sell motion without needing heavy asset churn.',
+  'Silhouettes, shadow, glow, scan ripples, restrained Phase Shift echoes, screen shake, and glitch flashes sell motion without needing heavy asset churn.',
 ];
 
 export const HUMAN_PLAYTEST_CHECKLIST: string[] = [

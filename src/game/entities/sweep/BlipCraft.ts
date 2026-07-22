@@ -163,7 +163,6 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
       audio.dash();
       this.fx.sparks(sx, sy, P.signal, 5);
       this.fx.sparks(tx, ty, P.signal, 9);
-      bus.emit(EVT.toast, { text: 'PHASE SHIFT', color: 'green' });
     }
 
     if (this.isDashing) {

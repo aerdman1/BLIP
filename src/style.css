@@ -444,15 +444,17 @@ body.crt-off #crt-overlay, body.crt-off #vignette-overlay { display: none; }
   pointer-events: none;
 }
 .toast {
-  font-size: 12px;
-  letter-spacing: 2px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
   color: var(--cream);
   background: var(--panel-glass);
   border: 1px solid var(--amber-dim);
   border-left: 3px solid var(--amber);
-  padding: 7px 14px;
+  padding: 7px 12px;
   animation: toast-in 0.16s ease-out;
   white-space: nowrap;
+  max-width: min(420px, 86vw);
+  overflow-wrap: anywhere;
 }
 .toast.lime { border-left-color: var(--lime); color: var(--lime); }
 .toast.cyan { border-left-color: #35d5ff; color: #9fe9ff; }
@@ -460,6 +462,22 @@ body.crt-off #crt-overlay, body.crt-off #vignette-overlay { display: none; }
 .toast.red { border-left-color: var(--red); color: var(--red); }
 .toast.out { opacity: 0; transition: opacity 0.4s ease; }
 @keyframes toast-in { from { transform: translateY(-6px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+body.td-hud-active #toast-stack {
+  top: clamp(72px, 12vh, 106px);
+  right: clamp(10px, 2vw, 22px);
+  left: auto;
+  transform: none;
+  align-items: flex-end;
+  max-width: min(360px, 38vw);
+}
+body.td-hud-active .toast {
+  white-space: normal;
+  text-align: right;
+  background: rgba(4, 10, 8, 0.72);
+  border-color: rgba(246, 231, 180, 0.18);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
 
 /* ================================ BOSS BAR ================================= */
 #boss-bar {

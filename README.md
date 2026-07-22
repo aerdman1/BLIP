@@ -55,7 +55,7 @@ The finale path is the Signal Storm route. Story, bosses, scouts, rewards, and S
 
 - **Vite 5 + TypeScript + Phaser 3** (Arcade physics), 480×270 virtual pixel canvas, crisp upscale
 - **Top-down rendering**: the world is pixelated canvas with selected higher-detail top-down arenas; the console UI (menu, objective, status strip, pause, settings, Command Center) is crisp native-resolution HTML in the warm-midnight palette (cream / lime / amber / crimson)
-- **100% procedural art** — every texture is generated at boot (no image assets); the BLIP logo is an inline pixel-grid SVG
+- **Hybrid procedural/authored art** — most world textures are generated at boot, while CONTACT-47 now uses the imported Tripo-derived transparent PNG facing set with the older procedural sprite kept as fallback
 - **WebAudio-synthesized SFX** — no audio assets; volume/mute in Settings
 - **Gamepad**: Web Gamepad API via Phaser + a shell navigator (menus), with a simulation hook so the QA suite verifies the whole mapping layer
 - localStorage saves (`blip_save_v1`, with legacy-key migration)
@@ -93,7 +93,9 @@ The **Command Center** doubles as the dev/design dashboard — in-game via `C`, 
 - **Route Areas** — live maps for the route-connected top-down arenas.
 - **Wardrobe** — every Signal Skin with passive/signature/tradeoff, lock state, and live equip.
 - **Bestiary / Arsenal** — every enemy, the CONTACT-47 kit, and the live three-weapon foundation from game data.
-- Plus live save/quest state, route-area maps, vertical-slice system status, region-purpose planning, build TODO, and the AI QA checklist — all reading the same data the game runs on.
+- Plus live save/quest state, route-area maps, vertical-slice system status, region-purpose planning, the reconciled master backlog summary, build TODO, and the AI QA checklist — all reading the same data the game runs on.
+
+Authoritative planning source: [`MASTER_GAME_BACKLOG.md`](MASTER_GAME_BACKLOG.md). Use it before old prompts or stale summaries.
 
 ## AI QA Pipeline
 

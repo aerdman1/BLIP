@@ -51,6 +51,7 @@ export interface SweepArena {
   enemies?: SweepEnemyMarker[]; // authored placements (traverse)
   caches?: SweepMarker[]; // hidden scan caches
   chargeTarget?: number;
+  minObjectiveActions?: number; // minimum kills/scanner/puzzle actions before the route can open
   waves?: SweepWave[]; // waves mode
   // ── finale generosity / climax (scoped per-arena so earlier routes stay tuned) ──
   dropChance?: number; // override SWEEP.dropChance for THIS arena only (loot-rich finale)
@@ -94,15 +95,14 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     node: { tx: 17, ty: 10 },
     breach: { tx: 28, ty: 4 },
     spawn: { tx: 6, ty: 15 },
-    elite: { tx: 19, ty: 9 },
-    chargeTarget: 20,
+    chargeTarget: 70,
+    minObjectiveActions: 4,
     // ROSTER — "the open field": the fundamentals (drifter/tagger/diver) plus a first
     // taste of the JITTER weaver so Zone 1 teaches the verbs before later zones twist them.
     enemies: [
       { tx: 6, ty: 4, type: 'drifter' }, { tx: 9, ty: 6, type: 'tagger' }, { tx: 16, ty: 2, type: 'diver' },
-      { tx: 17, ty: 5, type: 'weaver' }, { tx: 22, ty: 11, type: 'tagger' }, { tx: 27, ty: 13, type: 'diver' },
-      { tx: 29, ty: 9, type: 'drifter' }, { tx: 15, ty: 12, type: 'tagger' }, { tx: 11, ty: 13, type: 'weaver' },
-      { tx: 18, ty: 8, type: 'diver' },
+      { tx: 22, ty: 11, type: 'tagger' }, { tx: 27, ty: 13, type: 'diver' },
+      { tx: 29, ty: 9, type: 'drifter' }, { tx: 15, ty: 12, type: 'tagger' },
     ],
     caches: [{ tx: 3, ty: 3 }, { tx: 30, ty: 16 }, { tx: 30, ty: 3 }],
   },
@@ -143,13 +143,14 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     breach: { tx: 28, ty: 4 },
     spawn: { tx: 4, ty: 15 },
     elite: { tx: 18, ty: 9 },
-    chargeTarget: 20,
+    chargeTarget: 70,
+    minObjectiveActions: 4,
     // ROSTER — "the firewall circuit": tight corridors reward flanking, so FIREWALL wardens
     // clog the halls (dash through / hit their backs) and a rooted PYLON turret guards the node.
     enemies: [
       { tx: 4, ty: 8, type: 'warden' }, { tx: 10, ty: 8, type: 'tagger' }, { tx: 16, ty: 3, type: 'diver' },
       { tx: 23, ty: 3, type: 'warden' }, { tx: 17, ty: 11, type: 'turret' }, { tx: 26, ty: 15, type: 'diver' },
-      { tx: 29, ty: 9, type: 'tagger' }, { tx: 19, ty: 10, type: 'drifter' }, { tx: 4, ty: 12, type: 'drifter' },
+      { tx: 29, ty: 9, type: 'tagger' }, { tx: 19, ty: 10, type: 'drifter' }, { tx: 7, ty: 10, type: 'drifter' },
       { tx: 30, ty: 12, type: 'warden' },
     ],
     caches: [{ tx: 3, ty: 7 }, { tx: 30, ty: 17 }, { tx: 30, ty: 2 }],
@@ -191,11 +192,12 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     breach: { tx: 30, ty: 15 },
     spawn: { tx: 6, ty: 16 },
     elite: { tx: 18, ty: 10 },
-    chargeTarget: 45,
+    chargeTarget: 90,
+    minObjectiveActions: 6,
     enemies: [
       { tx: 6, ty: 6, type: 'tagger' }, { tx: 10, ty: 7, type: 'drifter' }, { tx: 16, ty: 4, type: 'sniper' },
       { tx: 20, ty: 11, type: 'turret' }, { tx: 26, ty: 4, type: 'weaver' }, { tx: 29, ty: 9, type: 'warden' },
-      { tx: 31, ty: 15, type: 'diver' }, { tx: 14, ty: 13, type: 'splitter' }, { tx: 8, ty: 16, type: 'tagger' },
+      { tx: 31, ty: 15, type: 'diver' }, { tx: 14, ty: 13, type: 'splitter' }, { tx: 12, ty: 7, type: 'tagger' },
     ],
     caches: [{ tx: 4, ty: 5 }, { tx: 32, ty: 4 }, { tx: 33, ty: 17 }, { tx: 18, ty: 3 }],
   },
@@ -241,7 +243,8 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     node: { tx: 18, ty: 10 },
     breach: { tx: 30, ty: 4 },
     spawn: { tx: 5, ty: 18 },
-    chargeTarget: 70,
+    chargeTarget: 120,
+    minObjectiveActions: 8,
     // FINALE FLAGS (scoped to THIS arena only): loot-rich drops, a bumped clear payout,
     // guaranteed weapon pickups seeded along both routes, and the Maze Heart boss gate.
     dropChance: 0.55, // the campaign's most generous route clear — the finale should shower loot
@@ -259,7 +262,7 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     // splitters swarm the clearings, and FIREWALL wardens + a PYLON turret anchor the chokes —
     // the densest, most varied fight of the campaign, escalating toward the Maze Heart.
     enemies: [
-      { tx: 4, ty: 9, type: 'sniper' }, { tx: 6, ty: 11, type: 'weaver' }, { tx: 9, ty: 18, type: 'splitter' },
+      { tx: 4, ty: 9, type: 'sniper' }, { tx: 6, ty: 11, type: 'weaver' }, { tx: 11, ty: 18, type: 'splitter' },
       { tx: 14, ty: 17, type: 'splitter' }, { tx: 16, ty: 16, type: 'tagger' }, { tx: 17, ty: 12, type: 'weaver' },
       { tx: 20, ty: 12, type: 'turret' }, { tx: 16, ty: 3, type: 'sniper' }, { tx: 18, ty: 2, type: 'warden' },
       { tx: 24, ty: 2, type: 'tagger' }, { tx: 29, ty: 13, type: 'sniper' }, { tx: 31, ty: 15, type: 'splitter' },

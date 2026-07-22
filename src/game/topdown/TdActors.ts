@@ -55,6 +55,10 @@ export class ActorRig {
       lightIntensity?: number;
       hoverThrusters?: boolean;
       hoverColor?: number;
+      /** Arcade physics hitbox size in world pixels. Visual sprites are scaled
+       *  for HD presentation, so the body size must be inverse-scaled to keep
+       *  collision honest in world space. */
+      collisionPx?: { w: number; h: number };
       /** base/pulse alpha for the emissive layer (default 0.72/0.18 = player look).
        *  Enemies dial this down — full-tint ADD-blend was amplifying the emissive
        *  art's scattered rim-light flecks into a noisy "red halo" around each drone. */
@@ -67,6 +71,7 @@ export class ActorRig {
     this.lift = opts.lift ?? 0;
     this.bodyDirs = opts.bodyDirs;
     this.targetPx = opts.px;
+    this.collisionPx = opts.collisionPx;
 
     // Swap the texture ONLY. Origin stays centred: these are physics sprites and
     // re-anchoring them would drag their bodies off the hitbox. We get the
@@ -106,6 +111,7 @@ export class ActorRig {
   private lighting?: TdLighting;
   private emissiveAlpha: number;
   private emissivePulse: number;
+  private collisionPx?: { w: number; h: number };
 
   private directionFromAngle(angle: number): Direction8 {
     const normalized = Phaser.Math.Angle.Wrap(angle);
@@ -122,6 +128,15 @@ export class ActorRig {
     const src = this.host.scene.textures.getFrame(key);
     const s = this.targetPx && src?.height ? this.targetPx / src.height : TD_VISUALS.artScale;
     this.host.setScale(s);
+    this.applyCollisionSize();
+  }
+
+  private applyCollisionSize(): void {
+    const body = (this.host as Phaser.GameObjects.Sprite & { body?: Phaser.Physics.Arcade.Body }).body;
+    if (!body || !this.collisionPx) return;
+    const sx = Math.max(0.001, Math.abs(this.host.scaleX));
+    const sy = Math.max(0.001, Math.abs(this.host.scaleY));
+    body.setSize(this.collisionPx.w / sx, this.collisionPx.h / sy, true);
   }
 
   /** Called every frame by the scene. Cheap: position, depth, one sin(). */

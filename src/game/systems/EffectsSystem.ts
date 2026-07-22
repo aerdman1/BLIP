@@ -76,19 +76,50 @@ export class EffectsSystem {
     void alpha;
   }
 
-  /** dash afterimage ghost */
+  /** Phase Shift echo: a restrained trail behind the actor, not a full-size clone. */
   afterimage(source: Phaser.GameObjects.Sprite, tint: number = P.signal): void {
+    const body = (source as Phaser.GameObjects.Sprite & { body?: Phaser.Physics.Arcade.Body }).body;
+    const vx = body?.velocity.x ?? 0;
+    const vy = body?.velocity.y ?? 0;
+    const speed = Math.hypot(vx, vy);
+    const aimAngle = (source as Phaser.GameObjects.Sprite & { aimAngle?: number }).aimAngle;
+    const angle = speed > 8 ? Math.atan2(vy, vx) : typeof aimAngle === 'number' ? aimAngle : 0;
+    const backX = -Math.cos(angle);
+    const backY = -Math.sin(angle);
+    const offset = Phaser.Math.Clamp(speed / 14, 7, 14);
+    const gx = source.x + backX * offset;
+    const gy = source.y + backY * offset + 1;
+    const sx = source.scaleX * 0.72;
+    const sy = source.scaleY * 0.72;
+
+    const wake = this.scene.add.graphics().setDepth(source.depth - 2).setAlpha(0.58);
+    wake.fillStyle(tint, 0.18);
+    wake.fillEllipse(
+      source.x + backX * (offset + 5),
+      source.y + backY * (offset + 5) + 7,
+      18 + Math.min(16, speed / 9),
+      5
+    );
+    wake.lineStyle(1.5, P.white, 0.28);
+    wake.lineBetween(source.x + backX * 4, source.y + backY * 4 + 4, source.x + backX * 22, source.y + backY * 22 + 7);
+
     const ghost = this.scene.add
-      .image(source.x, source.y, source.texture.key)
+      .image(gx, gy, source.texture.key)
       .setFlipX(source.flipX)
+      .setOrigin(source.originX, source.originY)
+      .setScale(sx, sy)
       .setTint(tint)
-      .setAlpha(0.32)
+      .setAlpha(0.16)
       .setDepth(source.depth - 1);
     this.scene.tweens.add({
-      targets: ghost,
+      targets: [ghost, wake],
       alpha: 0,
-      duration: 150,
-      onComplete: () => ghost.destroy(),
+      duration: 120,
+      ease: 'Cubic.easeOut',
+      onComplete: () => {
+        ghost.destroy();
+        wake.destroy();
+      },
     });
   }
 

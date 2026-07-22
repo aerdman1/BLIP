@@ -86,6 +86,11 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         commandCenter: resolve(__dirname, 'command-center.html'),
       },
+      output: {
+        manualChunks(id) {
+          if (id.includes('/node_modules/phaser/')) return 'phaser';
+        },
+      },
     },
   },
 });

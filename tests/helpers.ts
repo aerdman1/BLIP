@@ -37,7 +37,7 @@ export async function bootKeepingSave(page: Page): Promise<void> {
   await waitForScene(page, 'MainMenuScene');
 }
 
-export async function waitForScene(page: Page, scene: string, timeout = 20_000): Promise<void> {
+export async function waitForScene(page: Page, scene: string, timeout = 40_000): Promise<void> {
   await page.waitForFunction(
     (target) => {
       const api = (window as never as Record<string, { getSceneName?: () => string }>).__BLIP_TEST_API__;

@@ -43,6 +43,9 @@ import {
   CONTROLS_TOUCH,
   CURRENT_STATUS,
   HUMAN_PLAYTEST_CHECKLIST,
+  MASTER_BACKLOG_COUNTS,
+  MASTER_BACKLOG_CRITICAL_PATH,
+  MASTER_BACKLOG_DEFERRED,
   MECHANICS,
   PITCH,
   REGION_VERTICAL_SLICE_PLAN,
@@ -739,7 +742,26 @@ export class CommandCenter {
     return this.panel(
       'todo',
       'BUILD TODO',
-      `<ul class="cc-check">${BUILD_TODO.map(
+      `<h3>MASTER BACKLOG RECONCILIATION</h3>
+      <p class="cc-note"><span class="key">MASTER_GAME_BACKLOG.md</span> is the source of truth. This panel mirrors its status counts, current critical path, and deferred/cut systems so future sessions do not chase stale prompts.</p>
+      <div class="cc-grid-3">
+        ${MASTER_BACKLOG_COUNTS.map((c) => `<div class="cc-stat"><label>${esc(c.status)}</label><b>${c.count}</b></div>`).join('')}
+      </div>
+      <h3>VERTICAL-SLICE CRITICAL PATH</h3>
+      <table class="cc-table cc-status-table">
+        <tr><th>PRIORITY</th><th>ITEM</th><th>STATUS</th><th>NOTE</th></tr>
+        ${MASTER_BACKLOG_CRITICAL_PATH.map(
+          (i) => `<tr><td class="key">${esc(i.priority)}</td><td><b>${esc(i.item)}</b></td><td>${esc(i.status)}</td><td>${esc(i.note)}</td></tr>`
+        ).join('')}
+      </table>
+      <h3>DEFERRED / CUT GUARDRAILS</h3>
+      <table class="cc-table cc-status-table">
+        ${MASTER_BACKLOG_DEFERRED.map(
+          (i) => `<tr><td class="key">${esc(i.priority)}</td><td><b>${esc(i.item)}</b></td><td>${esc(i.status)}</td><td>${esc(i.note)}</td></tr>`
+        ).join('')}
+      </table>
+      <h3>IMPLEMENTATION CHECKLIST</h3>
+      <ul class="cc-check">${BUILD_TODO.map(
         (t) => `<li class="${t.done ? 'done' : ''}">${t.done ? '☑' : '☐'} ${esc(t.label)}</li>`
       ).join('')}</ul>
       <h3>VERTICAL SLICE SYSTEM STATUS</h3>

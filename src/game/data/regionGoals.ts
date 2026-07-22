@@ -21,7 +21,7 @@ export const REGION_GOALS: Record<string, RegionGoal> = {
     rewardId: 'pulse-resonance',
     rewardName: 'Pulse Resonance',
     rewardType: 'Weapon mutation',
-    rewardDescription: 'Pulse Carbine hits exposed signal cores harder.',
+    rewardDescription: 'Charged Pulse Carbine shots arc into nearby exposed threats.',
     completionBanner: 'WILLOW CACHE RECOVERED',
   },
   'circuit-z2': {
@@ -54,7 +54,7 @@ export const REGION_GOALS: Record<string, RegionGoal> = {
     rewardId: 'pulse-ricochet',
     rewardName: 'Carbine Ricochet',
     rewardType: 'Weapon mutation',
-    rewardDescription: 'Carbine shots can bounce through tight lanes and corners.',
+    rewardDescription: 'Pulse shots bounce through tight lanes; Recall Disc returns with an electrical trail.',
     completionBanner: 'GRAVITY REGULATOR CLAIMED',
   },
   'anomaly-01': {

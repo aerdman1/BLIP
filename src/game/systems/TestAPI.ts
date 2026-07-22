@@ -3,7 +3,7 @@
  * Enabled only in dev builds or with ?test=1.
  */
 import type Phaser from 'phaser';
-import { EVT, SCENES } from '../config';
+import { EVT, SCENES, type SweepEnemyKind } from '../config';
 import { bus } from './EventBus';
 import { getSave, resetSave, selectSkin, unlockSkin, updateSave } from './SaveSystem';
 import { driveVirtualInput, resetVirtualInput } from './VirtualInput';
@@ -196,6 +196,10 @@ export function installTestAPI(game: Phaser.Game): void {
       sweep.debugRouteToBreach();
       return true;
     },
+    openRouteForInspection: (): boolean => {
+      const sweep = sweepScene() as (Phaser.Scene & { debugOpenRouteForInspection?: () => boolean }) | null;
+      return sweep?.debugOpenRouteForInspection?.() ?? false;
+    },
     driveAi: (input: Partial<VirtualInput> & { dashQueued?: boolean; scanQueued?: boolean; interactQueued?: boolean; weaponNextQueued?: boolean; weaponSlotQueued?: 0 | 1 | 2 | null } = {}): boolean => {
       driveVirtualInput({
         active: true,
@@ -287,6 +291,22 @@ export function installTestAPI(game: Phaser.Game): void {
     getSweepRuntimeState: () => {
       const sweep = sweepScene() as (Phaser.Scene & { debugRuntimeState?: () => unknown }) | null;
       return sweep?.debugRuntimeState?.() ?? null;
+    },
+    startEnemyProbe: (kind: SweepEnemyKind): boolean => {
+      const sweep = sweepScene() as (Phaser.Scene & { debugStartEnemyProbe?: (kind: SweepEnemyKind) => boolean }) | null;
+      return sweep?.debugStartEnemyProbe?.(kind) ?? false;
+    },
+    getCombatSnapshot: () => {
+      const sweep = sweepScene() as (Phaser.Scene & { debugCombatSnapshot?: () => unknown }) | null;
+      return sweep?.debugCombatSnapshot?.() ?? null;
+    },
+    fireAtProbeEnemy: (): boolean => {
+      const sweep = sweepScene() as (Phaser.Scene & { debugFireAtProbeEnemy?: () => boolean }) | null;
+      return sweep?.debugFireAtProbeEnemy?.() ?? false;
+    },
+    forceSweepDeath: (): boolean => {
+      const sweep = sweepScene() as (Phaser.Scene & { debugForceDeath?: () => boolean }) | null;
+      return sweep?.debugForceDeath?.() ?? false;
     },
 
     resetSave: (): boolean => {

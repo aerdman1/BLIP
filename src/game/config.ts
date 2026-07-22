@@ -557,7 +557,7 @@ export const PROGRESSION = {
     'max-hull': { name: 'Max Hull', tiers: [80, 180], perTier: 1, unit: 'HP' },
     'energy-regen': { name: 'Energy Regen', tiers: [70, 150], perTier: 0.2, unit: '×' },
     'pulse-rate': { name: 'Pulse Rate', tiers: [70, 150], perTier: 0.15, unit: 'faster' },
-    'dash-cooldown': { name: 'Dash Cooldown', tiers: [70, 150], perTier: 0.15, unit: 'shorter' },
+    'dash-cooldown': { name: 'Phase Shift Cooldown', tiers: [70, 150], perTier: 0.15, unit: 'shorter' },
   },
 } as const;
 
@@ -803,7 +803,7 @@ export const SWEEP_BOSS = {
 // tag picks the movement/attack style. Counters are in the comments (keep the roster fair).
 //   behavior: 'chase' straight rush · 'gunner' standoff + aimed bolt · 'diver' lock-on lunge
 //             'weaver' fast sine rush · 'turret' rooted radial emitter
-//   shielded : blocks player bolts on its FRONT arc (it rotates to face you) → flank / dash / scan
+//   shielded : blocks player bolts on its FRONT arc, but repeated hits overload it → flank / dash / scan / sustained fire
 //   telegraphMs: charge/wind-up (blinks) before a gunner/turret volley → a readable tell
 //   splitInto: shards spawned on death (mini drifters) → clear with Scan / Overdrive
 export const SWEEP_ENEMIES = {
@@ -812,7 +812,7 @@ export const SWEEP_ENEMIES = {
   tagger:   { behavior: 'gunner', hp: 2, speed: 52, points: 2, fireMs: 1600, boltSpeed: 130, keepRange: 130, diveSpeed: 0,   lockRange: 0,   weave: 0,  telegraphMs: 0,   burst: 0, shielded: false, splitInto: 0 }, // fires aimed "labels"
   diver:    { behavior: 'diver',  hp: 1, speed: 44, points: 2, fireMs: 0,    boltSpeed: 0,   keepRange: 0,   diveSpeed: 300, lockRange: 200, weave: 0,  telegraphMs: 0,   burst: 0, shielded: false, splitInto: 0 }, // THREAT-tag lunge
   // ── new archetypes (per-zone variety) ───────────────────────────────────
-  // FIREWALL — armoured; frontal shield blocks bolts, so flank it, dash through, or Scan it.
+  // FIREWALL — armoured; frontal shield blocks bolts, so flank it, dash through, Scan it, or overload it with sustained fire.
   warden:   { behavior: 'chase',  hp: 5, speed: 30, points: 3, fireMs: 0,    boltSpeed: 0,   keepRange: 0,   diveSpeed: 0,   lockRange: 0,   weave: 0,  telegraphMs: 0,   burst: 0, shielded: true,  splitInto: 0 },
   // PINPOINT — keeps its distance, blinks a wind-up, then fires ONE fast locked line-shot. Sidestep it / break line of sight behind a wall.
   sniper:   { behavior: 'gunner', hp: 2, speed: 40, points: 3, fireMs: 2400, boltSpeed: 300, keepRange: 200, diveSpeed: 0,   lockRange: 0,   weave: 0,  telegraphMs: 620, burst: 0, shielded: false, splitInto: 0 },

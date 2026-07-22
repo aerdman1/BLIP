@@ -161,6 +161,8 @@ export class ShellUI {
   /** buttons already held when listening began (ignored until released) */
   private listenHeld = new Set<number>();
   private menuScoutButtons: HTMLButtonElement[] = [];
+  private lastToastText = '';
+  private lastToastAt = 0;
   private touch: TouchControls;
   private openCommandCenter: (section?: string) => void;
   private closeCommandCenter: () => void;
@@ -632,7 +634,14 @@ export class ShellUI {
   /* --------------------------------- toasts --------------------------------- */
 
   private showToast({ text, color }: { text: string; color?: string }): void {
+    const now = performance.now();
+    if (text === this.lastToastText && now - this.lastToastAt < 900) return;
+    this.lastToastText = text;
+    this.lastToastAt = now;
     const stack = $('toast-stack');
+    [...stack.children].forEach((child) => {
+      if ((child as HTMLElement).textContent === text) child.remove();
+    });
     const el = document.createElement('div');
     const cls = color === 'cyan' ? 'cyan' : color === 'orange' ? 'orange' : color === 'green' ? 'lime' : color === 'red' ? 'red' : '';
     el.className = `toast ${cls}`;
@@ -1401,7 +1410,7 @@ export class ShellUI {
           <button data-act="fly" id="dev-fly">Fly Mode: OFF</button>
           <button data-act="reset" class="danger">Clear Local Save</button>
         </div>
-        <div class="dev-hint">Top-down only: <b>WASD</b> move · mouse/right stick aim · <b>X/click</b> fires · <b>Q</b> scans · <b>SHIFT</b> dashes · <b>G</b> toggles god mode.</div>
+        <div class="dev-hint">Top-down only: <b>WASD</b> move · mouse/right stick aim · <b>X/click</b> fires · <b>Q</b> scans · <b>SHIFT</b> Phase Shifts · <b>G</b> toggles god mode.</div>
         <div class="dev-status" id="dev-status"></div>
       </div>`;
     document.body.appendChild(el);

@@ -17,7 +17,6 @@ import { getSave, selectSkin, unlockSkin, updateSave } from './game/systems/Save
 import { SKINS } from './game/data/skins';
 import { quests } from './game/systems/QuestSystem';
 import { installTestAPI, isTestApiEnabled } from './game/systems/TestAPI';
-import { CommandCenter } from './command-center/CommandCenter';
 import { ShellUI } from './ui/ShellUI';
 import { RewardUI } from './ui/RewardUI';
 import { installRewardTriggers } from './game/systems/RewardTriggers';
@@ -28,13 +27,38 @@ registerServiceWorker();
 installTestAPI(game);
 if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__BLIP_GAME__ = game;
 
-const commandCenter = new CommandCenter(document.getElementById('command-center') as HTMLElement, { game });
+type CommandCenterInstance = {
+  open(section?: string): void;
+  close(): void;
+};
+
+let commandCenter: CommandCenterInstance | null = null;
+let commandCenterLoading: Promise<CommandCenterInstance> | null = null;
+let commandCenterCloseQueued = false;
+
+function loadCommandCenter(): Promise<CommandCenterInstance> {
+  if (commandCenter) return Promise.resolve(commandCenter);
+  commandCenterLoading ??= import('./command-center/CommandCenter').then(({ CommandCenter }) => {
+    commandCenter = new CommandCenter(document.getElementById('command-center') as HTMLElement, { game });
+    if (commandCenterCloseQueued) {
+      commandCenter.close();
+      commandCenterCloseQueued = false;
+    }
+    return commandCenter;
+  });
+  return commandCenterLoading;
+}
+
 new ShellUI(game, {
   open: (section) => {
     updateSave(() => {}); // autosave on open (flushes pending stat bumps)
-    commandCenter.open(section);
+    commandCenterCloseQueued = false;
+    void loadCommandCenter().then((cc) => cc.open(section));
   },
-  close: () => commandCenter.close(),
+  close: () => {
+    if (commandCenter) commandCenter.close();
+    else commandCenterCloseQueued = true;
+  },
 });
 
 // Signal Cache reward system — DOM reward layer + gameplay milestone triggers.

@@ -1,131 +1,118 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-21T20:32:38.600Z",
-  "label": "current",
-  "runMs": 4200,
+  "generatedAt": "2026-07-22T01:58:43.799Z",
+  "startedAt": "2026-07-22T01:57:12.783Z",
+  "label": "focused-miller-motel-after-route-marker-tune",
+  "runMs": 5200,
+  "targetRuns": 6,
   "seeds": [
     3107,
-    9114
+    9114,
+    15121,
+    21128,
+    27135,
+    33142
   ],
   "guardrails": [
-    "Personas use visible-perception snapshots only: player, HUD progress, visible enemies, visible pickups, visible node/breach.",
+    "Personas use visible-perception snapshots only: player, HUD progress, visible enemies, visible pickups, visible node/breach, and the same objective arrow visible to a human.",
     "No hidden cache positions, full map geometry, enemy timers, future objectives or direct route-completion hooks are used.",
-    "Metrics are warning signals, not proof that the game is fun."
+    "The browser is reused for batches and restarted periodically to expose stale state and memory leaks.",
+    "Metrics are warning signals, not proof that BLIP is fun."
   ],
   "runs": [
     {
+      "index": 1,
       "persona": "new-player",
+      "scenario": "route-miller-motel",
       "seed": 3107,
       "result": "alive-timeout",
-      "durationMs": 4304,
+      "durationMs": 14176,
       "regionsReached": [
         "surface-z1"
       ],
       "regionsCompleted": [],
       "deaths": 0,
-      "stuckEvents": 0,
-      "objectiveFailures": 0,
-      "boredomFlags": [],
-      "frustrationFlags": [],
+      "stuckEvents": 3,
+      "objectiveFailures": 1,
+      "boredomFlags": [
+        "no-progress-window",
+        "objective-stall"
+      ],
+      "frustrationFlags": [
+        "stuck-against-geometry"
+      ],
       "weaponUsage": {
-        "pulse": 11,
-        "arc": 9,
-        "disc": 15
+        "pulse": 67,
+        "arc": 50
       },
-      "weaponSwitches": 2,
+      "weaponSwitches": 1,
       "phaseShiftUses": 0,
       "secretsFound": 0,
+      "maxNode": 100,
+      "breachOpened": true,
       "lootSeen": 1,
-      "lootIgnored": 1,
-      "lootCollected": 0,
+      "lootIgnored": 0,
+      "lootCollected": 1,
       "damageEvents": 2,
-      "timeWithoutProgressMs": 628,
+      "timeWithoutProgressMs": 6957,
       "screenshots": [
-        "test-results/ai-player-lab/screenshots/new-player-3107-entry.png",
-        "test-results/ai-player-lab/screenshots/new-player-3107-combat.png",
-        "test-results/ai-player-lab/screenshots/new-player-3107-combat.png"
-      ]
+        "test-results/ai-player-lab/campaign-screenshots/0001-new-player-route-miller-motel-entry.png",
+        "test-results/ai-player-lab/campaign-screenshots/0001-new-player-route-miller-motel-combat.png"
+      ],
+      "consoleErrors": [],
+      "menuOverlayVisible": false
     },
     {
+      "index": 2,
       "persona": "casual",
-      "seed": 3107,
+      "scenario": "route-miller-motel",
+      "seed": 9114,
       "result": "alive-timeout",
-      "durationMs": 4305,
+      "durationMs": 15993,
       "regionsReached": [
         "surface-z1"
       ],
       "regionsCompleted": [],
       "deaths": 0,
-      "stuckEvents": 0,
-      "objectiveFailures": 0,
+      "stuckEvents": 2,
+      "objectiveFailures": 1,
       "boredomFlags": [
-        "no-progress-window"
+        "no-progress-window",
+        "objective-stall"
       ],
-      "frustrationFlags": [],
+      "frustrationFlags": [
+        "stuck-against-geometry"
+      ],
       "weaponUsage": {
-        "pulse": 9,
-        "arc": 8,
-        "disc": 18
+        "pulse": 8,
+        "disc": 135
       },
-      "weaponSwitches": 4,
-      "phaseShiftUses": 0,
-      "secretsFound": 0,
-      "lootSeen": 1,
-      "lootIgnored": 1,
-      "lootCollected": 0,
-      "damageEvents": 2,
-      "timeWithoutProgressMs": 3337,
-      "screenshots": [
-        "test-results/ai-player-lab/screenshots/casual-3107-entry.png",
-        "test-results/ai-player-lab/screenshots/casual-3107-combat.png",
-        "test-results/ai-player-lab/screenshots/casual-3107-combat.png"
-      ]
-    },
-    {
-      "persona": "aggressive",
-      "seed": 3107,
-      "result": "alive-timeout",
-      "durationMs": 4210,
-      "regionsReached": [
-        "surface-z1"
-      ],
-      "regionsCompleted": [],
-      "deaths": 0,
-      "stuckEvents": 0,
-      "objectiveFailures": 0,
-      "boredomFlags": [
-        "no-progress-window"
-      ],
-      "frustrationFlags": [],
-      "weaponUsage": {
-        "pulse": 19,
-        "arc": 8,
-        "disc": 7
-      },
-      "weaponSwitches": 2,
+      "weaponSwitches": 3,
       "phaseShiftUses": 1,
       "secretsFound": 0,
-      "lootSeen": 1,
-      "lootIgnored": 1,
+      "maxNode": 71,
+      "breachOpened": false,
+      "lootSeen": 0,
+      "lootIgnored": 0,
       "lootCollected": 0,
-      "damageEvents": 1,
-      "timeWithoutProgressMs": 3353,
-      "screenshots": [
-        "test-results/ai-player-lab/screenshots/aggressive-3107-entry.png",
-        "test-results/ai-player-lab/screenshots/aggressive-3107-combat.png",
-        "test-results/ai-player-lab/screenshots/aggressive-3107-combat.png"
-      ]
+      "damageEvents": 0,
+      "timeWithoutProgressMs": 6934,
+      "screenshots": [],
+      "consoleErrors": [],
+      "menuOverlayVisible": false
     },
     {
-      "persona": "explorer",
-      "seed": 3107,
-      "result": "alive-timeout",
-      "durationMs": 4285,
+      "index": 3,
+      "persona": "aggressive",
+      "scenario": "route-miller-motel",
+      "seed": 15121,
+      "result": "death",
+      "durationMs": 11253,
       "regionsReached": [
         "surface-z1"
       ],
       "regionsCompleted": [],
-      "deaths": 0,
+      "deaths": 1,
       "stuckEvents": 0,
       "objectiveFailures": 0,
       "boredomFlags": [
@@ -135,231 +122,30 @@
         "heavy-damage"
       ],
       "weaponUsage": {
-        "pulse": 17,
-        "disc": 18
+        "pulse": 13,
+        "arc": 84
       },
-      "weaponSwitches": 5,
+      "weaponSwitches": 1,
       "phaseShiftUses": 0,
       "secretsFound": 0,
-      "lootSeen": 0,
-      "lootIgnored": 0,
-      "lootCollected": 0,
-      "damageEvents": 3,
-      "timeWithoutProgressMs": 3121,
-      "screenshots": [
-        "test-results/ai-player-lab/screenshots/explorer-3107-entry.png",
-        "test-results/ai-player-lab/screenshots/explorer-3107-combat.png",
-        "test-results/ai-player-lab/screenshots/explorer-3107-combat.png"
-      ]
-    },
-    {
-      "persona": "skilled-action",
-      "seed": 3107,
-      "result": "alive-timeout",
-      "durationMs": 4298,
-      "regionsReached": [
-        "surface-z1"
-      ],
-      "regionsCompleted": [],
-      "deaths": 0,
-      "stuckEvents": 0,
-      "objectiveFailures": 0,
-      "boredomFlags": [
-        "no-progress-window"
-      ],
-      "frustrationFlags": [],
-      "weaponUsage": {
-        "pulse": 15,
-        "disc": 6,
-        "arc": 14
-      },
-      "weaponSwitches": 5,
-      "phaseShiftUses": 4,
-      "secretsFound": 0,
-      "lootSeen": 0,
-      "lootIgnored": 0,
-      "lootCollected": 0,
-      "damageEvents": 0,
-      "timeWithoutProgressMs": 3130,
-      "screenshots": [
-        "test-results/ai-player-lab/screenshots/skilled-action-3107-entry.png",
-        "test-results/ai-player-lab/screenshots/skilled-action-3107-combat.png",
-        "test-results/ai-player-lab/screenshots/skilled-action-3107-combat.png"
-      ]
-    },
-    {
-      "persona": "unpredictable",
-      "seed": 3107,
-      "result": "alive-timeout",
-      "durationMs": 4306,
-      "regionsReached": [
-        "surface-z1"
-      ],
-      "regionsCompleted": [],
-      "deaths": 0,
-      "stuckEvents": 0,
-      "objectiveFailures": 0,
-      "boredomFlags": [
-        "no-progress-window"
-      ],
-      "frustrationFlags": [],
-      "weaponUsage": {
-        "pulse": 26,
-        "disc": 9
-      },
-      "weaponSwitches": 8,
-      "phaseShiftUses": 0,
-      "secretsFound": 0,
-      "lootSeen": 0,
-      "lootIgnored": 0,
-      "lootCollected": 0,
-      "damageEvents": 0,
-      "timeWithoutProgressMs": 3458,
-      "screenshots": [
-        "test-results/ai-player-lab/screenshots/unpredictable-3107-entry.png",
-        "test-results/ai-player-lab/screenshots/unpredictable-3107-combat.png",
-        "test-results/ai-player-lab/screenshots/unpredictable-3107-combat.png"
-      ]
-    },
-    {
-      "persona": "new-player",
-      "seed": 9114,
-      "result": "alive-timeout",
-      "durationMs": 4211,
-      "regionsReached": [
-        "surface-z1"
-      ],
-      "regionsCompleted": [],
-      "deaths": 0,
-      "stuckEvents": 0,
-      "objectiveFailures": 0,
-      "boredomFlags": [
-        "no-progress-window",
-        "pulse-dominates"
-      ],
-      "frustrationFlags": [],
-      "weaponUsage": {
-        "pulse": 34
-      },
-      "weaponSwitches": 0,
-      "phaseShiftUses": 0,
-      "secretsFound": 0,
-      "lootSeen": 1,
+      "maxNode": 86,
+      "breachOpened": false,
+      "lootSeen": 2,
       "lootIgnored": 1,
-      "lootCollected": 0,
-      "damageEvents": 0,
-      "timeWithoutProgressMs": 3333,
-      "screenshots": [
-        "test-results/ai-player-lab/screenshots/new-player-9114-entry.png",
-        "test-results/ai-player-lab/screenshots/new-player-9114-combat.png",
-        "test-results/ai-player-lab/screenshots/new-player-9114-combat.png"
-      ]
+      "lootCollected": 1,
+      "damageEvents": 5,
+      "timeWithoutProgressMs": 3948,
+      "screenshots": [],
+      "consoleErrors": [],
+      "menuOverlayVisible": false
     },
     {
-      "persona": "casual",
-      "seed": 9114,
-      "result": "alive-timeout",
-      "durationMs": 4302,
-      "regionsReached": [
-        "surface-z1"
-      ],
-      "regionsCompleted": [],
-      "deaths": 0,
-      "stuckEvents": 0,
-      "objectiveFailures": 0,
-      "boredomFlags": [],
-      "frustrationFlags": [],
-      "weaponUsage": {
-        "pulse": 12,
-        "arc": 6,
-        "disc": 17
-      },
-      "weaponSwitches": 2,
-      "phaseShiftUses": 1,
-      "secretsFound": 0,
-      "lootSeen": 0,
-      "lootIgnored": 0,
-      "lootCollected": 0,
-      "damageEvents": 0,
-      "timeWithoutProgressMs": 417,
-      "screenshots": [
-        "test-results/ai-player-lab/screenshots/casual-9114-entry.png",
-        "test-results/ai-player-lab/screenshots/casual-9114-combat.png",
-        "test-results/ai-player-lab/screenshots/casual-9114-combat.png"
-      ]
-    },
-    {
-      "persona": "aggressive",
-      "seed": 9114,
-      "result": "alive-timeout",
-      "durationMs": 4218,
-      "regionsReached": [
-        "surface-z1"
-      ],
-      "regionsCompleted": [],
-      "deaths": 0,
-      "stuckEvents": 0,
-      "objectiveFailures": 0,
-      "boredomFlags": [],
-      "frustrationFlags": [],
-      "weaponUsage": {
-        "pulse": 5,
-        "arc": 23,
-        "disc": 6
-      },
-      "weaponSwitches": 3,
-      "phaseShiftUses": 2,
-      "secretsFound": 0,
-      "lootSeen": 0,
-      "lootIgnored": 0,
-      "lootCollected": 0,
-      "damageEvents": 2,
-      "timeWithoutProgressMs": 1159,
-      "screenshots": [
-        "test-results/ai-player-lab/screenshots/aggressive-9114-entry.png",
-        "test-results/ai-player-lab/screenshots/aggressive-9114-combat.png",
-        "test-results/ai-player-lab/screenshots/aggressive-9114-combat.png"
-      ]
-    },
-    {
+      "index": 4,
       "persona": "explorer",
-      "seed": 9114,
+      "scenario": "route-miller-motel",
+      "seed": 21128,
       "result": "alive-timeout",
-      "durationMs": 4244,
-      "regionsReached": [
-        "surface-z1"
-      ],
-      "regionsCompleted": [],
-      "deaths": 0,
-      "stuckEvents": 0,
-      "objectiveFailures": 0,
-      "boredomFlags": [
-        "no-progress-window"
-      ],
-      "frustrationFlags": [],
-      "weaponUsage": {
-        "pulse": 4,
-        "disc": 30
-      },
-      "weaponSwitches": 3,
-      "phaseShiftUses": 1,
-      "secretsFound": 0,
-      "lootSeen": 0,
-      "lootIgnored": 0,
-      "lootCollected": 0,
-      "damageEvents": 1,
-      "timeWithoutProgressMs": 2929,
-      "screenshots": [
-        "test-results/ai-player-lab/screenshots/explorer-9114-entry.png",
-        "test-results/ai-player-lab/screenshots/explorer-9114-combat.png",
-        "test-results/ai-player-lab/screenshots/explorer-9114-combat.png"
-      ]
-    },
-    {
-      "persona": "skilled-action",
-      "seed": 9114,
-      "result": "alive-timeout",
-      "durationMs": 4286,
+      "durationMs": 14458,
       "regionsReached": [
         "surface-z1"
       ],
@@ -374,108 +160,230 @@
         "stuck-against-geometry"
       ],
       "weaponUsage": {
-        "pulse": 6,
-        "arc": 10,
-        "disc": 18
+        "pulse": 35,
+        "disc": 90,
+        "arc": 3
       },
-      "weaponSwitches": 2,
-      "phaseShiftUses": 2,
+      "weaponSwitches": 10,
+      "phaseShiftUses": 0,
       "secretsFound": 0,
-      "lootSeen": 0,
-      "lootIgnored": 0,
-      "lootCollected": 0,
-      "damageEvents": 0,
-      "timeWithoutProgressMs": 2969,
-      "screenshots": [
-        "test-results/ai-player-lab/screenshots/skilled-action-9114-entry.png",
-        "test-results/ai-player-lab/screenshots/skilled-action-9114-combat.png",
-        "test-results/ai-player-lab/screenshots/skilled-action-9114-combat.png"
-      ]
+      "maxNode": 100,
+      "breachOpened": true,
+      "lootSeen": 3,
+      "lootIgnored": 1,
+      "lootCollected": 2,
+      "damageEvents": 2,
+      "timeWithoutProgressMs": 6319,
+      "screenshots": [],
+      "consoleErrors": [],
+      "menuOverlayVisible": false
     },
     {
-      "persona": "unpredictable",
-      "seed": 9114,
+      "index": 5,
+      "persona": "skilled-action",
+      "scenario": "route-miller-motel",
+      "seed": 27135,
       "result": "alive-timeout",
-      "durationMs": 4215,
+      "durationMs": 16409,
       "regionsReached": [
         "surface-z1"
       ],
       "regionsCompleted": [],
       "deaths": 0,
-      "stuckEvents": 0,
-      "objectiveFailures": 0,
+      "stuckEvents": 2,
+      "objectiveFailures": 3,
       "boredomFlags": [
-        "no-progress-window"
+        "no-progress-window",
+        "objective-stall"
       ],
-      "frustrationFlags": [],
+      "frustrationFlags": [
+        "stuck-against-geometry"
+      ],
       "weaponUsage": {
-        "pulse": 9,
-        "arc": 2,
-        "disc": 23
+        "pulse": 13,
+        "arc": 10,
+        "disc": 124
       },
-      "weaponSwitches": 2,
-      "phaseShiftUses": 1,
+      "weaponSwitches": 9,
+      "phaseShiftUses": 4,
       "secretsFound": 0,
-      "lootSeen": 1,
-      "lootIgnored": 1,
+      "maxNode": 29,
+      "breachOpened": false,
+      "lootSeen": 0,
+      "lootIgnored": 0,
       "lootCollected": 0,
       "damageEvents": 0,
-      "timeWithoutProgressMs": 2933,
-      "screenshots": [
-        "test-results/ai-player-lab/screenshots/unpredictable-9114-entry.png",
-        "test-results/ai-player-lab/screenshots/unpredictable-9114-combat.png",
-        "test-results/ai-player-lab/screenshots/unpredictable-9114-combat.png"
-      ]
+      "timeWithoutProgressMs": 1242,
+      "screenshots": [],
+      "consoleErrors": [],
+      "menuOverlayVisible": false
+    },
+    {
+      "index": 6,
+      "persona": "unpredictable",
+      "scenario": "route-miller-motel",
+      "seed": 33142,
+      "result": "alive-timeout",
+      "durationMs": 14636,
+      "regionsReached": [
+        "surface-z1"
+      ],
+      "regionsCompleted": [],
+      "deaths": 0,
+      "stuckEvents": 3,
+      "objectiveFailures": 3,
+      "boredomFlags": [
+        "no-progress-window",
+        "objective-stall"
+      ],
+      "frustrationFlags": [
+        "stuck-against-geometry"
+      ],
+      "weaponUsage": {
+        "pulse": 35,
+        "disc": 90,
+        "arc": 5
+      },
+      "weaponSwitches": 15,
+      "phaseShiftUses": 1,
+      "secretsFound": 0,
+      "maxNode": 0,
+      "breachOpened": false,
+      "lootSeen": 0,
+      "lootIgnored": 0,
+      "lootCollected": 0,
+      "damageEvents": 0,
+      "timeWithoutProgressMs": 13470,
+      "screenshots": [],
+      "consoleErrors": [],
+      "menuOverlayVisible": false
     }
   ],
   "summary": {
     "completionRate": 0,
+    "fullRouteCompletionRate": 0,
+    "objectiveCompleteRate": 0,
+    "runs": 6,
     "personas": {
       "new-player": {
+        "runs": 1,
         "completionRate": 0,
         "averageDeaths": 0,
-        "averageStuckEvents": 0
+        "averageStuckEvents": 3
       },
       "casual": {
+        "runs": 1,
         "completionRate": 0,
         "averageDeaths": 0,
-        "averageStuckEvents": 0
+        "averageStuckEvents": 2
       },
       "aggressive": {
+        "runs": 1,
         "completionRate": 0,
-        "averageDeaths": 0,
+        "averageDeaths": 1,
         "averageStuckEvents": 0
       },
       "explorer": {
+        "runs": 1,
         "completionRate": 0,
         "averageDeaths": 0,
-        "averageStuckEvents": 0
+        "averageStuckEvents": 1
       },
       "skilled-action": {
+        "runs": 1,
         "completionRate": 0,
         "averageDeaths": 0,
-        "averageStuckEvents": 0.5
+        "averageStuckEvents": 2
       },
       "unpredictable": {
+        "runs": 1,
         "completionRate": 0,
         "averageDeaths": 0,
-        "averageStuckEvents": 0
+        "averageStuckEvents": 3
+      }
+    },
+    "scenarios": {
+      "route-miller-motel": {
+        "runs": 6,
+        "completionRate": 0,
+        "softLockRisks": 0,
+        "averageObjectiveFailures": 1.3333333333333333
       }
     },
     "leastUsedWeapon": "arc",
-    "mostCommonStuckAreas": {
+    "weaponTotals": {
+      "pulse": 171,
+      "arc": 152,
+      "disc": 439
+    },
+    "mostCommonDeathAreas": {
       "surface-z1": 1
     },
-    "mostIgnoredRewards": 5,
-    "mostConfusingObjective": "none flagged",
+    "mostCommonStuckAreas": {
+      "surface-z1": 11
+    },
+    "mostIgnoredRewards": 2,
+    "mostConfusingObjective": "Signal Node / route-forwarding",
     "mostRepetitiveEncounter": "none flagged",
     "likelyBoredomFlags": [
-      "no-progress-window",
-      "pulse-dominates"
+      "no-progress-window:6",
+      "objective-stall:4"
     ],
     "likelyFrustrationFlags": [
-      "heavy-damage",
-      "stuck-against-geometry"
+      "stuck-against-geometry:5",
+      "heavy-damage:1"
     ]
+  },
+  "findings": [
+    {
+      "rank": 1,
+      "category": "Game-breaking or blocking issues",
+      "count": 5,
+      "reliability": "speculative",
+      "finding": "Some runs look stuck or soft-lock-prone; inspect mostCommonStuckAreas and screenshots."
+    },
+    {
+      "rank": 2,
+      "category": "Confusing or unfair gameplay",
+      "count": 5,
+      "reliability": "speculative",
+      "finding": "Objective routing still stalls some personas."
+    },
+    {
+      "rank": 3,
+      "category": "Repetitive or boring gameplay",
+      "count": 0,
+      "reliability": "speculative",
+      "finding": "No repeated boredom signal detected."
+    },
+    {
+      "rank": 4,
+      "category": "Weapon and encounter balance",
+      "count": 0,
+      "reliability": "speculative",
+      "finding": "Weapon use appears varied enough for this pass."
+    },
+    {
+      "rank": 5,
+      "category": "Reward and objective clarity",
+      "count": 2,
+      "reliability": "speculative",
+      "finding": "Visible rewards are being skipped by multiple runs."
+    },
+    {
+      "rank": 6,
+      "category": "Visual or polish improvements",
+      "count": 1,
+      "reliability": "needs human/AI screenshot review",
+      "finding": "Review representative screenshots for clutter, depth sorting, readable pickups and camera framing."
+    }
+  ],
+  "comparison": {
+    "previousLabel": "focused-miller-motel-after-onboarding-tune",
+    "previousRuns": 6,
+    "previousCompletionRate": 0,
+    "completionRateDelta": 0,
+    "previousLeastUsedWeapon": "arc",
+    "currentLeastUsedWeapon": "arc"
   }
 }
