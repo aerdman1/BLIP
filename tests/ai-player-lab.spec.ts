@@ -215,7 +215,10 @@ async function runPersona(page: Page, persona: Persona, seed: number): Promise<R
         if (strafe) return { x: player.x - (enemy.y - player.y), y: player.y + (enemy.x - player.x) };
         return enemy;
       };
-      if (perception.progress.breachOpen && objectiveHint && rand() < routeOpenFollowChance) {
+      const routeOpenCommitChance = perception.progress.breachOpen
+        ? Math.max(routeOpenFollowChance, 0.9 - persona.mistakeChance * 0.22)
+        : routeOpenFollowChance;
+      if (perception.progress.breachOpen && objectiveHint && rand() < routeOpenCommitChance) {
         target = objectiveHint;
         fire = enemies.length > 0 && rand() > persona.mistakeChance;
       } else if (gravityGateNeeded && objectiveHint && !urgentThreat && rand() < Math.max(0.88, persona.objectiveUnderstanding)) {
@@ -244,7 +247,7 @@ async function runPersona(page: Page, persona: Persona, seed: number): Promise<R
         target = combatMove(enemy);
         fire = rand() > persona.mistakeChance * 0.7;
         if (rand() < persona.abilityUse * 0.18 && enemy.distance < 105) { dashQueued = true; phaseShiftUses++; }
-      } else if (visibleBreach?.open && rand() < persona.objectiveUnderstanding) {
+      } else if (visibleBreach?.open && rand() < routeOpenCommitChance) {
         target = visibleBreach;
       } else if (!gravityGateNeeded && visibleNode && rand() < persona.objectiveUnderstanding) {
         target = visibleNode;

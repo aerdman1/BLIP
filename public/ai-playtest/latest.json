@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-22T17:52:16.152Z",
-  "startedAt": "2026-07-22T17:49:21.578Z",
-  "label": "route-exit-sign-fix-v1",
-  "runMs": 10000,
+  "generatedAt": "2026-07-22T19:40:05.851Z",
+  "startedAt": "2026-07-22T19:34:00.444Z",
+  "label": "first-three-commit-scanner-v1",
+  "runMs": 11000,
   "targetRuns": 6,
   "seeds": [
     3107,
@@ -23,30 +23,34 @@
     {
       "index": 1,
       "persona": "new-player",
-      "scenario": "route-miller-motel",
+      "scenario": "route-first-three",
       "seed": 3107,
       "result": "alive-timeout",
-      "durationMs": 29896,
+      "durationMs": 57111,
       "regionsReached": [
-        "surface-z1"
+        "surface-z1",
+        "circuit-z2"
       ],
-      "regionsCompleted": [],
+      "regionsCompleted": [
+        "surface-z1",
+        "miller-field"
+      ],
       "deaths": 0,
-      "stuckEvents": 1,
+      "stuckEvents": 0,
       "objectiveFailures": 0,
       "boredomFlags": [
         "no-progress-window"
       ],
       "frustrationFlags": [
-        "stuck-against-geometry"
+        "heavy-damage"
       ],
       "weaponUsage": {
-        "pulse": 123,
-        "disc": 93,
-        "arc": 53
+        "pulse": 205,
+        "disc": 180,
+        "arc": 144
       },
-      "weaponSwitches": 9,
-      "phaseShiftUses": 0,
+      "weaponSwitches": 16,
+      "phaseShiftUses": 2,
       "secretsFound": 0,
       "maxNode": 100,
       "maxObjectiveActions": 5,
@@ -54,13 +58,14 @@
       "gravityWellRequired": false,
       "gravityWellUsed": false,
       "breachOpened": true,
-      "lootSeen": 5,
-      "lootIgnored": 1,
-      "lootCollected": 4,
-      "damageEvents": 1,
-      "timeWithoutProgressMs": 1965,
+      "lootSeen": 8,
+      "lootIgnored": 0,
+      "lootCollected": 8,
+      "damageEvents": 6,
+      "timeWithoutProgressMs": 4856,
       "screenshots": [
-        "test-results/ai-player-lab/campaign-screenshots/0001-new-player-route-miller-motel-entry.png"
+        "test-results/ai-player-lab/campaign-screenshots/0001-new-player-route-first-three-entry.png",
+        "test-results/ai-player-lab/campaign-screenshots/0001-new-player-route-first-three-combat.png"
       ],
       "consoleErrors": [],
       "menuOverlayVisible": false
@@ -68,10 +73,10 @@
     {
       "index": 2,
       "persona": "casual",
-      "scenario": "route-miller-motel",
+      "scenario": "route-first-three",
       "seed": 9114,
-      "result": "completed",
-      "durationMs": 24097,
+      "result": "soft-lock-risk",
+      "durationMs": 64309,
       "regionsReached": [
         "surface-z1",
         "circuit-z2"
@@ -81,31 +86,35 @@
         "miller-field"
       ],
       "deaths": 0,
-      "stuckEvents": 0,
-      "objectiveFailures": 0,
+      "stuckEvents": 5,
+      "objectiveFailures": 5,
       "boredomFlags": [
-        "no-progress-window"
+        "no-progress-window",
+        "objective-stall"
       ],
-      "frustrationFlags": [],
+      "frustrationFlags": [
+        "heavy-damage",
+        "stuck-against-geometry"
+      ],
       "weaponUsage": {
-        "pulse": 33,
-        "disc": 152,
-        "arc": 35
+        "pulse": 104,
+        "disc": 415,
+        "arc": 88
       },
-      "weaponSwitches": 8,
-      "phaseShiftUses": 0,
+      "weaponSwitches": 24,
+      "phaseShiftUses": 5,
       "secretsFound": 0,
       "maxNode": 100,
-      "maxObjectiveActions": 4,
+      "maxObjectiveActions": 7,
       "objectiveActionsRequired": 2,
       "gravityWellRequired": false,
       "gravityWellUsed": false,
       "breachOpened": true,
-      "lootSeen": 3,
+      "lootSeen": 7,
       "lootIgnored": 0,
-      "lootCollected": 3,
-      "damageEvents": 1,
-      "timeWithoutProgressMs": 6,
+      "lootCollected": 7,
+      "damageEvents": 5,
+      "timeWithoutProgressMs": 20850,
       "screenshots": [],
       "consoleErrors": [],
       "menuOverlayVisible": false
@@ -113,10 +122,61 @@
     {
       "index": 3,
       "persona": "aggressive",
-      "scenario": "route-miller-motel",
+      "scenario": "route-first-three",
       "seed": 15121,
       "result": "completed",
-      "durationMs": 20381,
+      "durationMs": 56808,
+      "regionsReached": [
+        "surface-z1",
+        "circuit-z2",
+        "town-z3"
+      ],
+      "regionsCompleted": [
+        "surface-z1",
+        "circuit-z2",
+        "miller-field",
+        "motel-nowhere"
+      ],
+      "deaths": 0,
+      "stuckEvents": 0,
+      "objectiveFailures": 3,
+      "boredomFlags": [
+        "no-progress-window",
+        "objective-stall"
+      ],
+      "frustrationFlags": [
+        "heavy-damage"
+      ],
+      "weaponUsage": {
+        "pulse": 92,
+        "disc": 321,
+        "arc": 122
+      },
+      "weaponSwitches": 24,
+      "phaseShiftUses": 8,
+      "secretsFound": 0,
+      "maxNode": 100,
+      "maxObjectiveActions": 7,
+      "objectiveActionsRequired": 3,
+      "gravityWellRequired": false,
+      "gravityWellUsed": false,
+      "breachOpened": true,
+      "lootSeen": 8,
+      "lootIgnored": 0,
+      "lootCollected": 8,
+      "damageEvents": 5,
+      "timeWithoutProgressMs": 14,
+      "screenshots": [],
+      "consoleErrors": [],
+      "menuOverlayVisible": false
+    },
+    {
+      "index": 4,
+      "persona": "explorer",
+      "scenario": "route-first-three",
+      "seed": 21128,
+      "result": "alive-timeout",
+      "durationMs": 58070,
       "regionsReached": [
         "surface-z1",
         "circuit-z2"
@@ -126,71 +186,35 @@
         "miller-field"
       ],
       "deaths": 0,
-      "stuckEvents": 0,
-      "objectiveFailures": 0,
-      "boredomFlags": [],
-      "frustrationFlags": [],
-      "weaponUsage": {
-        "pulse": 26,
-        "disc": 107,
-        "arc": 50
-      },
-      "weaponSwitches": 15,
-      "phaseShiftUses": 0,
-      "secretsFound": 0,
-      "maxNode": 100,
-      "maxObjectiveActions": 4,
-      "objectiveActionsRequired": 2,
-      "gravityWellRequired": false,
-      "gravityWellUsed": false,
-      "breachOpened": true,
-      "lootSeen": 3,
-      "lootIgnored": 0,
-      "lootCollected": 3,
-      "damageEvents": 0,
-      "timeWithoutProgressMs": 7,
-      "screenshots": [],
-      "consoleErrors": [],
-      "menuOverlayVisible": false
-    },
-    {
-      "index": 4,
-      "persona": "explorer",
-      "scenario": "route-miller-motel",
-      "seed": 21128,
-      "result": "alive-timeout",
-      "durationMs": 30434,
-      "regionsReached": [
-        "surface-z1"
-      ],
-      "regionsCompleted": [],
-      "deaths": 0,
-      "stuckEvents": 0,
-      "objectiveFailures": 1,
+      "stuckEvents": 3,
+      "objectiveFailures": 4,
       "boredomFlags": [
         "no-progress-window",
         "objective-stall"
       ],
-      "frustrationFlags": [],
+      "frustrationFlags": [
+        "heavy-damage",
+        "stuck-against-geometry"
+      ],
       "weaponUsage": {
-        "pulse": 61,
-        "disc": 201,
-        "arc": 18
+        "pulse": 183,
+        "disc": 231,
+        "arc": 134
       },
-      "weaponSwitches": 9,
-      "phaseShiftUses": 0,
+      "weaponSwitches": 18,
+      "phaseShiftUses": 2,
       "secretsFound": 0,
       "maxNode": 100,
-      "maxObjectiveActions": 5,
+      "maxObjectiveActions": 6,
       "objectiveActionsRequired": 2,
       "gravityWellRequired": false,
       "gravityWellUsed": false,
       "breachOpened": true,
-      "lootSeen": 3,
-      "lootIgnored": 1,
-      "lootCollected": 2,
-      "damageEvents": 2,
-      "timeWithoutProgressMs": 1343,
+      "lootSeen": 5,
+      "lootIgnored": 0,
+      "lootCollected": 5,
+      "damageEvents": 3,
+      "timeWithoutProgressMs": 15388,
       "screenshots": [],
       "consoleErrors": [],
       "menuOverlayVisible": false
@@ -198,17 +222,21 @@
     {
       "index": 5,
       "persona": "skilled-action",
-      "scenario": "route-miller-motel",
+      "scenario": "route-first-three",
       "seed": 27135,
-      "result": "alive-timeout",
-      "durationMs": 34605,
+      "result": "soft-lock-risk",
+      "durationMs": 66011,
       "regionsReached": [
-        "surface-z1"
+        "surface-z1",
+        "circuit-z2"
       ],
-      "regionsCompleted": [],
+      "regionsCompleted": [
+        "surface-z1",
+        "miller-field"
+      ],
       "deaths": 0,
-      "stuckEvents": 2,
-      "objectiveFailures": 4,
+      "stuckEvents": 8,
+      "objectiveFailures": 5,
       "boredomFlags": [
         "no-progress-window",
         "objective-stall"
@@ -217,24 +245,24 @@
         "stuck-against-geometry"
       ],
       "weaponUsage": {
-        "pulse": 30,
-        "arc": 99,
-        "disc": 193
+        "pulse": 205,
+        "arc": 74,
+        "disc": 344
       },
-      "weaponSwitches": 16,
-      "phaseShiftUses": 5,
+      "weaponSwitches": 32,
+      "phaseShiftUses": 14,
       "secretsFound": 0,
       "maxNode": 100,
-      "maxObjectiveActions": 5,
+      "maxObjectiveActions": 4,
       "objectiveActionsRequired": 2,
       "gravityWellRequired": false,
       "gravityWellUsed": false,
       "breachOpened": true,
-      "lootSeen": 1,
+      "lootSeen": 6,
       "lootIgnored": 0,
-      "lootCollected": 1,
-      "damageEvents": 0,
-      "timeWithoutProgressMs": 11057,
+      "lootCollected": 6,
+      "damageEvents": 2,
+      "timeWithoutProgressMs": 8385,
       "screenshots": [],
       "consoleErrors": [],
       "menuOverlayVisible": false
@@ -242,17 +270,21 @@
     {
       "index": 6,
       "persona": "unpredictable",
-      "scenario": "route-miller-motel",
+      "scenario": "route-first-three",
       "seed": 33142,
       "result": "alive-timeout",
-      "durationMs": 30819,
+      "durationMs": 58796,
       "regionsReached": [
-        "surface-z1"
+        "surface-z1",
+        "circuit-z2"
       ],
-      "regionsCompleted": [],
+      "regionsCompleted": [
+        "surface-z1",
+        "miller-field"
+      ],
       "deaths": 0,
-      "stuckEvents": 1,
-      "objectiveFailures": 2,
+      "stuckEvents": 3,
+      "objectiveFailures": 6,
       "boredomFlags": [
         "no-progress-window",
         "objective-stall"
@@ -262,11 +294,11 @@
       ],
       "weaponUsage": {
         "pulse": 86,
-        "disc": 106,
-        "arc": 94
+        "disc": 372,
+        "arc": 97
       },
-      "weaponSwitches": 15,
-      "phaseShiftUses": 2,
+      "weaponSwitches": 22,
+      "phaseShiftUses": 5,
       "secretsFound": 0,
       "maxNode": 100,
       "maxObjectiveActions": 5,
@@ -274,18 +306,18 @@
       "gravityWellRequired": false,
       "gravityWellUsed": false,
       "breachOpened": true,
-      "lootSeen": 2,
-      "lootIgnored": 0,
-      "lootCollected": 2,
-      "damageEvents": 0,
-      "timeWithoutProgressMs": 8157,
+      "lootSeen": 6,
+      "lootIgnored": 2,
+      "lootCollected": 4,
+      "damageEvents": 2,
+      "timeWithoutProgressMs": 410,
       "screenshots": [],
       "consoleErrors": [],
       "menuOverlayVisible": false
     }
   ],
   "summary": {
-    "completionRate": 0.3333333333333333,
+    "completionRate": 0.16666666666666666,
     "fullRouteCompletionRate": 0,
     "objectiveCompleteRate": 0,
     "runs": 6,
@@ -294,13 +326,13 @@
         "runs": 1,
         "completionRate": 0,
         "averageDeaths": 0,
-        "averageStuckEvents": 1
+        "averageStuckEvents": 0
       },
       "casual": {
         "runs": 1,
-        "completionRate": 1,
+        "completionRate": 0,
         "averageDeaths": 0,
-        "averageStuckEvents": 0
+        "averageStuckEvents": 5
       },
       "aggressive": {
         "runs": 1,
@@ -312,62 +344,63 @@
         "runs": 1,
         "completionRate": 0,
         "averageDeaths": 0,
-        "averageStuckEvents": 0
+        "averageStuckEvents": 3
       },
       "skilled-action": {
         "runs": 1,
         "completionRate": 0,
         "averageDeaths": 0,
-        "averageStuckEvents": 2
+        "averageStuckEvents": 8
       },
       "unpredictable": {
         "runs": 1,
         "completionRate": 0,
         "averageDeaths": 0,
-        "averageStuckEvents": 1
+        "averageStuckEvents": 3
       }
     },
     "scenarios": {
-      "route-miller-motel": {
+      "route-first-three": {
         "runs": 6,
-        "completionRate": 0.3333333333333333,
-        "softLockRisks": 0,
-        "averageObjectiveFailures": 1.1666666666666667
+        "completionRate": 0.16666666666666666,
+        "softLockRisks": 2,
+        "averageObjectiveFailures": 3.8333333333333335
       }
     },
     "leastUsedWeapon": "arc",
     "weaponTotals": {
-      "pulse": 359,
-      "arc": 349,
-      "disc": 852
+      "pulse": 875,
+      "arc": 659,
+      "disc": 1863
     },
     "mostCommonDeathAreas": {},
     "mostCommonStuckAreas": {
-      "surface-z1": 4
+      "circuit-z2": 19
     },
     "mostIgnoredRewards": 2,
     "mostConfusingObjective": "Signal Node / route-forwarding",
     "mostRepetitiveEncounter": "none flagged",
     "likelyBoredomFlags": [
-      "no-progress-window:5",
-      "objective-stall:3"
+      "no-progress-window:6",
+      "objective-stall:5"
     ],
     "likelyFrustrationFlags": [
-      "stuck-against-geometry:3"
+      "heavy-damage:4",
+      "stuck-against-geometry:4"
     ]
   },
   "findings": [
     {
       "rank": 1,
       "category": "Game-breaking or blocking issues",
-      "count": 3,
+      "count": 4,
       "reliability": "speculative",
       "finding": "Some runs look stuck or soft-lock-prone; inspect mostCommonStuckAreas and screenshots."
     },
     {
       "rank": 2,
       "category": "Confusing or unfair gameplay",
-      "count": 3,
+      "count": 8,
       "reliability": "speculative",
       "finding": "Objective routing still stalls some personas."
     },
@@ -388,7 +421,7 @@
     {
       "rank": 5,
       "category": "Reward and objective clarity",
-      "count": 2,
+      "count": 1,
       "reliability": "speculative",
       "finding": "Visible rewards are being skipped by multiple runs."
     },
@@ -401,10 +434,10 @@
     }
   ],
   "comparison": {
-    "previousLabel": "route-exit-duration-check-v1",
+    "previousLabel": "route-open-commit-scanner-v1",
     "previousRuns": 6,
-    "previousCompletionRate": 0,
-    "completionRateDelta": 0.3333333333333333,
+    "previousCompletionRate": 0.3333333333333333,
+    "completionRateDelta": -0.16666666666666666,
     "previousLeastUsedWeapon": "arc",
     "currentLeastUsedWeapon": "arc"
   }

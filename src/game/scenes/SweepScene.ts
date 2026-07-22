@@ -171,6 +171,7 @@ export class SweepScene extends Phaser.Scene {
     label: string;
     line: Phaser.GameObjects.Graphics;
     emitter: Phaser.GameObjects.Image;
+    receiver: Phaser.GameObjects.Image;
     text: Phaser.GameObjects.Text;
     disabled?: boolean;
   }> = [];
@@ -918,23 +919,26 @@ export class SweepScene extends Phaser.Scene {
       const bx = (bTx + 0.5) * T;
       const by = (bTy + 0.5) * T;
       const line = this.add.graphics().setDepth(14);
-      const emitter = this.add.image(ax, ay, TEX.glow8).setDepth(15).setTint(P.danger).setBlendMode(Phaser.BlendModes.ADD).setScale(0.8).setAlpha(0.7);
+      const emitter = this.add.image(ax, ay, TEX.glow8).setDepth(15).setTint(P.danger).setBlendMode(Phaser.BlendModes.ADD).setScale(0.72).setAlpha(0.75);
+      const receiver = this.add.image(bx, by, TEX.glow8).setDepth(15).setTint(P.danger).setBlendMode(Phaser.BlendModes.ADD).setScale(0.72).setAlpha(0.75);
       const midX = (ax + bx) / 2;
       const midY = (ay + by) / 2;
       const text = this.add
-        .text(midX, midY - 14, label, {
+        .text(midX, midY - 18, label, {
           fontFamily: 'monospace',
           fontSize: '6px',
           fontStyle: 'bold',
-          color: css(P.warning),
-          backgroundColor: 'rgba(5,8,14,0.62)',
+          color: css(P.danger),
+          stroke: '#05080e',
+          strokeThickness: 3,
+          backgroundColor: 'rgba(5,8,14,0.76)',
           padding: { x: 3, y: 2 },
         })
         .setOrigin(0.5)
         .setResolution(2)
         .setDepth(16);
       this.routeMarkers.push(text);
-      this.motelScanners.push({ ax, ay, bx, by, label, line, emitter, text });
+      this.motelScanners.push({ ax, ay, bx, by, label, line, emitter, receiver, text });
     };
 
     SWEEP_MOTEL_SCANNERS.forEach((s) => addScanner(s.aTx, s.aTy, s.bTx, s.bTy, s.label));
@@ -956,6 +960,7 @@ export class SweepScene extends Phaser.Scene {
     }
     this.updateRouteMarkerVisibility();
     this.quietRoutePressure();
+    this.disableMotelScannersForRouteOpen();
     bus.emit(EVT.toast, { text: this.goal.exitHint, color: 'green' });
     this.showBanner(this.arena.nextLabel ? `ROUTE OPEN — ${this.arena.nextLabel.toUpperCase()}` : this.goal.completionBanner);
     // boss-finale arenas bloom the crop circle when the Node charges (see beginBossFinale),
@@ -978,6 +983,19 @@ export class SweepScene extends Phaser.Scene {
     this.fx.scanRing(this.nodePos.x, this.nodePos.y, 180, 560, P.signalGreen);
     this.fx.floatText(this.nodePos.x, this.nodePos.y - 20, 'ROUTE CLEAR', P.signalGreen);
     this.updateRouteMarkerVisibility();
+  }
+
+  private disableMotelScannersForRouteOpen(): void {
+    if (this.arena.id !== 'circuit-z2') return;
+    this.motelScanners.forEach((s) => {
+      s.disabled = true;
+      s.line.clear();
+      s.text.setVisible(false);
+      s.emitter.setVisible(false);
+      s.receiver.setVisible(false);
+    });
+    this.motelAlertUntil = 0;
+    this.motelAlertCooldownUntil = 0;
   }
 
   /** Zone 4 standout: charging the node blooms the route you traced into a giant
@@ -1859,14 +1877,14 @@ export class SweepScene extends Phaser.Scene {
       }))
       .sort((a, b) => a.distance - b.distance);
     const seenScanners = this.motelScanners
-      .filter((s) => inView((s.ax + s.bx) / 2, (s.ay + s.by) / 2))
+      .filter((s) => !(this.breachOpen && s.disabled) && inView((s.ax + s.bx) / 2, (s.ay + s.by) / 2))
       .map((s) => {
         const x = (s.ax + s.bx) / 2;
         const y = (s.ay + s.by) / 2;
         return {
           x: Math.round(x),
           y: Math.round(y),
-          label: s.disabled ? 'GATE DOWN' : s.label,
+          label: s.disabled ? 'SCANNER OFFLINE' : s.label,
           disabled: s.disabled === true,
           alert: this.time.now < this.motelAlertUntil,
           distance: Math.round(Phaser.Math.Distance.Between(this.player.x, this.player.y, x, y)),
@@ -2629,18 +2647,28 @@ export class SweepScene extends Phaser.Scene {
       const pulse = 0.45 + Math.abs(Math.sin((now + i * 180) * 0.006)) * 0.35;
       const disabled = s.disabled === true;
       s.line.clear();
-      s.line.lineStyle(disabled ? 2 : alert ? 5 : 3, disabled ? P.neonCyan : alert ? P.danger : P.warning, disabled ? 0.35 : alert ? 0.72 : pulse);
-      s.line.lineBetween(s.ax, s.ay, s.bx, s.by);
-      s.line.lineStyle(1, P.white, disabled ? 0.22 : alert ? 0.5 : 0.28);
-      s.line.lineBetween(s.ax, s.ay, s.bx, s.by);
+      if (disabled && this.breachOpen) {
+        s.text.setVisible(false);
+        s.emitter.setVisible(false);
+        s.receiver.setVisible(false);
+        return;
+      }
+      s.line.lineStyle(alert ? 7 : 5, P.dangerDark, alert ? 0.4 : 0.22);
+      if (!disabled) s.line.lineBetween(s.ax, s.ay, s.bx, s.by);
+      s.line.lineStyle(alert ? 4 : 2, disabled ? P.neonCyan : P.danger, disabled ? 0 : alert ? 0.82 : 0.42 + pulse * 0.28);
+      if (!disabled) s.line.lineBetween(s.ax, s.ay, s.bx, s.by);
+      s.line.lineStyle(1, P.white, disabled ? 0 : alert ? 0.38 : 0.16);
+      if (!disabled) s.line.lineBetween(s.ax, s.ay, s.bx, s.by);
       s.text
-        .setText(disabled ? 'GATE DOWN' : s.label)
+        .setVisible(true)
+        .setText(disabled ? 'SCANNER OFFLINE' : s.label)
         .setColor(css(disabled ? P.neonCyan : alert ? P.danger : P.warning))
-        .setAlpha(disabled ? 0.66 : 1);
-      s.emitter
+        .setAlpha(disabled ? 0.55 : 0.92);
+      [s.emitter, s.receiver].forEach((endpoint) => endpoint
+        .setVisible(true)
         .setTint(disabled ? P.neonCyan : P.danger)
         .setAlpha(disabled ? 0.34 : alert ? 0.95 : 0.55 + pulse * 0.25)
-        .setScale(disabled ? 0.58 : alert ? 1.05 : 0.78);
+        .setScale(disabled ? 0.48 : alert ? 0.95 : 0.68));
 
       if (this.breachOpen || !this.player.alive) return;
       const d = pointToSegment(this.player.x, this.player.y, s.ax, s.ay, s.bx, s.by);
@@ -2944,7 +2972,16 @@ export class SweepScene extends Phaser.Scene {
     const handoff = this.registry.get(WORLD_HANDOFF_KEY) as SweepWorldHandoff | undefined;
     this.registry.remove(WORLD_HANDOFF_KEY);
     if (!handoff) return;
-    this.player.hp = Phaser.Math.Clamp(handoff.hp, 1, this.player.maxHp);
+    const recoveryFloor = Math.ceil(this.player.maxHp * 0.6);
+    const recoveredHp = Math.max(handoff.hp, recoveryFloor);
+    this.player.hp = Phaser.Math.Clamp(recoveredHp, 1, this.player.maxHp);
+    if (recoveredHp > handoff.hp) {
+      this.time.delayedCall(420, () => {
+        if (!this.player?.active) return;
+        this.fx.floatText(this.player.x, this.player.y - 22, 'SYNC RECOVERY', P.signalGreen);
+        bus.emit(EVT.toast, { text: 'SYNC RECOVERY — hull stabilized at the route checkpoint.', color: 'green' });
+      });
+    }
     this.weapon = WEAPONS[handoff.weaponId] ?? WEAPONS.pulse;
     const idx = WEAPON_LOADOUT.findIndex((id) => id === this.weapon.id);
     this.weaponIndex = idx >= 0 ? idx : 0;

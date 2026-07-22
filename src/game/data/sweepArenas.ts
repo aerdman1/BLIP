@@ -777,11 +777,11 @@ export const SWEEP_ROUTE_BEACONS: Partial<Record<string, {
 };
 
 export const SWEEP_MOTEL_SCANNERS: SweepScannerLine[] = [
-  { aTx: 13.0, aTy: 40.0, bTx: 16.0, bTy: 40.0, label: 'PHASE SHIFT' },
-  { aTx: 22.0, aTy: 23.0, bTx: 22.0, bTy: 30.0, label: 'ROOM ROW' },
-  { aTx: 41.0, aTy: 21.0, bTx: 51.0, bTy: 21.0, label: 'BLINK WINDOW' },
-  { aTx: 49.0, aTy: 32.0, bTx: 57.0, bTy: 32.0, label: 'CIRCUIT GATE' },
-  { aTx: 72.0, aTy: 20.0, bTx: 75.0, bTy: 20.0, label: 'RIVER ROAD EXIT' },
+  { aTx: 13.0, aTy: 40.0, bTx: 16.0, bTy: 40.0, label: 'PHASE SHIFT SCANNER' },
+  { aTx: 22.0, aTy: 23.0, bTx: 22.0, bTy: 30.0, label: 'ROOM ROW SCANNER' },
+  { aTx: 41.0, aTy: 21.0, bTx: 51.0, bTy: 21.0, label: 'POOL SCANNER' },
+  { aTx: 49.0, aTy: 32.0, bTx: 57.0, bTy: 32.0, label: 'SERVICE LOT SCANNER' },
+  { aTx: 72.0, aTy: 20.0, bTx: 75.0, bTy: 20.0, label: 'RIVER ROAD SCANNER' },
 ];
 
 export const SWEEP_GRAVITY_WELLS: Partial<Record<string, SweepGravityWellMarker>> = {

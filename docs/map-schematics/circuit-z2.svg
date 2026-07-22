@@ -68,19 +68,19 @@
 <rect x="792" y="549" width="99" height="44" fill="#2f564b" opacity="0.92" rx="2" />
   <line x1="170.5" y1="499.5" x2="203.5" y2="499.5" stroke="#ff4d5e" stroke-width="4" opacity="0.84" />
 <circle cx="170.5" cy="499.5" r="5" fill="#ff4d5e" />
-<text x="194" y="492.5" font-size="10" fill="#ff9aa5" font-family="monospace">PHASE SHIFT</text>
+<text x="194" y="492.5" font-size="10" fill="#ff9aa5" font-family="monospace">PHASE SHIFT SCANNER</text>
 <line x1="269.5" y1="312.5" x2="269.5" y2="389.5" stroke="#ff4d5e" stroke-width="4" opacity="0.84" />
 <circle cx="269.5" cy="312.5" r="5" fill="#ff4d5e" />
-<text x="276.5" y="344" font-size="10" fill="#ff9aa5" font-family="monospace">ROOM ROW</text>
+<text x="276.5" y="344" font-size="10" fill="#ff9aa5" font-family="monospace">ROOM ROW SCANNER</text>
 <line x1="478.5" y1="290.5" x2="588.5" y2="290.5" stroke="#ff4d5e" stroke-width="4" opacity="0.84" />
 <circle cx="478.5" cy="290.5" r="5" fill="#ff4d5e" />
-<text x="540.5" y="283.5" font-size="10" fill="#ff9aa5" font-family="monospace">BLINK WINDOW</text>
+<text x="540.5" y="283.5" font-size="10" fill="#ff9aa5" font-family="monospace">POOL SCANNER</text>
 <line x1="566.5" y1="411.5" x2="654.5" y2="411.5" stroke="#ff4d5e" stroke-width="4" opacity="0.84" />
 <circle cx="566.5" cy="411.5" r="5" fill="#ff4d5e" />
-<text x="617.5" y="404.5" font-size="10" fill="#ff9aa5" font-family="monospace">CIRCUIT GATE</text>
+<text x="617.5" y="404.5" font-size="10" fill="#ff9aa5" font-family="monospace">SERVICE LOT SCANNER</text>
 <line x1="819.5" y1="279.5" x2="852.5" y2="279.5" stroke="#ff4d5e" stroke-width="4" opacity="0.84" />
 <circle cx="819.5" cy="279.5" r="5" fill="#ff4d5e" />
-<text x="843" y="272.5" font-size="10" fill="#ff9aa5" font-family="monospace">RIVER ROAD EXIT</text>
+<text x="843" y="272.5" font-size="10" fill="#ff9aa5" font-family="monospace">RIVER ROAD SCANNER</text>
 <circle cx="137.5" cy="543.5" r="5" fill="#ffffff" /><text x="144.5" y="536.5" font-size="10" fill="#e8f5de" font-family="monospace">SPAWN</text>
 <rect x="583.5" y="428.5" width="10" height="10" fill="#9dff57" transform="rotate(45 588.5 433.5)" /><text x="595.5" y="426.5" font-size="10" fill="#e8f5de" font-family="monospace">OBJECTIVE</text>
 <rect x="847.5" y="175.5" width="10" height="10" fill="#67d8ff" transform="rotate(45 852.5 180.5)" /><text x="859.5" y="173.5" font-size="10" fill="#e8f5de" font-family="monospace">EXIT</text>

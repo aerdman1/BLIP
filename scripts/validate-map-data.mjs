@@ -183,6 +183,12 @@ for (const arena of Object.values(arenas)) {
     for (const scanner of motelScanners) {
       checkMarker(arena, walk, `scanner ${scanner.label} A`, { tx: scanner.aTx, ty: scanner.aTy });
       checkMarker(arena, walk, `scanner ${scanner.label} B`, { tx: scanner.bTx, ty: scanner.bTy });
+      if (!/SCANNER$/.test(scanner.label)) {
+        errors.push(`${arena.id}: scanner label "${scanner.label}" must explicitly end with SCANNER so it reads as a hazard/device, not a random prop`);
+      }
+      if (/GATE|BREACH|EXIT$/i.test(scanner.label)) {
+        errors.push(`${arena.id}: scanner label "${scanner.label}" is ambiguous with route exits; use a scanner/device name instead`);
+      }
     }
   }
   if (gravityWells[arena.id]) {

@@ -117,6 +117,7 @@ test('Motel Circuit communicates scanner stealth and River Road exit guidance', 
   expect(after.objective.title).toBe('Route open');
   expect(after.objective.hint).toContain('River Road');
   expect(after.objectiveHint.kind).toBe('route-beacon');
+  expect(after.visible.scanners).toHaveLength(0);
 });
 
 test('Chagrin Falls Town spawn does not apply invisible immediate damage', async ({ page }) => {

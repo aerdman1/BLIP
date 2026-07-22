@@ -14,7 +14,8 @@ mkdirSync(SHOT_DIR, { recursive: true });
 
 const RUNS = Number(process.env.AI_CAMPAIGN_RUNS ?? 500);
 const RUN_MS = Number(process.env.AI_CAMPAIGN_RUN_MS ?? 11000);
-const BASE_URL = process.env.AI_CAMPAIGN_URL ?? 'http://127.0.0.1:4173';
+const DEFAULT_PORT = Number(process.env.AI_CAMPAIGN_PORT ?? (4173 + (process.pid % 400)));
+const BASE_URL = process.env.AI_CAMPAIGN_URL ?? `http://127.0.0.1:${DEFAULT_PORT}`;
 const PORT = Number(new URL(BASE_URL).port || 4173);
 const LABEL = process.env.AI_CAMPAIGN_LABEL ?? process.env.AI_CAMPAIGN_REPORT ?? 'campaign';
 const RESTART_EVERY = Number(process.env.AI_CAMPAIGN_RESTART_EVERY ?? 40);
@@ -265,7 +266,10 @@ async function runOne(page, idx) {
         if (strafe) return { x: player.x - (enemy.y - player.y), y: player.y + (enemy.x - player.x) };
         return enemy;
       };
-      if (perception.progress.breachOpen && objectiveHint && rand() < routeOpenFollowChance) {
+      const routeOpenCommitChance = perception.progress.breachOpen
+        ? Math.max(routeOpenFollowChance, 0.9 - persona.mistakeChance * 0.22)
+        : routeOpenFollowChance;
+      if (perception.progress.breachOpen && objectiveHint && rand() < routeOpenCommitChance) {
         target = objectiveHint;
         fire = enemies.length > 0 && rand() > persona.mistakeChance;
       } else if (gravityGateNeeded && objectiveHint && !urgentThreat && rand() < Math.max(0.88, persona.objectiveUnderstanding * scenario.objectiveBias)) {
@@ -294,7 +298,7 @@ async function runOne(page, idx) {
         target = combatMove(enemy);
         fire = rand() > persona.mistakeChance * 0.72;
         if (rand() < persona.abilityUse * 0.18 && enemy.distance < 110) { dashQueued = true; phaseShiftUses++; }
-      } else if (visibleBreach?.open && rand() < persona.objectiveUnderstanding * scenario.objectiveBias) {
+      } else if (visibleBreach?.open && rand() < routeOpenCommitChance) {
         target = visibleBreach;
       } else if (!gravityGateNeeded && visibleNode && rand() < persona.objectiveUnderstanding * scenario.objectiveBias) {
         target = visibleNode;
@@ -480,7 +484,7 @@ function startServer() {
     if (built.status !== 0) process.exit(built.status ?? 1);
   }
   if (NO_SERVER) return null;
-  const server = spawn('npx', ['vite', 'preview', '--host', '127.0.0.1', '--port', String(PORT)], { stdio: ['ignore', 'pipe', 'pipe'] });
+  const server = spawn('npx', ['vite', 'preview', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], { stdio: ['ignore', 'pipe', 'pipe'] });
   server.stdout.on('data', (d) => process.stdout.write(`[preview] ${d}`));
   server.stderr.on('data', (d) => process.stderr.write(`[preview] ${d}`));
   return server;

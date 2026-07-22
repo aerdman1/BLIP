@@ -45,6 +45,9 @@ test.describe('route readiness automation', () => {
       expect(opened.objective.hint).toContain(arena.exit);
       expect(opened.objectiveHint).toBeTruthy();
       expect(['route-beacon', 'breach']).toContain(opened.objectiveHint.kind);
+      if (arena.id === 'circuit-z2') {
+        expect(opened.visible.scanners, 'Motel scanner beams should not remain as active-looking props after the route opens').toHaveLength(0);
+      }
       expect(await api<number>(page, 'api.getSweepRuntimeState().enemiesActive')).toBe(0);
       expect(watcher.errors, watcher.errors.join(' | ')).toHaveLength(0);
     });
