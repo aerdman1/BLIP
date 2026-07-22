@@ -365,9 +365,7 @@ test('AI Player Lab personas produce repeatable vertical-slice evidence', async 
     summary: summarize(runs),
   };
   mkdirSync('test-results/ai-player-lab', { recursive: true });
-  mkdirSync('public/ai-playtest', { recursive: true });
   writeFileSync('test-results/ai-player-lab/latest.json', JSON.stringify(report, null, 2));
-  writeFileSync('public/ai-playtest/latest.json', JSON.stringify(report, null, 2));
   expect(watcher.errors, watcher.errors.join(' | ')).toHaveLength(0);
   expect(runs.length).toBe(PERSONAS.length * SEEDS.length);
   expect(runs.some((r) => r.regionsReached.length > 0)).toBe(true);

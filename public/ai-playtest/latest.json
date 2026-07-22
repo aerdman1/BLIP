@@ -1,251 +1,155 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-22T16:31:17.517Z",
-  "label": "current",
-  "runMs": 5200,
+  "generatedAt": "2026-07-22T16:27:11.774Z",
+  "startedAt": "2026-07-22T16:25:41.785Z",
+  "label": "orchard-ai-gravity-priority-v1",
+  "runMs": 11000,
+  "targetRuns": 6,
   "seeds": [
     3107,
-    9114
+    9114,
+    15121,
+    21128,
+    27135,
+    33142
   ],
   "guardrails": [
-    "Personas use visible-perception snapshots only: player, HUD progress, visible enemies, visible pickups, visible node/breach.",
+    "Personas use visible-perception snapshots only: player, HUD progress, visible enemies, visible pickups, visible node/breach, and the same objective arrow visible to a human.",
     "No hidden cache positions, full map geometry, enemy timers, future objectives or direct route-completion hooks are used.",
-    "Metrics are warning signals, not proof that the game is fun."
+    "The browser is reused for batches and restarted periodically to expose stale state and memory leaks.",
+    "Metrics are warning signals, not proof that BLIP is fun."
   ],
   "runs": [
     {
+      "index": 1,
       "persona": "new-player",
+      "scenario": "region-orchard",
       "seed": 3107,
-      "result": "alive-timeout",
-      "durationMs": 5260,
+      "result": "objective-complete",
+      "durationMs": 15998,
       "regionsReached": [
-        "surface-z1"
+        "maze-z4"
       ],
       "regionsCompleted": [],
       "deaths": 0,
       "stuckEvents": 0,
       "objectiveFailures": 0,
-      "boredomFlags": [
-        "no-progress-window"
-      ],
+      "boredomFlags": [],
       "frustrationFlags": [],
       "weaponUsage": {
-        "pulse": 5,
-        "disc": 43
-      },
-      "weaponSwitches": 1,
-      "phaseShiftUses": 1,
-      "secretsFound": 0,
-      "lootSeen": 0,
-      "lootIgnored": 0,
-      "lootCollected": 0,
-      "damageEvents": 0,
-      "timeWithoutProgressMs": 3339,
-      "screenshots": [
-        "test-results/ai-player-lab/screenshots/new-player-3107-entry.png"
-      ]
-    },
-    {
-      "persona": "casual",
-      "seed": 3107,
-      "result": "alive-timeout",
-      "durationMs": 5240,
-      "regionsReached": [
-        "surface-z1"
-      ],
-      "regionsCompleted": [],
-      "deaths": 0,
-      "stuckEvents": 0,
-      "objectiveFailures": 5,
-      "boredomFlags": [
-        "no-progress-window",
-        "pulse-dominates"
-      ],
-      "frustrationFlags": [],
-      "weaponUsage": {
-        "pulse": 48
-      },
-      "weaponSwitches": 0,
-      "phaseShiftUses": 0,
-      "secretsFound": 0,
-      "lootSeen": 1,
-      "lootIgnored": 1,
-      "lootCollected": 0,
-      "damageEvents": 0,
-      "timeWithoutProgressMs": 4165,
-      "screenshots": [
-        "test-results/ai-player-lab/screenshots/casual-3107-entry.png"
-      ]
-    },
-    {
-      "persona": "aggressive",
-      "seed": 3107,
-      "result": "alive-timeout",
-      "durationMs": 5246,
-      "regionsReached": [
-        "surface-z1"
-      ],
-      "regionsCompleted": [],
-      "deaths": 0,
-      "stuckEvents": 0,
-      "objectiveFailures": 5,
-      "boredomFlags": [
-        "no-progress-window"
-      ],
-      "frustrationFlags": [],
-      "weaponUsage": {
-        "pulse": 9,
-        "arc": 36,
-        "disc": 3
-      },
-      "weaponSwitches": 2,
-      "phaseShiftUses": 0,
-      "secretsFound": 0,
-      "lootSeen": 0,
-      "lootIgnored": 0,
-      "lootCollected": 0,
-      "damageEvents": 0,
-      "timeWithoutProgressMs": 4184,
-      "screenshots": [
-        "test-results/ai-player-lab/screenshots/aggressive-3107-entry.png"
-      ]
-    },
-    {
-      "persona": "explorer",
-      "seed": 3107,
-      "result": "alive-timeout",
-      "durationMs": 5257,
-      "regionsReached": [
-        "surface-z1"
-      ],
-      "regionsCompleted": [],
-      "deaths": 0,
-      "stuckEvents": 0,
-      "objectiveFailures": 0,
-      "boredomFlags": [
-        "no-progress-window"
-      ],
-      "frustrationFlags": [],
-      "weaponUsage": {
-        "pulse": 7,
-        "disc": 41
-      },
-      "weaponSwitches": 3,
-      "phaseShiftUses": 0,
-      "secretsFound": 0,
-      "lootSeen": 0,
-      "lootIgnored": 0,
-      "lootCollected": 0,
-      "damageEvents": 0,
-      "timeWithoutProgressMs": 3666,
-      "screenshots": [
-        "test-results/ai-player-lab/screenshots/explorer-3107-entry.png"
-      ]
-    },
-    {
-      "persona": "skilled-action",
-      "seed": 3107,
-      "result": "alive-timeout",
-      "durationMs": 5291,
-      "regionsReached": [
-        "surface-z1"
-      ],
-      "regionsCompleted": [],
-      "deaths": 0,
-      "stuckEvents": 0,
-      "objectiveFailures": 0,
-      "boredomFlags": [
-        "no-progress-window"
-      ],
-      "frustrationFlags": [],
-      "weaponUsage": {
-        "pulse": 7,
-        "disc": 15,
-        "arc": 26
-      },
-      "weaponSwitches": 6,
-      "phaseShiftUses": 1,
-      "secretsFound": 0,
-      "lootSeen": 0,
-      "lootIgnored": 0,
-      "lootCollected": 0,
-      "damageEvents": 0,
-      "timeWithoutProgressMs": 2848,
-      "screenshots": [
-        "test-results/ai-player-lab/screenshots/skilled-action-3107-entry.png"
-      ]
-    },
-    {
-      "persona": "unpredictable",
-      "seed": 3107,
-      "result": "alive-timeout",
-      "durationMs": 5271,
-      "regionsReached": [
-        "surface-z1"
-      ],
-      "regionsCompleted": [],
-      "deaths": 0,
-      "stuckEvents": 0,
-      "objectiveFailures": 0,
-      "boredomFlags": [
-        "no-progress-window"
-      ],
-      "frustrationFlags": [],
-      "weaponUsage": {
-        "pulse": 13,
-        "disc": 23,
-        "arc": 12
+        "pulse": 68,
+        "disc": 66,
+        "arc": 1
       },
       "weaponSwitches": 4,
       "phaseShiftUses": 0,
       "secretsFound": 0,
-      "lootSeen": 1,
+      "maxNode": 100,
+      "maxObjectiveActions": 11,
+      "objectiveActionsRequired": 3,
+      "gravityWellRequired": true,
+      "gravityWellUsed": true,
+      "breachOpened": true,
+      "lootSeen": 5,
       "lootIgnored": 0,
-      "lootCollected": 1,
-      "damageEvents": 0,
-      "timeWithoutProgressMs": 1262,
-      "screenshots": [
-        "test-results/ai-player-lab/screenshots/unpredictable-3107-entry.png"
-      ]
-    },
-    {
-      "persona": "new-player",
-      "seed": 9114,
-      "result": "alive-timeout",
-      "durationMs": 5275,
-      "regionsReached": [
-        "surface-z1"
-      ],
-      "regionsCompleted": [],
-      "deaths": 0,
-      "stuckEvents": 0,
-      "objectiveFailures": 0,
-      "boredomFlags": [
-        "pulse-dominates"
-      ],
-      "frustrationFlags": [],
-      "weaponUsage": {
-        "pulse": 48
-      },
-      "weaponSwitches": 0,
-      "phaseShiftUses": 1,
-      "secretsFound": 0,
-      "lootSeen": 0,
-      "lootIgnored": 0,
-      "lootCollected": 0,
+      "lootCollected": 5,
       "damageEvents": 1,
-      "timeWithoutProgressMs": 2518,
+      "timeWithoutProgressMs": 5,
       "screenshots": [
-        "test-results/ai-player-lab/screenshots/new-player-9114-entry.png"
-      ]
+        "test-results/ai-player-lab/campaign-screenshots/0001-new-player-region-orchard-entry.png"
+      ],
+      "consoleErrors": [],
+      "menuOverlayVisible": false
     },
     {
+      "index": 2,
       "persona": "casual",
+      "scenario": "region-orchard",
       "seed": 9114,
-      "result": "alive-timeout",
-      "durationMs": 5294,
+      "result": "objective-complete",
+      "durationMs": 14540,
       "regionsReached": [
-        "surface-z1"
+        "maze-z4"
+      ],
+      "regionsCompleted": [],
+      "deaths": 0,
+      "stuckEvents": 0,
+      "objectiveFailures": 0,
+      "boredomFlags": [],
+      "frustrationFlags": [],
+      "weaponUsage": {
+        "pulse": 46,
+        "disc": 55,
+        "arc": 28
+      },
+      "weaponSwitches": 12,
+      "phaseShiftUses": 0,
+      "secretsFound": 0,
+      "maxNode": 100,
+      "maxObjectiveActions": 11,
+      "objectiveActionsRequired": 3,
+      "gravityWellRequired": true,
+      "gravityWellUsed": true,
+      "breachOpened": true,
+      "lootSeen": 10,
+      "lootIgnored": 3,
+      "lootCollected": 7,
+      "damageEvents": 2,
+      "timeWithoutProgressMs": 1,
+      "screenshots": [],
+      "consoleErrors": [],
+      "menuOverlayVisible": false
+    },
+    {
+      "index": 3,
+      "persona": "aggressive",
+      "scenario": "region-orchard",
+      "seed": 15121,
+      "result": "objective-complete",
+      "durationMs": 11994,
+      "regionsReached": [
+        "maze-z4"
+      ],
+      "regionsCompleted": [],
+      "deaths": 0,
+      "stuckEvents": 0,
+      "objectiveFailures": 0,
+      "boredomFlags": [],
+      "frustrationFlags": [
+        "heavy-damage"
+      ],
+      "weaponUsage": {
+        "pulse": 19,
+        "disc": 32,
+        "arc": 53
+      },
+      "weaponSwitches": 9,
+      "phaseShiftUses": 3,
+      "secretsFound": 0,
+      "maxNode": 100,
+      "maxObjectiveActions": 11,
+      "objectiveActionsRequired": 3,
+      "gravityWellRequired": true,
+      "gravityWellUsed": true,
+      "breachOpened": true,
+      "lootSeen": 11,
+      "lootIgnored": 5,
+      "lootCollected": 6,
+      "damageEvents": 3,
+      "timeWithoutProgressMs": 1,
+      "screenshots": [],
+      "consoleErrors": [],
+      "menuOverlayVisible": false
+    },
+    {
+      "index": 4,
+      "persona": "explorer",
+      "scenario": "region-orchard",
+      "seed": 21128,
+      "result": "objective-complete",
+      "durationMs": 15901,
+      "regionsReached": [
+        "maze-z4"
       ],
       "regionsCompleted": [],
       "deaths": 0,
@@ -255,126 +159,79 @@
       "frustrationFlags": [],
       "weaponUsage": {
         "pulse": 7,
-        "disc": 22,
-        "arc": 19
+        "arc": 46,
+        "disc": 89
       },
-      "weaponSwitches": 5,
+      "weaponSwitches": 7,
       "phaseShiftUses": 1,
       "secretsFound": 0,
-      "lootSeen": 1,
-      "lootIgnored": 1,
-      "lootCollected": 0,
+      "maxNode": 100,
+      "maxObjectiveActions": 11,
+      "objectiveActionsRequired": 3,
+      "gravityWellRequired": true,
+      "gravityWellUsed": true,
+      "breachOpened": true,
+      "lootSeen": 11,
+      "lootIgnored": 3,
+      "lootCollected": 8,
       "damageEvents": 0,
-      "timeWithoutProgressMs": 958,
-      "screenshots": [
-        "test-results/ai-player-lab/screenshots/casual-9114-entry.png"
-      ]
+      "timeWithoutProgressMs": 1,
+      "screenshots": [],
+      "consoleErrors": [],
+      "menuOverlayVisible": false
     },
     {
-      "persona": "aggressive",
-      "seed": 9114,
-      "result": "alive-timeout",
-      "durationMs": 5293,
-      "regionsReached": [
-        "surface-z1"
-      ],
-      "regionsCompleted": [],
-      "deaths": 0,
-      "stuckEvents": 0,
-      "objectiveFailures": 0,
-      "boredomFlags": [
-        "no-progress-window"
-      ],
-      "frustrationFlags": [],
-      "weaponUsage": {
-        "pulse": 11,
-        "arc": 29,
-        "disc": 8
-      },
-      "weaponSwitches": 5,
-      "phaseShiftUses": 0,
-      "secretsFound": 0,
-      "lootSeen": 1,
-      "lootIgnored": 1,
-      "lootCollected": 0,
-      "damageEvents": 0,
-      "timeWithoutProgressMs": 1160,
-      "screenshots": [
-        "test-results/ai-player-lab/screenshots/aggressive-9114-entry.png"
-      ]
-    },
-    {
-      "persona": "explorer",
-      "seed": 9114,
-      "result": "alive-timeout",
-      "durationMs": 5277,
-      "regionsReached": [
-        "surface-z1"
-      ],
-      "regionsCompleted": [],
-      "deaths": 0,
-      "stuckEvents": 0,
-      "objectiveFailures": 0,
-      "boredomFlags": [],
-      "frustrationFlags": [],
-      "weaponUsage": {
-        "pulse": 15,
-        "disc": 30,
-        "arc": 3
-      },
-      "weaponSwitches": 5,
-      "phaseShiftUses": 1,
-      "secretsFound": 0,
-      "lootSeen": 2,
-      "lootIgnored": 1,
-      "lootCollected": 1,
-      "damageEvents": 0,
-      "timeWithoutProgressMs": 1360,
-      "screenshots": [
-        "test-results/ai-player-lab/screenshots/explorer-9114-entry.png"
-      ]
-    },
-    {
+      "index": 5,
       "persona": "skilled-action",
-      "seed": 9114,
-      "result": "alive-timeout",
-      "durationMs": 5210,
+      "scenario": "region-orchard",
+      "seed": 27135,
+      "result": "objective-complete",
+      "durationMs": 15046,
       "regionsReached": [
-        "surface-z1"
+        "maze-z4"
       ],
       "regionsCompleted": [],
       "deaths": 0,
       "stuckEvents": 0,
-      "objectiveFailures": 5,
+      "objectiveFailures": 0,
       "boredomFlags": [
-        "no-progress-window",
-        "pulse-dominates"
+        "no-progress-window"
       ],
-      "frustrationFlags": [],
+      "frustrationFlags": [
+        "heavy-damage"
+      ],
       "weaponUsage": {
-        "pulse": 40,
-        "disc": 3,
-        "arc": 4
+        "pulse": 3,
+        "arc": 43,
+        "disc": 88
       },
-      "weaponSwitches": 3,
-      "phaseShiftUses": 0,
+      "weaponSwitches": 11,
+      "phaseShiftUses": 4,
       "secretsFound": 0,
-      "lootSeen": 0,
-      "lootIgnored": 0,
-      "lootCollected": 0,
-      "damageEvents": 0,
-      "timeWithoutProgressMs": 4132,
-      "screenshots": [
-        "test-results/ai-player-lab/screenshots/skilled-action-9114-entry.png"
-      ]
+      "maxNode": 100,
+      "maxObjectiveActions": 11,
+      "objectiveActionsRequired": 3,
+      "gravityWellRequired": true,
+      "gravityWellUsed": true,
+      "breachOpened": true,
+      "lootSeen": 6,
+      "lootIgnored": 1,
+      "lootCollected": 5,
+      "damageEvents": 3,
+      "timeWithoutProgressMs": 1,
+      "screenshots": [],
+      "consoleErrors": [],
+      "menuOverlayVisible": false
     },
     {
+      "index": 6,
       "persona": "unpredictable",
-      "seed": 9114,
-      "result": "alive-timeout",
-      "durationMs": 5271,
+      "scenario": "region-orchard",
+      "seed": 33142,
+      "result": "objective-complete",
+      "durationMs": 15220,
       "regionsReached": [
-        "surface-z1"
+        "maze-z4"
       ],
       "regionsCompleted": [],
       "deaths": 0,
@@ -385,66 +242,148 @@
       ],
       "frustrationFlags": [],
       "weaponUsage": {
-        "pulse": 9,
-        "disc": 6,
-        "arc": 33
+        "pulse": 39,
+        "disc": 67,
+        "arc": 30
       },
-      "weaponSwitches": 4,
-      "phaseShiftUses": 0,
+      "weaponSwitches": 10,
+      "phaseShiftUses": 2,
       "secretsFound": 0,
-      "lootSeen": 1,
-      "lootIgnored": 0,
-      "lootCollected": 1,
-      "damageEvents": 0,
-      "timeWithoutProgressMs": 420,
-      "screenshots": [
-        "test-results/ai-player-lab/screenshots/unpredictable-9114-entry.png"
-      ]
+      "maxNode": 100,
+      "maxObjectiveActions": 11,
+      "objectiveActionsRequired": 3,
+      "gravityWellRequired": true,
+      "gravityWellUsed": true,
+      "breachOpened": true,
+      "lootSeen": 6,
+      "lootIgnored": 2,
+      "lootCollected": 4,
+      "damageEvents": 1,
+      "timeWithoutProgressMs": 1,
+      "screenshots": [],
+      "consoleErrors": [],
+      "menuOverlayVisible": false
     }
   ],
   "summary": {
-    "completionRate": 0,
+    "completionRate": 1,
+    "fullRouteCompletionRate": 0,
+    "objectiveCompleteRate": 1,
+    "runs": 6,
     "personas": {
       "new-player": {
-        "completionRate": 0,
+        "runs": 1,
+        "completionRate": 1,
         "averageDeaths": 0,
         "averageStuckEvents": 0
       },
       "casual": {
-        "completionRate": 0,
+        "runs": 1,
+        "completionRate": 1,
         "averageDeaths": 0,
         "averageStuckEvents": 0
       },
       "aggressive": {
-        "completionRate": 0,
+        "runs": 1,
+        "completionRate": 1,
         "averageDeaths": 0,
         "averageStuckEvents": 0
       },
       "explorer": {
-        "completionRate": 0,
+        "runs": 1,
+        "completionRate": 1,
         "averageDeaths": 0,
         "averageStuckEvents": 0
       },
       "skilled-action": {
-        "completionRate": 0,
+        "runs": 1,
+        "completionRate": 1,
         "averageDeaths": 0,
         "averageStuckEvents": 0
       },
       "unpredictable": {
-        "completionRate": 0,
+        "runs": 1,
+        "completionRate": 1,
         "averageDeaths": 0,
         "averageStuckEvents": 0
       }
     },
-    "leastUsedWeapon": "arc",
+    "scenarios": {
+      "region-orchard": {
+        "runs": 6,
+        "completionRate": 1,
+        "softLockRisks": 0,
+        "averageObjectiveFailures": 0
+      }
+    },
+    "leastUsedWeapon": "pulse",
+    "weaponTotals": {
+      "pulse": 182,
+      "arc": 201,
+      "disc": 397
+    },
+    "mostCommonDeathAreas": {},
     "mostCommonStuckAreas": {},
-    "mostIgnoredRewards": 4,
-    "mostConfusingObjective": "first Signal Node / route-forwarding",
+    "mostIgnoredRewards": 14,
+    "mostConfusingObjective": "none flagged",
     "mostRepetitiveEncounter": "none flagged",
     "likelyBoredomFlags": [
-      "no-progress-window",
-      "pulse-dominates"
+      "no-progress-window:2"
     ],
-    "likelyFrustrationFlags": []
+    "likelyFrustrationFlags": [
+      "heavy-damage:2"
+    ]
+  },
+  "findings": [
+    {
+      "rank": 1,
+      "category": "Game-breaking or blocking issues",
+      "count": 0,
+      "reliability": "speculative",
+      "finding": "No repeated blocking issue detected."
+    },
+    {
+      "rank": 2,
+      "category": "Confusing or unfair gameplay",
+      "count": 2,
+      "reliability": "speculative",
+      "finding": "Damage spikes require review."
+    },
+    {
+      "rank": 3,
+      "category": "Repetitive or boring gameplay",
+      "count": 0,
+      "reliability": "speculative",
+      "finding": "No repeated boredom signal detected."
+    },
+    {
+      "rank": 4,
+      "category": "Weapon and encounter balance",
+      "count": 0,
+      "reliability": "speculative",
+      "finding": "Weapon use appears varied enough for this pass."
+    },
+    {
+      "rank": 5,
+      "category": "Reward and objective clarity",
+      "count": 5,
+      "reliability": "speculative",
+      "finding": "Visible rewards are being skipped by multiple runs."
+    },
+    {
+      "rank": 6,
+      "category": "Visual or polish improvements",
+      "count": 1,
+      "reliability": "needs human/AI screenshot review",
+      "finding": "Review representative screenshots for clutter, depth sorting, readable pickups and camera framing."
+    }
+  ],
+  "comparison": {
+    "previousLabel": "orchard-phased-signs-v1",
+    "previousRuns": 6,
+    "previousCompletionRate": 0.3333333333333333,
+    "completionRateDelta": 0.6666666666666667,
+    "previousLeastUsedWeapon": "pulse",
+    "currentLeastUsedWeapon": "pulse"
   }
 }
