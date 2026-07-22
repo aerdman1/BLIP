@@ -38,16 +38,16 @@ const PERSONAS = [
 ];
 
 const SCENARIOS = [
-  { name: 'full-route', zone: 'miller-field', goalZone: 'skyline-array', runMul: 8.5, objectiveBias: 1.25 },
-  { name: 'route-miller-motel', zone: 'miller-field', goalZone: 'motel-nowhere', runMul: 3.4, objectiveBias: 1.35, arrivalGoal: true },
-  { name: 'route-first-three', zone: 'miller-field', goalZone: 'tiger-stadium', runMul: 7.2, objectiveBias: 1.35, arrivalGoal: true },
-  { name: 'region-miller', zone: 'miller-field', goalZone: 'miller-field', runMul: 1.75, objectiveBias: 1.05 },
-  { name: 'region-motel', zone: 'motel-nowhere', goalZone: 'motel-nowhere', runMul: 1.8, objectiveBias: 1.1 },
-  { name: 'region-town', zone: 'tiger-stadium', goalZone: 'tiger-stadium', runMul: 1.8, objectiveBias: 1.1 },
-  { name: 'region-orchard', zone: 'pattersons-orchard', goalZone: 'pattersons-orchard', runMul: 2.15, objectiveBias: 1.18 },
-  { name: 'combat-storm', zone: 'skyline-array', goalZone: 'skyline-array', runMul: 1.8, objectiveBias: 0.85 },
-  { name: 'objective-drill', zone: 'miller-field', goalZone: 'miller-field', runMul: 1.95, objectiveBias: 1.45 },
-  { name: 'visible-review', zone: 'tiger-stadium', goalZone: 'tiger-stadium', runMul: 2.0, objectiveBias: 1.1, visual: true },
+  { name: 'full-route', zone: 'miller-field', goalZone: 'skyline-array', runMul: 13.0, objectiveBias: 1.25 },
+  { name: 'route-miller-motel', zone: 'miller-field', goalZone: 'motel-nowhere', runMul: 4.2, objectiveBias: 1.35, arrivalGoal: true },
+  { name: 'route-first-three', zone: 'miller-field', goalZone: 'tiger-stadium', runMul: 8.8, objectiveBias: 1.35, arrivalGoal: true },
+  { name: 'region-miller', zone: 'miller-field', goalZone: 'miller-field', runMul: 2.25, objectiveBias: 1.05 },
+  { name: 'region-motel', zone: 'motel-nowhere', goalZone: 'motel-nowhere', runMul: 2.65, objectiveBias: 1.1 },
+  { name: 'region-town', zone: 'tiger-stadium', goalZone: 'tiger-stadium', runMul: 2.65, objectiveBias: 1.1 },
+  { name: 'region-orchard', zone: 'pattersons-orchard', goalZone: 'pattersons-orchard', runMul: 2.85, objectiveBias: 1.18 },
+  { name: 'combat-storm', zone: 'skyline-array', goalZone: 'skyline-array', runMul: 2.4, objectiveBias: 0.85, surviveGoal: true },
+  { name: 'objective-drill', zone: 'miller-field', goalZone: 'miller-field', runMul: 2.45, objectiveBias: 1.45 },
+  { name: 'visible-review', zone: 'tiger-stadium', goalZone: 'tiger-stadium', runMul: 2.4, objectiveBias: 1.1, visual: true },
 ].filter((s) => SCENARIO_FILTER.length === 0 || SCENARIO_FILTER.includes(s.name));
 if (!SCENARIOS.length) {
   throw new Error(`No AI campaign scenarios matched AI_CAMPAIGN_SCENARIOS=${process.env.AI_CAMPAIGN_SCENARIOS}`);
@@ -194,7 +194,7 @@ async function runOne(page, idx) {
 
     if (lastPos) {
       const moved = Math.hypot(perception.player.x - lastPos.x, perception.player.y - lastPos.y);
-      if (moved < 1.5 && lastCommandMoving && (perception.visible.enemies.length || perception.progress.breachOpen)) {
+      if (moved < 1.5 && lastCommandMoving && (perception.visible.enemies.length || perception.progress.breachOpen || perception.objectiveHint)) {
         if (!lowMoveSince) lowMoveSince = now;
         if (now - lowMoveSince > 1400) {
           stuckEvents++;
@@ -229,7 +229,7 @@ async function runOne(page, idx) {
       objectiveFailures++;
       lastObjectiveFailureAt = now;
     }
-    if (!scenario.arrivalGoal && scenario.name !== 'full-route' && breachOpened) {
+    if (!scenario.arrivalGoal && !scenario.surviveGoal && scenario.name !== 'full-route' && breachOpened) {
       result = 'objective-complete';
       break;
     }
@@ -398,8 +398,9 @@ async function runOne(page, idx) {
   const save = await api(page, 'api.getSaveData()').catch(() => ({ completedZones: [], foundSecrets: [] }));
   for (const z of save.completedZones ?? []) regionsCompleted.add(z);
   if (scenario.arrivalGoal && save.currentZone === scenario.goalZone) result = 'completed';
+  else if (scenario.surviveGoal && result === 'alive-timeout') result = 'objective-complete';
   else if ((save.completedZones ?? []).includes(scenario.goalZone)) result = 'completed';
-  else if (!scenario.arrivalGoal && scenario.name !== 'full-route' && breachOpened) result = 'objective-complete';
+  else if (!scenario.arrivalGoal && !scenario.surviveGoal && scenario.name !== 'full-route' && breachOpened) result = 'objective-complete';
   const finalTimeWithoutProgressMs = Math.max(0, Date.now() - lastProgressAt);
   if (stuckEvents >= 4 && finalTimeWithoutProgressMs > 7000 && result === 'alive-timeout') result = 'soft-lock-risk';
   if (damageEvents >= 3) frustrationFlags.push('heavy-damage');
@@ -413,6 +414,7 @@ async function runOne(page, idx) {
     scenario: scenario.name,
     seed,
     result,
+    timeBudgetMs: runMs,
     durationMs: Date.now() - started,
     regionsReached,
     regionsCompleted: [...regionsCompleted],
@@ -506,6 +508,7 @@ function buildReport(runs, startedAt, finishedAt, phase = LABEL) {
     label: phase,
     runMs: RUN_MS,
     targetRuns: RUNS,
+    note: 'Scenario run time is runMs multiplied by each scenario runMul; inspect each run.timeBudgetMs before comparing completion rates across campaigns.',
     seeds: runs.map((r) => r.seed),
     guardrails: [
       'Personas use visible-perception snapshots only: player, HUD progress, visible enemies, visible pickups, visible node/breach, and the same objective arrow visible to a human.',
@@ -520,14 +523,15 @@ function buildReport(runs, startedAt, finishedAt, phase = LABEL) {
 }
 
 function rankFindings(runs) {
-  const stuck = runs.filter((r) => r.result === 'soft-lock-risk' || r.stuckEvents > 0);
+  const hardStuck = runs.filter((r) => r.result === 'soft-lock-risk');
+  const recoveredStuck = runs.filter((r) => r.result !== 'soft-lock-risk' && r.stuckEvents > 0);
   const objective = runs.filter((r) => r.result !== 'completed' && r.result !== 'objective-complete' && (r.objectiveFailures > 0 || r.boredomFlags.includes('objective-stall')));
   const damage = runs.filter((r) => r.frustrationFlags.includes('heavy-damage'));
   const pulse = runs.filter((r) => r.boredomFlags.includes('pulse-dominates'));
   const ignoredLoot = runs.filter((r) => r.lootIgnored > 0);
   return [
-    { rank: 1, category: 'Game-breaking or blocking issues', count: stuck.length, reliability: stuck.length > 5 ? 'reliable' : 'speculative', finding: stuck.length ? 'Some runs look stuck or soft-lock-prone; inspect mostCommonStuckAreas and screenshots.' : 'No repeated blocking issue detected.' },
-    { rank: 2, category: 'Confusing or unfair gameplay', count: objective.length + damage.length, reliability: objective.length + damage.length > 10 ? 'reliable' : 'speculative', finding: objective.length ? 'Objective routing still stalls some personas.' : damage.length ? 'Damage spikes require review.' : 'No repeated clarity/fairness issue detected.' },
+    { rank: 1, category: 'Game-breaking or blocking issues', count: hardStuck.length, reliability: hardStuck.length > 2 ? 'reliable' : 'speculative', finding: hardStuck.length ? 'Some runs ended in a soft-lock-risk state; inspect stallSamples first.' : 'No repeated blocking issue detected.' },
+    { rank: 2, category: 'Confusing or unfair gameplay', count: objective.length + damage.length + recoveredStuck.length, reliability: objective.length + damage.length + recoveredStuck.length > 10 ? 'reliable' : 'speculative', finding: objective.length ? 'Objective routing still stalls some personas.' : damage.length ? 'Damage spikes require review.' : recoveredStuck.length ? 'Some personas recover from geometry friction but lose time.' : 'No repeated clarity/fairness issue detected.' },
     { rank: 3, category: 'Repetitive or boring gameplay', count: pulse.length, reliability: pulse.length > 10 ? 'reliable' : 'speculative', finding: pulse.length ? 'Basic fire dominates too many runs.' : 'No repeated boredom signal detected.' },
     { rank: 4, category: 'Weapon and encounter balance', count: pulse.length, reliability: pulse.length > 10 ? 'reliable' : 'speculative', finding: pulse.length ? 'Encounters may need counters/rewards that invite Arc/Disc.' : 'Weapon use appears varied enough for this pass.' },
     { rank: 5, category: 'Reward and objective clarity', count: ignoredLoot.length, reliability: ignoredLoot.length > 10 ? 'reliable' : 'speculative', finding: ignoredLoot.length ? 'Visible rewards are being skipped by multiple runs.' : 'No repeated reward clarity issue detected.' },

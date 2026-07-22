@@ -61,6 +61,8 @@ test.describe('route readiness automation', () => {
     expect(perception.objective.hint).toMatch(/Phase Shift/i);
     expect(perception.visible.scanners.length).toBeGreaterThan(0);
     expect(await api<number>(page, 'api.getSweepRuntimeState().motelScanners.total')).toBeGreaterThanOrEqual(5);
+    await expect(page.locator('.td-objective-sub')).toContainText(/Scanners offline/i);
+    await expect(page.locator('.td-objective-sub')).not.toContainText(/gate/i);
   });
 
   test('Orchard requires Gravity Well before the Crop Circle route', async ({ page }) => {
@@ -88,6 +90,8 @@ test.describe('route readiness automation', () => {
     expect(perception.objective.title).toMatch(/Storm Classifier/i);
     expect(perception.objective.reward).toMatch(/Refuse the Label/i);
     await expect(page.locator('.td-objective-title')).toContainText(/Storm Classifier|CLASSIFIER CORE/i);
+    await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSweepRuntimeState().enemiesActive > 0, null, { timeout: 2500 });
+    expect(await api<number>(page, 'api.getSweepRuntimeState().enemiesActive')).toBeGreaterThan(0);
     expect(watcher.errors, watcher.errors.join(' | ')).toHaveLength(0);
   });
 });

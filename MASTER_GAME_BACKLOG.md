@@ -37,7 +37,7 @@ roles, enemy pursuit/stuck-recovery hardening, HD visual scale decoupled from
 world-space hitboxes, safe marker resolution for authored spawns/exits, a first
 Gravity Well beat, schematic-first expanded layouts across all five route
 regions, a gameplay-design/content pass that gives each named area a purpose,
-authored field-event reward pockets with visible scan/power markers, early
+authored field-event reward pockets with visible purpose-labeled markers, early
 weapon prototypes, optional ambush hooks, a first subtle discovered-area lighting
 read, a tightened pickup-label/equip-message path, a weapon feel pass across
 Pulse/Arc/Recall, Orchard Crop Circle gating through the
@@ -54,11 +54,11 @@ a finale that still needs a more authored climax. The latest automated sweep
 added stricter `qa:maps` structural checks plus `qa:route` runtime checks for HD
 rendering, objective copy, route-open guidance, pressure cleanup, Motel scanner
 identity/offline cleanup, Orchard Gravity Well gating and Signal Storm finale
-copy. Latest public AI evidence is `first-three-route-focus-v6`: 6
+copy. Latest public AI evidence is `first-three-route-regression-v8`: 6
 Miller→Motel→Town attempts, 6/6 completions, 0 deaths and 0 soft-lock-risk
-stalls after visible-objective AI focus, a fairer expanded-route time budget,
-earlier Motel recovery and first-route sign cleanup. Reports include objective
-target labels, decision traces and stall samples. Orchard-focused
+stalls after nearest-useful route-marker targeting, objective-marker stuck
+recovery and fair expanded-route timing. Reports include per-run time budgets,
+objective target labels, decision traces and stall samples. Orchard-focused
 `orchard-ai-gravity-priority-v1` remains 6/6 with 0 soft-lock risks/deaths.
 These are design-friction signals, not hard deploy gates.
 
@@ -113,9 +113,9 @@ a strong demo. Do not jump to later full-game systems until these are stable.
    Adjust specific routes, branches, encounter spaces, loot pockets, signs or
    helper coordinates.
 4. AI Player Lab safety and route guidance: continue before/after comparisons
-   using visible perception only. The focused first-three sample now reaches
-   Town 6/6 with 0 deaths and 0 soft locks; full-route and broader regression
-   evidence are still pending.
+   using visible perception only. The focused first-three sample
+   `first-three-route-regression-v8` now reaches Town 6/6 with 0 deaths and 0
+   soft locks; full-route and broader regression evidence are still pending.
 5. First-route clarity: Miller -> Motel -> Town must remain understandable
    without hidden navigation. Current focused evidence is strong enough to move
    on to broader route regression and subjective live-feel review.
@@ -164,9 +164,9 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 | Visible progress | PARTIAL | HUD node stats, breach feedback, debug `objectiveActions`, field events | Node/route state visible; route opens require charge plus real progress actions; enlarged Miller/Town/Orchard thresholds now better match authored field-event pacing | Too much still reads as generic node charge | P0 | Players/AI know what action progresses objective |
 | Completion feedback | PARTIAL | `awardRegionReward()`, banners/toasts, `RewardUI`, `UIScene` | Reward and route-open messages exist; major reward rail and center HUD callouts queue one at a time | Shell toasts/HUD banners still need one shared manager/showcase | P0 | Unified notification manager |
 | Reward preview/delivery | PARTIAL | region goals, rewards save, weapon pickup labels | Rewards are named/persisted and important weapon drops show name/role plus a queued weapon acquire card; random health drops no longer carry stale weapon ids | Presentation is not yet comparable/equippable enough | P0 | Major reward card shows effect and why it matters |
-| Forward route clarity | PARTIAL | route signs, breach dwell, latest AI JSON, `tests/route-readiness.spec.ts` | Broad surprise warp removed; route markers simplified; visible field-event markers give players/AI more local goals; Miller exit signs follow East Road → Road Bend → Breach Road → Motel Breach; `first-three-route-focus-v6` reached 6/6 Town arrivals with 0 deaths/soft locks; Orchard-focused AI reaches 6/6 after Gravity Well objective-priority fix | Full-route evidence still missing; failed lower-road and Motel Check-Out breadcrumb experiments were reverted after worse focused samples | P0 | Focused first-three route campaign improves Motel/Town arrivals |
+| Forward route clarity | PARTIAL | route signs, breach dwell, latest AI JSON, `tests/route-readiness.spec.ts` | Broad surprise warp removed; route markers simplified; visible field-event markers give players/AI more local goals; objective arrows now choose the nearest useful unvisited route marker instead of sending players backward to skipped signs; `first-three-route-regression-v8` reached 6/6 Town arrivals with 0 deaths/soft locks; Orchard-focused AI reaches 6/6 after Gravity Well objective-priority fix | Full-route evidence still missing; failed lower-road and Motel Check-Out breadcrumb experiments were reverted after worse samples | P0 | Focused first-three route campaign improves Motel/Town arrivals |
 | No endless combat after complete | COMPLETE | `quietRoutePressure()`, `tests/route-readiness.spec.ts` | Enemies/bolts clear after breach opens; route-clear group mutation bug fixed by snapshotting enemy removal and using explicit live-enemy counts | Continue regression coverage | P1 | E2E route-open state has no endless spawns |
-| Full-route AI completion | MISSING | `public/ai-playtest/latest.json` | AI harness exists; latest public sample is `first-three-route-focus-v6` at 6/6 Miller→Motel→Town completions with 0 deaths and 0 soft-lock-risk stalls; Orchard-focused sample remains 6/6 | No full-route completions in current shipped evidence | P1 | Overnight campaign after route clarity |
+| Full-route AI completion | MISSING | `public/ai-playtest/latest.json` | AI harness exists; latest public sample is `first-three-route-regression-v8` at 6/6 Miller→Motel→Town completions with 0 deaths and 0 soft-lock-risk stalls; Orchard-focused sample remains 6/6 | No full-route completions in current shipped evidence | P1 | Overnight campaign after route clarity |
 
 ### 3. Region Gameplay Identities
 
@@ -174,10 +174,10 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 |---|---|---|---|---|---|---|
 | Region scale/layout first pass | PARTIAL | `src/game/data/sweepArenas.ts`, `SWEEP_ROUTE_BEACONS`, `SWEEP_MOTEL_SCANNERS`, `SWEEP_GRAVITY_WELLS`, `MAP_SCHEMATICS.md`, `scripts/validate-map-data.mjs`, `tests/route-readiness.spec.ts` | All five route regions have schematic-first larger authored layouts, named-area purpose passes, data-driven helper coordinates, regenerated schematics, strict static map validation and runtime route-readiness coverage | Only subjective live feel review remains; first-route AI still needs tuning | P0 | Travel feel, cover placement and reward excitement feel good enough to tune encounters |
 | Map schematics | COMPLETE | `MAP_SCHEMATICS.md`, `docs/map-schematics/*.svg`, `scripts/generate-map-schematics.mjs` | Current arena data generates top-down planning SVGs plus coordinate notes for all five regions | Regenerate after coordinate changes | P0 | Future AI can inspect route layouts without rereading old prompts |
-| AI safety after layout pass | PARTIAL | `scripts/ai-player-campaign.mjs`, `tests/ai-player-lab.spec.ts`, `debugAiPerception()` | Personas use visible perception snapshots, labeled objective hints, visible field-event markers, scanners, enemies and pickups; behavior fights/evades visible threats before resuming objectives; campaign runner uses process-specific strict preview ports; reports include decision traces/stall samples; Orchard Gravity Well routing is fixed in focused samples; first-three focused sample is 6/6 | Broad overnight/full-route campaign still pending | P1 | Continue comparing same personas/seeds using visible perception only |
+| AI safety after layout pass | PARTIAL | `scripts/ai-player-campaign.mjs`, `tests/ai-player-lab.spec.ts`, `debugAiPerception()` | Personas use visible perception snapshots, labeled objective hints, visible field-event markers, scanners, enemies and pickups; behavior fights/evades visible threats before resuming objectives; campaign runner uses process-specific strict preview ports, per-run time budgets and objective-marker stuck recovery; reports include decision traces/stall samples; Orchard Gravity Well routing is fixed in focused samples; first-three focused sample is 6/6 | Broad overnight/full-route campaign still pending | P1 | Continue comparing same personas/seeds using visible perception only |
 | Miller Surface scale expansion | PARTIAL | `surface-z1`, `regionGoals.ts`, current route signs, `fieldEvents`, `weaponSpawns`, `MAP_SCHEMATICS.md` | Layout has Field Track, Willow Trail, Cache Grove, Old Mill Spur log/cache pocket, Substation Overlook power-shortcut beat, lower recovery lane shortcut, Scout Shelter pocket, early Arc/Disc prototypes and far-east Motel Breach | Needs manual travel-time/readability review and possible terrain-detail/cover adjustments | P0 | Main route and optional branches make sense, same actor/prop/camera scale, screenshots and travel-time comparison |
-| Miller Surface gameplay | PARTIAL | `surface-z1`, `regionGoals.ts`, `fieldEvents`, `first-three-route-focus-v6` | Preserved layout, named Willow cache, early combat, gentler onboarding math, no early elite beam, authored optional rewards/ambushes; exit breadcrumb follows the real road; focused first-three sample reaches Town 6/6 | Subjective travel/readability review remains | P0 | New-player can complete Miller and enter Motel |
-| Motel Circuit | PARTIAL | `SWEEP_MOTEL_SCANNERS`, expanded `circuit-z2`, `fieldEvents`, `MAP_SCHEMATICS.md`, `first-three-route-focus-v6` | Layout has scanner main route, optional Room Row stealth branch, Phase Shift-only Maintenance Pocket, Pool Courtyard crossing, Service Lot fallback loop, drainage shortcut, Motel Sign Ledge, early Safe Battery recovery, early Arc/Disc prototypes and Town breach. Ambiguous scanner/gate labels are removed; active beams read red; open-route scanners disappear from perception/visual state | Needs stealth reward and live feel review | P0 | Personas use Phase Shift and reach Town legitimately |
+| Miller Surface gameplay | PARTIAL | `surface-z1`, `regionGoals.ts`, `fieldEvents`, `first-three-route-regression-v8` | Preserved layout, named Willow cache, early combat, gentler onboarding math, no early elite beam, authored optional rewards/ambushes; route arrows no longer pull back to skipped signs; focused first-three sample reaches Town 6/6 | Subjective travel/readability review remains | P0 | New-player can complete Miller and enter Motel |
+| Motel Circuit | PARTIAL | `SWEEP_MOTEL_SCANNERS`, expanded `circuit-z2`, `fieldEvents`, `MAP_SCHEMATICS.md`, `first-three-route-regression-v8` | Layout has scanner main route, optional Room Row stealth branch, Phase Shift-only Maintenance Pocket, Pool Courtyard crossing, Service Lot fallback loop, drainage shortcut, Motel Sign Ledge, early Safe Battery recovery, early Arc/Disc prototypes and Town breach. Ambiguous scanner/gate labels are removed; HUD says scanners offline instead of gate wording; active beams read red; open-route scanners disappear from perception/visual state | Needs stealth reward and live feel review | P0 | Personas use Phase Shift and reach Town legitimately |
 | Chagrin Falls Town | PARTIAL | expanded `town-z3`, stadium biome, `fieldEvents`, `weaponSpawns`, `MAP_SCHEMATICS.md` | Layout has Main Street, Neighborhood Block/Market Alley upper route, Bridge Overlook sniper/cache beat, River Walk lower shortcut, River Road Tower objective, Stadium Road recovery space, stadium back alley, early Arc/Disc prototypes and Orchard Gate | Needs dedicated Chagrin Falls asset identity and live cover/readability review | P1 | Two readable approaches and cover combat are obvious |
 | Patterson's Orchard | PARTIAL | `SWEEP_GRAVITY_WELLS`, expanded `maze-z4`, `fieldEvents`, `MAP_SCHEMATICS.md`, `orchard-ai-gravity-priority-v1` | Layout has tractor lane, Lower Creek secret puzzle pocket, required Gravity Well launch, Raised Ridge reward/switch step, West Rows Recall lane, East Rows pressure lane, Scout Shelter loop, storm-fence shortcut and Crop Circle gate. Focused AI now completes Orchard 6/6 with no soft locks/deaths | Gravity Well object/enemy/projectile redirection is still deferred; dormant Maze Heart boss gate is cut from the current route so Orchard stays traversal-focused | P1 | Gravity Well puzzle has purpose, reward, reset safety |
 | Signal Storm | PARTIAL | expanded `anomaly-01` waves, Storm Classifier copy, `fieldEvents`, `MAP_SCHEMATICS.md` | Finale arena has entry recovery lane, Classifier Core phase-one objective, West/East Relay Wing phase-two targets, North Rift phase-three anchor, coil pockets, pressure pockets, recovery pockets, field rewards and named phase banners | Needs authored boss behavior/presentation | P1 | Finale feels distinct from normal waves and completes slice clearly |
@@ -366,7 +366,7 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 |---|---|---|---|---|---|---|
 | Persona harness | COMPLETE | `tests/ai-player-lab.spec.ts`, `scripts/ai-player-campaign.mjs` | Multiple personas, seeds, virtual input | Imperfection tuning needs review | P1 | Lab smoke test passes |
 | No hidden-state rule | PARTIAL | guardrails, perception API | Uses perception snapshots, objective hints and nearby visible field-event markers | Need audit before overnight campaign | P1 | Confirm bots do not use hidden coordinates |
-| JSON/Command Center report | COMPLETE | `public/ai-playtest/latest.json`, Command Center | Report displays/export link; latest public sample is `first-three-route-focus-v6` at 6/6 Miller→Motel→Town completions with 0 deaths and 0 soft-lock-risk stalls; reports include decision traces and stall samples; Orchard-focused `orchard-ai-gravity-priority-v1` remains 6/6 | No full-route completions in current shipped evidence | P1 | Command Center loads JSON |
+| JSON/Command Center report | COMPLETE | `public/ai-playtest/latest.json`, Command Center | Report displays/export link; latest public sample is `first-three-route-regression-v8` at 6/6 Miller→Motel→Town completions with 0 deaths and 0 soft-lock-risk stalls; reports include per-run time budgets, decision traces and stall samples; Orchard-focused `orchard-ai-gravity-priority-v1` remains 6/6 | No full-route completions in current shipped evidence | P1 | Command Center loads JSON |
 | 500-run campaign | MISSING | no evidence | Not run | Deferred overnight until route/objective clarity improves | P1 | 500 meaningful runs with restarts and summary |
 | Screenshot review | PARTIAL | screenshot paths in JSON | Paths recorded | Not all evidence committed/captured for production | P2 | Representative visual review notes |
 
@@ -438,9 +438,10 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 - Rewards: named region rewards exist and persist, but the broader mutation and
   loot-presentation loop is not complete.
 - AI campaign: the 500-run overnight campaign was not completed. Current public
-  JSON is `first-three-route-focus-v6`: 6 Miller→Motel→Town attempts, 6/6
-  completions, 0 deaths and 0 soft-lock-risk stalls. Reports include objective
-  target labels, decision traces and stall samples. Orchard-focused
+  JSON is `first-three-route-regression-v8`: 6 Miller→Motel→Town attempts, 6/6
+  completions, 0 deaths and 0 soft-lock-risk stalls. Reports include per-run
+  time budgets, objective target labels, decision traces and stall samples.
+  Orchard-focused
   `orchard-ai-gravity-priority-v1` remains
   6/6 with 0 soft-lock risks/deaths. These are route/objective-friction
   signals, not full-route completion benchmarks.
@@ -456,7 +457,7 @@ Next package: unified notification/reward UI, then broader route regression and 
 Scope:
 
 1. Continue automated route-following:
-   - use `first-three-route-focus-v6` as the current first-three baseline
+   - use `first-three-route-regression-v8` as the current first-three baseline
    - preserve visible-perception-only AI behavior
    - broaden to full-route and multi-region regression before overnight campaigns
 2. Keep the new automated gates green:

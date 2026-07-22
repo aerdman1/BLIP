@@ -1237,15 +1237,16 @@ export class SweepScene extends Phaser.Scene {
     (this.arena.fieldEvents ?? []).forEach((def) => {
       const p = this.nearestWalkableWorld((def.tx + 0.5) * T, (def.ty + 0.5) * T);
       const tint = this.fieldEventColor(def);
+      const actionLabel = this.fieldEventActionLabel(def);
       const marker = this.add
         .image(p.x, p.y, TEX.glow8)
         .setDepth(11)
         .setTint(tint)
         .setBlendMode(Phaser.BlendModes.ADD)
-        .setScale(def.trigger === 'scan' ? 1.15 : 1.35)
-        .setAlpha(def.trigger === 'scan' ? 0.34 : 0.48);
+        .setScale(def.trigger === 'scan' ? 0.82 : 0.96)
+        .setAlpha(def.trigger === 'scan' ? 0.28 : 0.36);
       const label = this.add
-        .text(p.x, this.pickupLabelY(p.x, p.y, 24), `${def.label}\n${def.trigger === 'scan' ? 'SCAN' : 'POWER'}`, {
+        .text(p.x, this.pickupLabelY(p.x, p.y, 24), `${def.label}\n${actionLabel}`, {
           fontFamily: 'monospace',
           fontSize: '6px',
           fontStyle: 'bold',
@@ -1277,6 +1278,15 @@ export class SweepScene extends Phaser.Scene {
     if (def.reward === 'health') return P.signalGreen;
     if (def.reward === 'overdrive') return P.warning;
     return P.violetGlitch;
+  }
+
+  private fieldEventActionLabel(def: SweepFieldEvent): string {
+    if (def.reward === 'health') return 'RECOVERY';
+    if (def.reward === 'weapon') return def.wid ? `${String(def.wid).toUpperCase()} WEAPON` : 'WEAPON';
+    if (def.reward === 'overdrive') return 'OVERDRIVE';
+    if (def.reward === 'boon') return 'SCOUT TECH';
+    if (def.reward === 'shards') return 'CACHE';
+    return def.trigger === 'scan' ? 'SCAN' : 'ACTIVATE';
   }
 
   private triggerScanFieldEvents(x: number, y: number, radius: number): void {
@@ -1979,6 +1989,7 @@ export class SweepScene extends Phaser.Scene {
   }
 
   private routeBeaconTarget(phase: 'objective' | 'exit', markers: Array<{ tx: number; ty: number; label: string }>): ObjectiveTarget | null {
+    const candidates: Array<{ m: { tx: number; ty: number; label: string }; x: number; y: number; d: number }> = [];
     for (const m of markers) {
       const x = (m.tx + 0.5) * SWEEP.tile;
       const y = (m.ty + 0.5) * SWEEP.tile;
@@ -1990,10 +2001,13 @@ export class SweepScene extends Phaser.Scene {
         continue;
       }
       if (!this.routeVisited.has(key)) {
-        return { kind: 'route-beacon', label: m.label, x, y };
+        candidates.push({ m, x, y, d });
       }
     }
-    return null;
+    if (!candidates.length) return null;
+    candidates.sort((a, b) => a.d - b.d);
+    const best = candidates[0];
+    return { kind: 'route-beacon', label: best.m.label, x: best.x, y: best.y };
   }
 
   private isHoldingAtOpenBreach(now: number): boolean {
@@ -2878,10 +2892,10 @@ export class SweepScene extends Phaser.Scene {
       : `${this.arena.waves?.[this.waveIdx]?.label ?? `Wave ${this.waveIdx + 1} / ${this.arena.waves?.length ?? 0}`} · Reward: ${this.goal.rewardName}.`;
     if (this.arena.id === 'circuit-z2' && !this.breachOpen) {
       const status = this.motelScannerStatus();
-      const gateCopy = status.total ? `Scanner gates ${status.disabled}/${status.total}. ` : '';
+      const scannerCopy = status.total ? `Scanners offline ${status.disabled}/${status.total}. ` : '';
       objectiveSub = this.motelAlertUntil > this.time.now
-        ? `${gateCopy}ALERT ACTIVE · fight through it or Phase Shift out. Reward: ${this.goal.rewardName}.`
-        : `${gateCopy}Avoid red scanners or Phase Shift through them. Reward: ${this.goal.rewardName}.`;
+        ? `${scannerCopy}ALERT ACTIVE · fight through it or Phase Shift out. Reward: ${this.goal.rewardName}.`
+        : `${scannerCopy}Avoid red scanners or Phase Shift through them. Reward: ${this.goal.rewardName}.`;
     } else if (this.arena.id === 'maze-z4' && !this.breachOpen) {
       objectiveSub = this.gravityWell && !this.gravityWell.used
         ? 'Follow LOWER ROWS to the Gravity Well, enter the launch ring, then finish the Crop Circle route.'

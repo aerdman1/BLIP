@@ -190,6 +190,15 @@ function pickupLabelY(marker, baseOffset, routeSigns) {
   return y;
 }
 
+function fieldEventActionLabel(event) {
+  if (event.reward === 'health') return 'RECOVERY';
+  if (event.reward === 'weapon') return event.wid ? `${String(event.wid).toUpperCase()} WEAPON` : 'WEAPON';
+  if (event.reward === 'overdrive') return 'OVERDRIVE';
+  if (event.reward === 'boon') return 'SCOUT TECH';
+  if (event.reward === 'shards') return 'CACHE';
+  return event.trigger === 'scan' ? 'SCAN' : 'ACTIVATE';
+}
+
 function checkLabelCrowding(arena, phaseName, routeSigns) {
   const routeRects = routeSigns.map((sign) => {
     const p = markerWorld(sign);
@@ -197,7 +206,7 @@ function checkLabelCrowding(arena, phaseName, routeSigns) {
   });
   const labelMarkers = [
     ...(arena.weaponSpawns ?? []).map((marker) => ({ marker, label: String(marker.wid).toUpperCase(), baseOffset: 25 })),
-    ...(arena.fieldEvents ?? []).map((marker) => ({ marker, label: `${marker.label}\n${marker.trigger === 'scan' ? 'SCAN' : 'POWER'}`, baseOffset: 24 })),
+    ...(arena.fieldEvents ?? []).map((marker) => ({ marker, label: `${marker.label}\n${fieldEventActionLabel(marker)}`, baseOffset: 24 })),
   ];
   for (const item of labelMarkers) {
     const p = markerWorld(item.marker);
@@ -301,6 +310,10 @@ for (const arena of Object.values(arenas)) {
     assertMin(arena, 'scanner beams', motelScanners.length, 5);
     if (!(arena.fieldEvents ?? []).some((event) => /maintenance/i.test(event.id) && event.trigger === 'scan')) {
       errors.push(`${arena.id}: missing Phase Shift/maintenance secret scan event`);
+    }
+    const motelGoalCopy = `${arena.label} ${(routeBeacons[arena.id]?.toObjective ?? []).map((b) => b.label).join(' ')} ${(routeBeacons[arena.id]?.toExit ?? []).map((b) => b.label).join(' ')}`;
+    if (/CIRCUIT GATE|SCANNER GATE|GATE DOWN/i.test(motelGoalCopy)) {
+      errors.push(`${arena.id}: stale gate wording remains in Motel route labels`);
     }
   }
 

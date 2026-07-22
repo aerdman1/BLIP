@@ -153,7 +153,7 @@ async function runPersona(page: Page, persona: Persona, seed: number): Promise<R
     lastLootSeen = lootKeys;
 
     const moved = Math.hypot(perception.player.x - lastPos.x, perception.player.y - lastPos.y);
-    if (lastPos.x && moved < 2 && now - nextDecision > persona.reactionMs && (perception.visible.enemies.length || perception.progress.breachOpen)) {
+    if (lastPos.x && moved < 2 && now - nextDecision > persona.reactionMs && (perception.visible.enemies.length || perception.progress.breachOpen || perception.objectiveHint)) {
       if (rand() < 0.2) stuckEvents++;
     }
     lastPos = { x: perception.player.x, y: perception.player.y };
