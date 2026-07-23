@@ -52,6 +52,15 @@ export interface SweepGravityWellMarker {
   label: string;
   destLabel: string;
 }
+export interface SweepBoostGap {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  orientation?: 'horizontal' | 'vertical';
+}
 export interface SweepFieldEvent {
   id: string;
   label: string;
@@ -95,6 +104,7 @@ export interface SweepArena {
   clearBonus?: number; // override SWEEP.shardsClearBonus granted on route completion
   weaponSpawns?: { tx: number; ty: number; wid: string }[]; // guaranteed weapon pickups
   bossFinale?: boolean; // optional dormant boss gate; current slice keeps Orchard traversal-focused
+  boostGaps?: SweepBoostGap[]; // cracked washouts that normal movement cannot cross; hold Boost to pass
   fieldEvents?: SweepFieldEvent[]; // authored pocket rewards, ambushes and one-off power-ups
 }
 
@@ -149,6 +159,10 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     weaponSpawns: [
       { tx: 34, ty: 38, wid: 'disc' }, // Willow Trail — teaches ranged positioning before the cache grove
       { tx: 64, ty: 30, wid: 'arc' }, // Power-gate shortcut — close-range answer for the ambush
+    ],
+    boostGaps: [
+      { id: 'lower-lane-washout', label: 'BOOST WASHOUT', x: 50, y: 43, w: 5, h: 4, orientation: 'vertical' },
+      { id: 'old-mill-crack', label: 'OLD MILL CRACK', x: 10, y: 18, w: 5, h: 3, orientation: 'horizontal' },
     ],
     // ROSTER — "the open field": the fundamentals (drifter/tagger/diver) plus a first
     // taste of the JITTER weaver so Zone 1 teaches the verbs before later zones twist them.
@@ -750,14 +764,14 @@ export const SWEEP_ROUTE_BEACONS: Partial<Record<string, {
   },
   'circuit-z2': {
     toObjective: [
-      { tx: 14, ty: 40, label: 'DRIVEWAY' },
-      { tx: 18, ty: 35, label: 'SAFE SHADOW' },
-      { tx: 31, ty: 35, label: 'CHECK-IN' },
-      { tx: 45, ty: 23, label: 'POOL COURT' },
-      { tx: 51, ty: 34, label: 'MOTEL CIRCUIT' },
+      { tx: 14, ty: 40, label: 'MOTEL DRIVE' },
+      { tx: 18, ty: 35, label: 'SHADOW PARKING' },
+      { tx: 31, ty: 35, label: 'CHECK-IN OFFICE' },
+      { tx: 45, ty: 23, label: 'POOL COURTYARD' },
+      { tx: 51, ty: 34, label: 'SCANNER CORE' },
     ],
     toExit: [
-      { tx: 66, ty: 36, label: 'SIDE LOT' },
+      { tx: 66, ty: 36, label: 'SERVICE LOT' },
       { tx: 73, ty: 24, label: 'RIVER RAMP' },
       { tx: 73, ty: 13, label: 'RIVER ROAD' },
       { tx: 75, ty: 11, label: 'TOWN BREACH' },
@@ -790,10 +804,10 @@ export const SWEEP_ROUTE_BEACONS: Partial<Record<string, {
 };
 
 export const SWEEP_MOTEL_SCANNERS: SweepScannerLine[] = [
-  { aTx: 13.0, aTy: 40.0, bTx: 16.0, bTy: 40.0, label: 'PHASE SHIFT SCANNER' },
+  { aTx: 13.0, aTy: 40.0, bTx: 16.0, bTy: 40.0, label: 'ENTRY SCANNER' },
   { aTx: 22.0, aTy: 23.0, bTx: 22.0, bTy: 30.0, label: 'ROOM ROW SCANNER' },
   { aTx: 41.0, aTy: 21.0, bTx: 51.0, bTy: 21.0, label: 'POOL SCANNER' },
-  { aTx: 49.0, aTy: 32.0, bTx: 57.0, bTy: 32.0, label: 'SERVICE LOT SCANNER' },
+  { aTx: 49.0, aTy: 32.0, bTx: 57.0, bTy: 32.0, label: 'SERVICE SCANNER' },
   { aTx: 72.0, aTy: 20.0, bTx: 75.0, bTy: 20.0, label: 'RIVER ROAD SCANNER' },
 ];
 

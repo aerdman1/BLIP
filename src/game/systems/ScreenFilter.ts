@@ -56,8 +56,9 @@ export function applyScreenFilter(scene: Phaser.Scene, id: string, gameplay: boo
   const one = Array.isArray(inst) ? inst[0] : inst;
   if (one) {
     const p = one as unknown as { preset: string; strength: number };
+    const intensity = Phaser.Math.Clamp(settings.get('filterIntensity'), 0, 1);
     p.preset = e.preset;
-    p.strength = gameplay ? (FILTER_GAME_STRENGTH[id] ?? 1) : 1;
+    p.strength = intensity * (gameplay ? (FILTER_GAME_STRENGTH[id] ?? 1) : 1);
   }
 }
 
@@ -91,7 +92,8 @@ export function nightVisionIntro(scene: Phaser.Scene, durationMs = 3200): void {
 export function attachScreenFilter(scene: Phaser.Scene, gameplay: boolean): void {
   applyScreenFilter(scene, settings.get('filter'), gameplay);
   const off = bus.on(EVT.settingsChanged, (d) => {
-    if ((d as { key?: string }).key === 'filter') applyScreenFilter(scene, settings.get('filter'), gameplay);
+    const key = (d as { key?: string }).key;
+    if (key === 'filter' || key === 'filterIntensity') applyScreenFilter(scene, settings.get('filter'), gameplay);
   });
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, off);
 }

@@ -1,6 +1,6 @@
 /**
  * BlipCraft — CONTACT-47 on the radar scope. Top-down, gravity-free, 8-directional
- * roam with a Phase Shift blink. Twin-stick: you MOVE with one hand and AIM with the
+ * roam with a hold-to-boost Phase Drive. Twin-stick: you MOVE with one hand and AIM with the
  * mouse/right-stick (the scene drives aim + firing). Tuning in config.SWEEP.
  */
 import Phaser from 'phaser';
@@ -28,9 +28,12 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
    *  no longer covers CONTACT-47's face/visor when aiming upward (top-down). */
   private static readonly GUN_OFFSET_Y = 5;
   private invulnUntil = 0;
-  private dashUntil = 0;
-  private dashCdUntil = 0;
+  private boostActive = false;
+  private boostEnergy: number = SWEEP.boostEnergyMax;
+  private boostRegenBlockedUntil = 0;
+  private boostExhaustedUntil = 0;
   private afterimageAt = 0;
+  private lastMoveAt = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number, fx: EffectsSystem) {
     // you ARE CONTACT-47 — dedicated top-down hero sprite
@@ -89,7 +92,10 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
   }
 
   get isDashing(): boolean {
-    return this.scene.time.now < this.dashUntil;
+    return this.boostActive;
+  }
+  get boostEnergyValue(): number {
+    return this.boostEnergy;
   }
   get alive(): boolean {
     return this.hp > 0;
@@ -108,10 +114,6 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
   private get effDashSpeed(): number {
     return SWEEP.dashSpeed * (activeSkin().mods.dashSpeedMul ?? 1);
   }
-  private get effDashCooldown(): number {
-    return SWEEP.dashCooldownMs * (activeSkin().mods.dashCooldownMul ?? 1);
-  }
-
   /** scene sets this each frame from the aim source (mouse world pos / right stick) */
   setAim(angle: number): void {
     this.aimAngle = angle;
@@ -137,47 +139,55 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    // Phase Shift — short-range blink with i-frames; toward movement, or toward aim if standing still.
-    // It deliberately moves CONTACT-47 instantly instead of being a renamed dash,
-    // so it can read as traversal/stealth tech as well as combat repositioning.
-    if (input.dashJustDown && !this.isDashing && now >= this.dashCdUntil) {
-      let dx = ax / len;
-      let dy = ay / len;
-      if (!ax && !ay) {
-        dx = Math.cos(this.aimAngle);
-        dy = Math.sin(this.aimAngle);
-      }
-      const range = Math.max(52, this.effDashSpeed * 0.18);
-      const bounds = this.scene.physics.world.bounds;
-      const sx = this.x;
-      const sy = this.y;
-      const tx = Phaser.Math.Clamp(sx + dx * range, bounds.x + 10, bounds.right - 10);
-      const ty = Phaser.Math.Clamp(sy + dy * range, bounds.y + 10, bounds.bottom - 10);
-      this.dashUntil = now + Math.max(110, SWEEP.dashMs * 0.72);
-      this.dashCdUntil = now + this.effDashCooldown;
-      body.setVelocity(dx * this.effDashSpeed * 0.2, dy * this.effDashSpeed * 0.2);
-      this.fx.afterimage(this, P.signal);
-      this.fx.scanRing(sx, sy, 30, 150, P.signal);
-      this.setPosition(tx, ty);
-      this.fx.scanRing(tx, ty, 42, 190, P.signal);
-      audio.dash();
-      this.fx.sparks(sx, sy, P.signal, 5);
-      this.fx.sparks(tx, ty, P.signal, 9);
-    }
+    const dt = Math.min(0.05, Math.max(0, (now - (this.lastMoveAt || now)) / 1000));
+    this.lastMoveAt = now;
+    const boostHeld = input.dashDown || input.dashJustDown;
+    const hasMoveInput = ax !== 0 || ay !== 0;
+    const canStartBoost = this.boostEnergy >= SWEEP.boostMinStart && now >= this.boostExhaustedUntil;
+    const boosting = boostHeld && canStartBoost;
+    let dx = hasMoveInput ? ax / len : Math.cos(this.aimAngle);
+    let dy = hasMoveInput ? ay / len : Math.sin(this.aimAngle);
 
-    if (this.isDashing) {
-      body.setAcceleration(0, 0);
+    if (boosting) {
+      const justStarted = !this.boostActive;
+      this.boostActive = true;
+      this.boostEnergy = Math.max(0, this.boostEnergy - SWEEP.boostDrainPerSec * dt);
+      this.boostRegenBlockedUntil = now + SWEEP.boostRegenDelayMs;
+      this.invulnUntil = Math.max(this.invulnUntil, now + SWEEP.boostIFrameRefreshMs);
+      body.setAcceleration(dx * SWEEP.boostAccel, dy * SWEEP.boostAccel);
+      const v = body.velocity;
+      const maxBoost = this.effDashSpeed > SWEEP.boostSpeed ? this.effDashSpeed : SWEEP.boostSpeed;
+      const sp = v.length();
+      if (sp > maxBoost) v.scale(maxBoost / sp);
+      if (justStarted) {
+        this.fx.scanRing(this.x, this.y, 34, 160, P.signal);
+        this.fx.sparks(this.x - dx * 8, this.y - dy * 8, P.signal, 7);
+        audio.dash();
+      }
       if (now >= this.afterimageAt) {
-        this.afterimageAt = now + 40;
+        this.afterimageAt = now + SWEEP.boostAfterimageMs;
         this.fx.afterimage(this, P.signal);
       }
+      if (this.boostEnergy <= 0) {
+        this.boostActive = false;
+        this.boostExhaustedUntil = now + 320;
+      }
     } else {
+      this.boostActive = false;
+      if (now >= this.boostRegenBlockedUntil) {
+        this.boostEnergy = Math.min(SWEEP.boostEnergyMax, this.boostEnergy + SWEEP.boostRegenPerSec * dt);
+      }
       if (ax || ay) body.setAcceleration((ax / len) * SWEEP.accel, (ay / len) * SWEEP.accel);
       else body.setAcceleration(0, 0);
       const v = body.velocity;
       const sp = v.length();
       if (sp > this.effMoveSpeed) v.scale(this.effMoveSpeed / sp);
     }
+    bus.emit(EVT.hudEnergy, { energy: Math.round(this.boostEnergy) });
+    bus.emit(EVT.hudCooldowns, {
+      dash: 1 - Phaser.Math.Clamp(this.boostEnergy / SWEEP.boostEnergyMax, 0, 1),
+      scan: 0,
+    });
 
     // face + point the barrel toward the aim
     this.setFlipX(Math.cos(this.aimAngle) < 0);
@@ -222,7 +232,9 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
 
   /** dash-chain flow — a Phase-Strike kill refunds the dash so you can chain */
   refreshDash(): void {
-    this.dashCdUntil = this.scene.time.now;
+    this.boostEnergy = SWEEP.boostEnergyMax;
+    this.boostExhaustedUntil = this.scene.time.now;
+    bus.emit(EVT.hudEnergy, { energy: Math.round(this.boostEnergy) });
   }
 
   setVisible(value: boolean): this {

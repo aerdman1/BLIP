@@ -26,6 +26,7 @@ import type { TdArt } from './TdAssets';
 import type { TdBiomeDef } from './TdBiomes';
 
 export interface TerrainInput {
+  arenaId?: string;
   tile: number;
   w: number;
   h: number;
@@ -57,6 +58,7 @@ export class TdTerrain {
   private faceMaskImg?: Phaser.GameObjects.Image;
   private overlays: Phaser.GameObjects.Image[] = [];
   private props: Phaser.GameObjects.Image[] = [];
+  private drawings: Phaser.GameObjects.Graphics[] = [];
   private rng = mulberry(0x5eed47);
 
   /** injected by the scene so terrain can register its own accent lights */
@@ -74,12 +76,20 @@ export class TdTerrain {
     const AH = H * T;
 
     this.bakeGround(AW, AH);
+    this.buildGroundDepth(AW, AH);
     this.buildWalls();
     this.dressEdges();
     this.scatterProps();
+    this.placeLayeredDepthProps();
     this.buildCanopy(AW, AH);
     this.scatterAccents();
     this.placeLandmarks();
+    this.buildForegroundFrame(AW, AH);
+  }
+
+  private get visualStyle(): 'miller' | 'motel' | 'stadium' | 'orchard' | 'storm' {
+    if (this.input.arenaId === 'anomaly-01') return 'storm';
+    return this.input.biome.id;
   }
 
   /* ------------------------------ 1. ground ---------------------------------- */
@@ -221,6 +231,138 @@ export class TdTerrain {
       .setTint(tint)
       .setAlpha(alpha);
     this.overlays.push(img);
+  }
+
+  /* ------------------------- 1b. readable ground depth ---------------------- */
+  private isClearOfMarkers(x: number, y: number, radius: number): boolean {
+    const { tile: T, markers } = this.input;
+    return !markers.some((m) => Math.hypot(x - (m.tx + 0.5) * T, y - (m.ty + 0.5) * T) < radius);
+  }
+
+  private shuffledFloor(kind: 'edge' | 'interior' | 'any', clearTiles = 3): Array<{ tx: number; ty: number; edge: boolean }> {
+    const { floor, markers } = this.input;
+    const ok = (p: { tx: number; ty: number; edge: boolean }) => {
+      if (kind === 'edge' && !p.edge) return false;
+      if (kind === 'interior' && p.edge) return false;
+      return !markers.some((m) => Math.abs(p.tx - m.tx) + Math.abs(p.ty - m.ty) < clearTiles);
+    };
+    const out = floor.filter(ok);
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = Math.floor(this.rng() * (i + 1));
+      [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+  }
+
+  private makeDrawing(depth: number, alpha = 1): Phaser.GameObjects.Graphics {
+    const g = this.scene.add.graphics().setDepth(depth).setAlpha(alpha);
+    this.drawings.push(g);
+    return g;
+  }
+
+  private buildGroundDepth(AW: number, AH: number): void {
+    const { tile: T, art } = this.input;
+    if (!art.hd) return;
+
+    const style = this.visualStyle;
+    const g = this.makeDrawing(DEPTH.decal, 0.92);
+    const interior = this.shuffledFloor('interior', 4);
+    const edge = this.shuffledFloor('edge', 4);
+
+    const palette = {
+      miller: { stain: 0x17251e, light: 0x7ba36f, line: 0x222a24, accent: 0x47685d },
+      motel: { stain: 0x101018, light: 0x4ec7d6, line: 0x1c2430, accent: 0xf3a646 },
+      stadium: { stain: 0x2f3138, light: 0xc8a45a, line: 0x20232a, accent: 0x6fa7d6 },
+      orchard: { stain: 0x382718, light: 0xd0a24d, line: 0x2f2418, accent: 0x89543b },
+      storm: { stain: 0x180d2c, light: 0xb06bff, line: 0x080811, accent: 0x43dff2 },
+    }[style];
+
+    // Broad non-blocking surface changes: puddles, damaged pavement, dirt/mud
+    // shifts, row shadows. These are intentionally flat decals under gameplay.
+    const patchCount = Math.min(style === 'storm' ? 34 : 46, Math.max(12, Math.floor(interior.length * 0.08)));
+    for (let i = 0; i < patchCount && interior.length; i++) {
+      const p = interior[i % interior.length];
+      const x = (p.tx + 0.5) * T + (this.rng() - 0.5) * T * 0.8;
+      const y = (p.ty + 0.5) * T + (this.rng() - 0.5) * T * 0.8;
+      const w = T * (0.6 + this.rng() * 1.6);
+      const h = T * (0.18 + this.rng() * 0.62);
+      g.fillStyle(i % 3 === 0 ? palette.light : palette.stain, style === 'motel' ? 0.12 : 0.1);
+      g.fillEllipse(x, y, w, h);
+      if ((style === 'motel' || style === 'stadium') && this.rng() < 0.38) {
+        g.lineStyle(1, palette.accent, 0.2);
+        g.strokeRect(x - w * 0.35, y - h * 0.3, w * 0.7, h * 0.55);
+      }
+    }
+
+    const crackCount = Math.min(style === 'storm' ? 38 : 28, Math.max(10, Math.floor(edge.length * 0.06)));
+    for (let i = 0; i < crackCount && edge.length; i++) {
+      const p = edge[i % edge.length];
+      const x = (p.tx + 0.5) * T + (this.rng() - 0.5) * T;
+      const y = (p.ty + 0.5) * T + (this.rng() - 0.5) * T;
+      this.drawJaggedCrack(g, x, y, T * (0.5 + this.rng() * 1.2), palette.line, style === 'storm' ? 0.34 : 0.22);
+      if (style === 'storm' && this.rng() < 0.35) {
+        this.drawJaggedCrack(g, x + 1, y, T * (0.35 + this.rng() * 0.8), palette.light, 0.18);
+      }
+    }
+
+    // Region-specific ground language at gameplay scale.
+    if (style === 'motel' || style === 'stadium') {
+      for (let i = 0; i < Math.min(30, interior.length); i++) {
+        const p = interior[(i * 3) % interior.length];
+        const x = (p.tx + 0.5) * T;
+        const y = (p.ty + 0.5) * T;
+        if (i % 2 === 0) {
+          g.fillStyle(0x05070a, 0.18);
+          g.fillRoundedRect(x - 13, y - 7, 26, 14, 2);
+          g.lineStyle(1, 0xa8b2c0, 0.16);
+          for (let k = -8; k <= 8; k += 5) g.lineBetween(x + k, y - 6, x + k, y + 6);
+        } else {
+          g.lineStyle(2, style === 'stadium' ? 0xd6a744 : 0x63d7e3, 0.16);
+          g.lineBetween(x - 18, y, x + 18, y);
+        }
+      }
+    } else if (style === 'orchard') {
+      for (let i = 0; i < Math.min(44, interior.length); i++) {
+        const p = interior[(i * 2) % interior.length];
+        const x = (p.tx + 0.5) * T;
+        const y = (p.ty + 0.5) * T;
+        g.lineStyle(2, i % 2 ? 0x6d4a22 : 0x9d7634, 0.16);
+        g.lineBetween(x - T * 0.45, y - T * 0.18, x + T * 0.45, y + T * 0.12);
+      }
+    } else {
+      for (let i = 0; i < Math.min(24, interior.length); i++) {
+        const p = interior[(i * 4) % interior.length];
+        const x = (p.tx + 0.5) * T;
+        const y = (p.ty + 0.5) * T;
+        g.lineStyle(2, style === 'storm' ? palette.light : 0x42624b, style === 'storm' ? 0.16 : 0.11);
+        g.beginPath();
+        g.arc(x, y, T * (0.18 + this.rng() * 0.28), this.rng() * Math.PI, this.rng() * Math.PI + Math.PI * 1.3);
+        g.strokePath();
+      }
+    }
+
+    void AW;
+    void AH;
+  }
+
+  private drawJaggedCrack(g: Phaser.GameObjects.Graphics, x: number, y: number, len: number, color: number, alpha: number): void {
+    const angle = this.rng() * Math.PI * 2;
+    const steps = 3 + Math.floor(this.rng() * 4);
+    let px = x;
+    let py = y;
+    g.lineStyle(1 + Math.floor(this.rng() * 2), color, alpha);
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const nx = x + Math.cos(angle) * len * (t - 0.5) + (this.rng() - 0.5) * 10;
+      const ny = y + Math.sin(angle) * len * (t - 0.5) + (this.rng() - 0.5) * 10;
+      g.lineBetween(px, py, nx, ny);
+      if (this.rng() < 0.34) {
+        const ba = angle + (this.rng() < 0.5 ? 1 : -1) * (0.55 + this.rng() * 0.7);
+        g.lineBetween(nx, ny, nx + Math.cos(ba) * len * 0.18, ny + Math.sin(ba) * len * 0.18);
+      }
+      px = nx;
+      py = ny;
+    }
   }
 
   /* ------------------------------ 2. wall extrusion -------------------------- */
@@ -455,6 +597,164 @@ export class TdTerrain {
     }
   }
 
+  private placeLayeredDepthProps(): void {
+    const { tile: T, art } = this.input;
+    if (!art.hd) return;
+
+    const style = this.visualStyle;
+    const edge = this.shuffledFloor('edge', 5);
+    const mid = this.shuffledFloor('interior', 5);
+    const imagePool = this.depthImagePool().filter((key) => this.scene.textures.exists(key));
+    const imageCount = Math.min(style === 'stadium' ? 22 : 18, edge.length, imagePool.length ? 99 : 0);
+
+    for (let i = 0; i < imageCount; i++) {
+      const p = edge[i];
+      const tex = imagePool[i % imagePool.length];
+      const x = (p.tx + 0.5) * T + (this.rng() - 0.5) * T * 0.72;
+      const y = (p.ty + 0.92) * T + (this.rng() - 0.5) * T * 0.24;
+      if (!this.isClearOfMarkers(x, y, T * 4.5)) continue;
+      const tall = tex.includes('lm-') || tex.includes('lamp') || tex.includes('relay') || tex.includes('roots');
+      const scaleBase = style === 'motel' || style === 'stadium' ? 0.28 : style === 'orchard' ? 0.34 : 0.38;
+      const img = this.scene.add
+        .image(x, y, tex)
+        .setOrigin(0.5, 1)
+        .setDepth(sortedDepth(y))
+        .setScale(scaleBase * (tall ? 1.0 + this.rng() * 0.3 : 0.72 + this.rng() * 0.34))
+        .setAlpha(style === 'storm' ? 0.78 : 0.88);
+      if (this.rng() < 0.5) img.setFlipX(true);
+      if (style === 'storm') img.setTint(this.rng() < 0.55 ? 0xb06bff : 0x60e8ff);
+      this.props.push(img);
+      this.contactAO(x, y - 2, img.displayWidth * 0.76);
+    }
+
+    const proceduralCount = Math.min(style === 'motel' || style === 'stadium' ? 14 : 10, edge.length);
+    for (let i = 0; i < proceduralCount; i++) {
+      const p = edge[(i * 3 + 1) % edge.length];
+      const x = (p.tx + 0.5) * T + (this.rng() - 0.5) * T * 0.42;
+      const y = (p.ty + 0.96) * T;
+      if (!this.isClearOfMarkers(x, y, T * 4.5)) continue;
+      if (style === 'motel' || style === 'stadium') this.addIndustrialStanchion(x, y, style === 'stadium');
+      else if (style === 'orchard') this.addOrchardFenceOrStake(x, y);
+      else this.addRuralPoleOrRoot(x, y, style === 'storm');
+    }
+
+    // A few medium details inside wider pockets, never enough to obstruct reads.
+    const midCount = Math.min(12, mid.length);
+    for (let i = 0; i < midCount; i++) {
+      const p = mid[(i * 5) % mid.length];
+      const x = (p.tx + 0.5) * T + (this.rng() - 0.5) * T * 0.5;
+      const y = (p.ty + 0.75) * T;
+      if (!this.isClearOfMarkers(x, y, T * 5)) continue;
+      if (style === 'motel' || style === 'stadium') this.addLowBarrier(x, y, style);
+      else if (style === 'orchard') this.addCropRowClump(x, y);
+      else this.addBrokenGroundRib(x, y, style === 'storm');
+    }
+  }
+
+  private depthImagePool(): string[] {
+    switch (this.visualStyle) {
+      case 'motel':
+        return ['td-z2-lm-lamp', 'td-z2-lm-car', 'td-z2-lm-vending', 'td-z2-crate', 'td-z2-planter', 'td-z2-scrap'];
+      case 'stadium':
+        return ['td-z2-lm-car', 'td-z2-lm-lamp', 'td-z2-lm-sign', 'td-z2-crate', 'td-z2-planter', 'td-z2-rubble'];
+      case 'orchard':
+        return ['td-z4-lm-cart', 'td-z4-lm-scarecrow', 'td-z4-lm-hay', 'td-z4-hay', 'td-z4-crate', 'td-z4-pumpkin'];
+      case 'storm':
+        return [TEX.tdLmRelay, TEX.tdLmRoots, TEX.tdScrap, TEX.tdDebris, TEX.tdRock, TEX.tdBush];
+      case 'miller':
+      default:
+        return [TEX.tdLmRelay, TEX.tdLmPod, TEX.tdLmRoots, TEX.tdLog, TEX.tdBush, TEX.tdRock];
+    }
+  }
+
+  private addIndustrialStanchion(x: number, y: number, town = false): void {
+    const h = 38 + this.rng() * (town ? 28 : 18);
+    const g = this.makeDrawing(sortedDepth(y));
+    g.lineStyle(5, town ? 0x2c3037 : 0x1a1f2a, 0.78);
+    g.lineBetween(0, 0, 0, -h);
+    g.lineStyle(2, town ? 0xc4a45c : 0x56e3f0, 0.48);
+    g.lineBetween(0, -h + 3, 0, -h * 0.45);
+    g.fillStyle(0x05070a, 0.64);
+    g.fillRoundedRect(-7, -h - 5, 14, 7, 2);
+    g.fillStyle(town ? 0xffc966 : 0x44dff0, 0.34);
+    g.fillCircle(0, -h - 2, 4);
+    g.setPosition(x, y);
+    this.contactAO(x, y, 18);
+    this.accentLights?.({
+      x, y: y - h,
+      radius: town ? 46 : 38,
+      color: town ? 0xffc966 : 0x35e0d0,
+      intensity: 0.1,
+    });
+  }
+
+  private addOrchardFenceOrStake(x: number, y: number): void {
+    const g = this.makeDrawing(sortedDepth(y));
+    const w = 24 + this.rng() * 24;
+    g.lineStyle(4, 0x5a3b1d, 0.62);
+    g.lineBetween(-w * 0.5, -10, w * 0.5, -6);
+    g.lineStyle(3, 0x8a612f, 0.54);
+    for (let k = -1; k <= 1; k++) {
+      const px = (k * w) / 3;
+      g.lineBetween(px, 0, px + (this.rng() - 0.5) * 4, -22 - this.rng() * 14);
+    }
+    g.setPosition(x, y);
+    this.contactAO(x, y, w);
+  }
+
+  private addRuralPoleOrRoot(x: number, y: number, corrupted = false): void {
+    const g = this.makeDrawing(sortedDepth(y));
+    if (corrupted) {
+      g.lineStyle(4, 0x1a1028, 0.76);
+      g.lineBetween(0, 0, -8, -42);
+      g.lineStyle(2, 0xb06bff, 0.24);
+      g.lineBetween(0, -6, -8, -42);
+      g.lineBetween(-3, -22, 12, -34);
+      this.accentLights?.({ x, y: y - 24, radius: 48, color: 0xb06bff, intensity: 0.11 });
+    } else {
+      g.lineStyle(4, 0x263424, 0.66);
+      g.lineBetween(0, 0, 2, -40);
+      g.lineStyle(2, 0x65755a, 0.42);
+      g.lineBetween(2, -30, -15, -42);
+      g.lineBetween(1, -24, 16, -34);
+    }
+    g.setPosition(x, y);
+    this.contactAO(x, y, 22);
+  }
+
+  private addLowBarrier(x: number, y: number, style: 'motel' | 'stadium'): void {
+    const g = this.makeDrawing(sortedDepth(y));
+    const w = 38 + this.rng() * 36;
+    g.fillStyle(style === 'stadium' ? 0x252933 : 0x10141d, 0.56);
+    g.fillRoundedRect(-w * 0.5, -12, w, 14, 3);
+    g.lineStyle(2, style === 'stadium' ? 0xd09b38 : 0x35e0d0, 0.22);
+    g.lineBetween(-w * 0.42, -6, w * 0.42, -6);
+    g.setPosition(x, y);
+    this.contactAO(x, y, w);
+  }
+
+  private addCropRowClump(x: number, y: number): void {
+    const g = this.makeDrawing(sortedDepth(y));
+    for (let i = 0; i < 6; i++) {
+      const ox = (this.rng() - 0.5) * 24;
+      const h = 14 + this.rng() * 18;
+      g.lineStyle(2, i % 2 ? 0x9e8d43 : 0x4c5a2d, 0.45);
+      g.lineBetween(ox, 0, ox + (this.rng() - 0.5) * 9, -h);
+    }
+    g.setPosition(x, y);
+    this.contactAO(x, y, 28);
+  }
+
+  private addBrokenGroundRib(x: number, y: number, corrupted = false): void {
+    const g = this.makeDrawing(DEPTH.decal + 1, corrupted ? 0.72 : 0.58);
+    const w = 30 + this.rng() * 30;
+    g.lineStyle(3, corrupted ? 0x5d318c : 0x2c362e, corrupted ? 0.24 : 0.18);
+    g.lineBetween(-w * 0.5, 0, w * 0.5, -4);
+    g.lineStyle(1, corrupted ? 0x88efff : 0x68836c, corrupted ? 0.18 : 0.12);
+    for (let k = -2; k <= 2; k++) g.lineBetween(k * 7, -2, k * 7 + (this.rng() - 0.5) * 8, -10 - this.rng() * 8);
+    g.setPosition(x, y);
+  }
+
   /**
    * Colour accents. The first pass was one hue end to end — green ground, green
    * light, green node — which reads as a filter rather than art direction.
@@ -568,14 +868,91 @@ export class TdTerrain {
       const x = onX ? this.rng() * AW : this.rng() < 0.5 ? this.rng() * BAND : AW - this.rng() * BAND;
       const y = onX ? (this.rng() < 0.5 ? this.rng() * BAND : AH - this.rng() * BAND) : this.rng() * AH;
       if (!clearOfMarkers(x, y)) continue; // never obscure spawn / node / breach
-      this.scene.add
+      const img = this.scene.add
         .image(x, y, biome.canopy)
         .setDepth(DEPTH.foreground)
         .setTint(biome.tints.canopy)
         .setAlpha(0.55)
         .setScale(TD_VISUALS.artScale * (0.55 + this.rng() * 0.35))
         .setAngle(this.rng() * 360);
+      this.props.push(img);
     }
+  }
+
+  private buildForegroundFrame(AW: number, AH: number): void {
+    const { tile: T, art } = this.input;
+    if (!art.hd) return;
+    const style = this.visualStyle;
+    const edgeBand = T * 1.15;
+    const count = style === 'motel' || style === 'stadium' ? 12 : 14;
+
+    for (let i = 0; i < count; i++) {
+      const side = Math.floor(this.rng() * 4);
+      const x = side === 0 ? this.rng() * AW : side === 1 ? this.rng() * AW : side === 2 ? this.rng() * edgeBand : AW - this.rng() * edgeBand;
+      const y = side === 0 ? this.rng() * edgeBand : side === 1 ? AH - this.rng() * edgeBand : this.rng() * AH;
+      if (!this.isClearOfMarkers(x, y, T * 5)) continue;
+      if (style === 'motel' || style === 'stadium') this.addBuiltForeground(x, y, side, style);
+      else if (style === 'orchard') this.addOrchardForeground(x, y, side);
+      else this.addOrganicForeground(x, y, side, style === 'storm');
+    }
+  }
+
+  private addBuiltForeground(x: number, y: number, side: number, style: 'motel' | 'stadium'): void {
+    const g = this.makeDrawing(DEPTH.foreground, 0.42);
+    const w = 92 + this.rng() * 80;
+    const h = 18 + this.rng() * 22;
+    const tint = style === 'stadium' ? 0x161b24 : 0x080a10;
+    g.fillStyle(tint, 0.86);
+    if (side <= 1) {
+      g.fillRoundedRect(-w * 0.5, -h, w, h, 3);
+      g.lineStyle(2, style === 'stadium' ? 0xc4913c : 0x35e0d0, 0.25);
+      g.lineBetween(-w * 0.45, -h + 5, w * 0.45, -h + 5);
+    } else {
+      g.fillRoundedRect(-h * 0.5, -w * 0.5, h, w, 3);
+      g.lineStyle(2, style === 'stadium' ? 0xc4913c : 0x35e0d0, 0.2);
+      g.lineBetween(0, -w * 0.42, 0, w * 0.42);
+    }
+    g.setPosition(x, y);
+  }
+
+  private addOrchardForeground(x: number, y: number, side: number): void {
+    const g = this.makeDrawing(DEPTH.foreground, 0.38);
+    const spread = 86 + this.rng() * 64;
+    for (let i = 0; i < 18; i++) {
+      const t = (i / 17 - 0.5) * spread;
+      const baseX = side <= 1 ? t : 0;
+      const baseY = side <= 1 ? 0 : t;
+      const h = 28 + this.rng() * 44;
+      g.lineStyle(3, i % 2 ? 0x2e351d : 0x4d5a2d, 0.58);
+      g.lineBetween(baseX, baseY, baseX + (this.rng() - 0.5) * 16, baseY - h);
+    }
+    g.setPosition(x, y);
+  }
+
+  private addOrganicForeground(x: number, y: number, side: number, corrupted = false): void {
+    const g = this.makeDrawing(DEPTH.foreground, corrupted ? 0.36 : 0.42);
+    const spread = 96 + this.rng() * 88;
+    const colorA = corrupted ? 0x0b0714 : 0x0e1a13;
+    const colorB = corrupted ? 0x43236d : 0x203b27;
+    g.fillStyle(colorA, 0.72);
+    for (let i = 0; i < 7; i++) {
+      const t = (i / 6 - 0.5) * spread;
+      const ex = side <= 1 ? t : (this.rng() - 0.5) * 20;
+      const ey = side <= 1 ? (this.rng() - 0.5) * 20 : t;
+      g.fillEllipse(ex, ey, 44 + this.rng() * 46, 20 + this.rng() * 32);
+    }
+    g.lineStyle(2, colorB, corrupted ? 0.28 : 0.2);
+    for (let i = 0; i < 8; i++) {
+      const t = (i / 7 - 0.5) * spread;
+      const sx = side <= 1 ? t : 0;
+      const sy = side <= 1 ? 0 : t;
+      g.lineBetween(sx, sy, sx + (this.rng() - 0.5) * 40, sy - 24 - this.rng() * 36);
+    }
+    if (corrupted) {
+      g.lineStyle(1, 0x88efff, 0.12);
+      g.lineBetween(-spread * 0.3, -8, spread * 0.24, -26);
+    }
+    g.setPosition(x, y);
   }
 
   destroy(): void {
@@ -587,7 +964,9 @@ export class TdTerrain {
     this.overlays.forEach((o) => o.destroy());
     this.overlays = [];
     this.props.forEach((p) => p.destroy());
+    this.drawings.forEach((g) => g.destroy());
     this.layers = [];
     this.props = [];
+    this.drawings = [];
   }
 }

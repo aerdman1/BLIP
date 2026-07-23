@@ -2,9 +2,10 @@
  * window.__BLIP_TEST_API__ — automation hooks for the top-down BLIP runtime.
  * Enabled only in dev builds or with ?test=1.
  */
-import type Phaser from 'phaser';
-import { EVT, SCENES, type SweepEnemyKind } from '../config';
+import Phaser from 'phaser';
+import { EVT, SCENES, type FilterId, type SweepEnemyKind } from '../config';
 import { bus } from './EventBus';
+import { settings } from './Settings';
 import { getSave, resetSave, selectSkin, unlockSkin, updateSave } from './SaveSystem';
 import { driveVirtualInput, resetVirtualInput } from './VirtualInput';
 import { quests } from './QuestSystem';
@@ -146,7 +147,7 @@ export function installTestAPI(game: Phaser.Game): void {
         vx: Math.round(body?.velocity.x ?? 0),
         vy: Math.round(body?.velocity.y ?? 0),
         hp: player.hp ?? 0,
-        energy: 0,
+        energy: Math.round((player as { boostEnergyValue?: number }).boostEnergyValue ?? 0),
         grounded: true,
         facing: (player.aimAngle ?? 0) > Math.PI / 2 || (player.aimAngle ?? 0) < -Math.PI / 2 ? -1 : 1,
         god: player.godMode ?? false,
@@ -200,7 +201,11 @@ export function installTestAPI(game: Phaser.Game): void {
       const sweep = sweepScene() as (Phaser.Scene & { debugOpenRouteForInspection?: () => boolean }) | null;
       return sweep?.debugOpenRouteForInspection?.() ?? false;
     },
-    driveAi: (input: Partial<VirtualInput> & { dashQueued?: boolean; scanQueued?: boolean; interactQueued?: boolean; weaponNextQueued?: boolean; weaponSlotQueued?: 0 | 1 | 2 | null } = {}): boolean => {
+    disableMotelScannersForInspection: (): boolean => {
+      const sweep = sweepScene() as (Phaser.Scene & { debugDisableMotelScannersForInspection?: () => boolean }) | null;
+      return sweep?.debugDisableMotelScannersForInspection?.() ?? false;
+    },
+    driveAi: (input: Partial<VirtualInput> & { dashQueued?: boolean; dashHeld?: boolean; scanQueued?: boolean; interactQueued?: boolean; weaponNextQueued?: boolean; weaponSlotQueued?: 0 | 1 | 2 | null } = {}): boolean => {
       driveVirtualInput({
         active: true,
         moveX: dir(input.moveX),
@@ -208,7 +213,8 @@ export function installTestAPI(game: Phaser.Game): void {
         aimX: typeof input.aimX === 'number' ? input.aimX : undefined,
         aimY: typeof input.aimY === 'number' ? input.aimY : undefined,
         fire: input.fire === true,
-        dashQueued: input.dash === true || input.dashQueued === true,
+        dashHeld: input.dashHeld === true || input.dash === true,
+        dashQueued: input.dashQueued === true,
         scanQueued: input.scan === true || input.scanQueued === true,
         interactQueued: input.interact === true || input.interactQueued === true,
         weaponNextQueued: input.weaponNextQueued === true,
@@ -276,6 +282,33 @@ export function installTestAPI(game: Phaser.Game): void {
           }
         : null;
     },
+    setScreenFilter: (id: FilterId = 'none'): boolean => {
+      settings.set('filter', id);
+      return settings.get('filter') === id;
+    },
+    setScreenFilterIntensity: (value = 1): boolean => {
+      settings.set('filterIntensity', Math.max(0, Math.min(1, value)));
+      return Math.abs(settings.get('filterIntensity') - Math.max(0, Math.min(1, value))) < 0.001;
+    },
+    getScreenFilterState: () => {
+      const scene = sweepScene() ?? (gameRef?.scene.isActive(SCENES.menu) ? gameRef.scene.getScene(SCENES.menu) : null);
+      const cam = scene?.cameras.main;
+      const postPipelines = ((cam as unknown as { postPipelines?: unknown[] })?.postPipelines ?? []) as unknown[];
+      const first = postPipelines[0] as { strength?: number; preset?: string } | undefined;
+      return scene && cam
+        ? {
+            scene: scene.scene.key,
+            filter: settings.get('filter'),
+            filterIntensity: settings.get('filterIntensity'),
+            renderer: gameRef?.renderer.type ?? 0,
+            webgl: gameRef?.renderer.type === Phaser.WEBGL,
+            postPipelineCount: postPipelines.length,
+            postPipelines: postPipelines.map((p) => (p as { constructor?: { name?: string } }).constructor?.name ?? 'unknown'),
+            strength: first?.strength ?? 0,
+            preset: first?.preset ?? '',
+          }
+        : null;
+    },
     setSweepWeapon: (id = 'arc'): boolean => {
       const sweep = sweepScene() as (Phaser.Scene & { debugSetWeapon?: (id: string) => boolean }) | null;
       return sweep?.debugSetWeapon?.(id) ?? false;
@@ -287,6 +320,10 @@ export function installTestAPI(game: Phaser.Game): void {
     damageSweepPlayer: (amount = 1): boolean => {
       const sweep = sweepScene() as (Phaser.Scene & { debugDamagePlayer?: (amount: number) => boolean }) | null;
       return sweep?.debugDamagePlayer?.(amount) ?? false;
+    },
+    setPlayerWorldPosition: (x: number, y: number): boolean => {
+      const sweep = sweepScene() as (Phaser.Scene & { debugSetPlayerWorldPosition?: (x: number, y: number) => boolean }) | null;
+      return sweep?.debugSetPlayerWorldPosition?.(x, y) ?? false;
     },
     getSweepRuntimeState: () => {
       const sweep = sweepScene() as (Phaser.Scene & { debugRuntimeState?: () => unknown }) | null;

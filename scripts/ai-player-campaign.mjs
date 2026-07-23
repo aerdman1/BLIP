@@ -389,7 +389,7 @@ async function runOne(page, idx) {
       const moveX = sign(adjustedMove.x);
       const moveY = sign(adjustedMove.y);
       lastCommandMoving = moveX !== 0 || moveY !== 0;
-      await api(page, `api.driveAi(${JSON.stringify({ moveX, moveY, aimX: aim.x, aimY: aim.y, fire, dashQueued, scanQueued, interactQueued, weaponNextQueued, weaponSlotQueued })})`);
+      await api(page, `api.driveAi(${JSON.stringify({ moveX, moveY, aimX: aim.x, aimY: aim.y, fire, dashHeld: dashQueued, scanQueued, interactQueued, weaponNextQueued, weaponSlotQueued })})`);
     }
     await sleep(100);
   }

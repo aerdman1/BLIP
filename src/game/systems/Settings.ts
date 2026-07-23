@@ -1,6 +1,6 @@
 /**
  * Persistent player settings (localStorage blip_settings_v1):
- * sound volume/mute, CRT overlay, screen shake. Emits EVT.settingsChanged.
+ * sound volume/mute, CRT overlay, screen filters, screen shake. Emits EVT.settingsChanged.
  */
 import { EVT, SETTINGS_KEY, type FilterId } from '../config';
 import { bus } from './EventBus';
@@ -15,11 +15,22 @@ export interface BlipSettings {
   musicVolume: number; // 0..1 (relative music level under master)
   crt: boolean;
   shake: boolean;
-  filter: FilterId; // screen filter on the title screen ('none' = off)
+  filter: FilterId; // screen filter for title and gameplay world cameras ('none' = off)
+  filterIntensity: number; // 0..1 multiplier for the active screen filter
   touchControls: TouchControlsMode; // on-screen D-pad + buttons for tablets
 }
 
-const DEFAULTS: BlipSettings = { muted: false, volume: 0.35, music: true, musicVolume: 0.6, crt: true, shake: true, filter: 'none', touchControls: 'auto' };
+const DEFAULTS: BlipSettings = {
+  muted: false,
+  volume: 0.35,
+  music: true,
+  musicVolume: 0.6,
+  crt: true,
+  shake: true,
+  filter: 'none',
+  filterIntensity: 1,
+  touchControls: 'auto',
+};
 
 function load(): BlipSettings {
   try {

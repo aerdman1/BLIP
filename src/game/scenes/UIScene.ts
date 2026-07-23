@@ -8,7 +8,7 @@
  * HTML shell.
  */
 import Phaser from 'phaser';
-import { EVT, PALETTE as P, PLAYER, RENDER_ZOOM, SCENES, VIEW_H, VIEW_W } from '../config';
+import { EVT, PALETTE as P, PLAYER, RENDER_ZOOM, SCENES, SWEEP, VIEW_H, VIEW_W } from '../config';
 import { bus } from '../systems/EventBus';
 
 interface SweepStats {
@@ -47,6 +47,8 @@ export class UIScene extends Phaser.Scene {
   private sweepContactsEl: HTMLElement | null = null;
   private sweepNodeFillEl: HTMLElement | null = null;
   private sweepWeaponEl: HTMLElement | null = null;
+  private sweepBoostFillEl: HTMLElement | null = null;
+  private sweepBoostLabelEl: HTMLElement | null = null;
   private sweepOverdriveEl: HTMLElement | null = null;
   private sweepOverdriveFillEl: HTMLElement | null = null;
   private sweepHpFillEl: HTMLElement | null = null;
@@ -95,6 +97,7 @@ export class UIScene extends Phaser.Scene {
     });
     on(EVT.hudEnergy, (d) => {
       this.energy = (d as { energy: number }).energy;
+      if (this.sweepActive) this.drawSweepHud();
     });
     on(EVT.hudCooldowns, (d) => {
       this.cooldowns = d as { dash: number; scan: number };
@@ -145,6 +148,7 @@ export class UIScene extends Phaser.Scene {
         <div class="td-vitals-body">
           <div class="td-vitals-name">CONTACT-47</div>
           <div class="td-hp"><i></i></div>
+          <div class="td-boost"><span>BOOST</span><div><i></i></div><b>FULL</b></div>
           <div class="td-weapon"><span class="cap">1/2/3 WPN</span><span class="val">PULSE CARBINE</span></div>
         </div>
       </div>
@@ -161,6 +165,8 @@ export class UIScene extends Phaser.Scene {
     this.sweepContactsEl = el.querySelector('.td-objective-sub');
     this.sweepNodeFillEl = el.querySelector('.td-objective-bar i');
     this.sweepWeaponEl = el.querySelector('.td-weapon .val');
+    this.sweepBoostFillEl = el.querySelector('.td-boost i');
+    this.sweepBoostLabelEl = el.querySelector('.td-boost b');
     this.sweepOverdriveEl = el.querySelector('.td-overdrive span');
     this.sweepOverdriveFillEl = el.querySelector('.td-overdrive i');
     this.sweepHpFillEl = el.querySelector('.td-hp i');
@@ -210,6 +216,14 @@ export class UIScene extends Phaser.Scene {
       this.sweepHpFillEl.style.width = `${Math.round(ratio * 100)}%`;
       // green (healthy) → amber → red, so a full bar is never an alarming wall of red
       this.sweepHpFillEl.dataset.state = ratio > 0.6 ? 'ok' : ratio > 0.3 ? 'warn' : 'crit';
+    }
+    const boostRatio = Phaser.Math.Clamp(this.energy / SWEEP.boostEnergyMax, 0, 1);
+    if (this.sweepBoostFillEl) {
+      this.sweepBoostFillEl.style.width = `${Math.round(boostRatio * 100)}%`;
+      this.sweepBoostFillEl.dataset.state = boostRatio <= 0.08 ? 'empty' : boostRatio >= 0.98 ? 'full' : 'charging';
+    }
+    if (this.sweepBoostLabelEl) {
+      this.sweepBoostLabelEl.textContent = boostRatio <= 0.08 ? 'EMPTY' : boostRatio >= 0.98 ? 'FULL' : `${Math.round(boostRatio * 100)}%`;
     }
     if (this.sweepWeaponEl) this.sweepWeaponEl.textContent = s.weapon;
 
@@ -317,7 +331,7 @@ export class UIScene extends Phaser.Scene {
     g.fillRect(8, 16, 46, 3);
     g.fillStyle(P.signal, 1);
     g.fillRect(8, 16, Math.round((this.energy / PLAYER.energyMax) * 46), 3);
-    // cooldowns: dash (lime) + scan (amber)
+    // cooldowns: boost reserve (lime) + scan (amber)
     g.fillStyle(this.cooldowns.dash <= 0 ? P.signal : P.uiDim, 1);
     g.fillRect(8, 22, this.cooldowns.dash <= 0 ? 10 : Math.round(10 * (1 - this.cooldowns.dash)), 2);
     g.fillStyle(this.cooldowns.scan <= 0 ? P.warning : P.uiDim, 1);

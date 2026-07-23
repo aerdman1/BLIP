@@ -21,6 +21,7 @@ import { EffectsSystem } from '../systems/EffectsSystem';
 import { PlayerInput } from '../systems/InputSystem';
 import { readPad } from '../systems/PadSim';
 import { resetVirtualInput, virtualInput } from '../systems/VirtualInput';
+import { attachScreenFilter } from '../systems/ScreenFilter';
 import { addShards, grantAbility, loadSave, updateSave } from '../systems/SaveSystem';
 import { activeSkin } from '../systems/SkinState';
 import { uiOverlayActive } from '../systems/UIState';
@@ -124,6 +125,7 @@ export class SweepScene extends Phaser.Scene {
   private breachGlow?: Phaser.GameObjects.Image;
   private breachCore?: Phaser.GameObjects.Image;
   private breachLabel?: Phaser.GameObjects.Text;
+  private boostGapWalls!: Phaser.Physics.Arcade.StaticGroup;
 
   private waveIdx = -1;
   private spawnQueue: SweepEnemyKind[] = [];
@@ -164,6 +166,9 @@ export class SweepScene extends Phaser.Scene {
   private routeMarkers: Phaser.GameObjects.GameObject[] = [];
   private routeVisited = new Set<string>();
   private exploredWashes: Array<{ area: Phaser.GameObjects.Rectangle; x: number; y: number; w: number; h: number; seen: boolean }> = [];
+  private hoverTrail: Phaser.GameObjects.Graphics[] = [];
+  private hoverTrailAt = 0;
+  private hoverTrailLast = { x: 0, y: 0 };
   private motelScanners: Array<{
     ax: number;
     ay: number;
@@ -274,6 +279,9 @@ export class SweepScene extends Phaser.Scene {
     this.routeMarkers = [];
     this.routeVisited = new Set<string>();
     this.exploredWashes = [];
+    this.hoverTrail = [];
+    this.hoverTrailAt = 0;
+    this.hoverTrailLast = { x: 0, y: 0 };
     this.motelScanners = [];
     this.motelAlertUntil = 0;
     this.motelAlertCooldownUntil = 0;
@@ -315,11 +323,13 @@ export class SweepScene extends Phaser.Scene {
       this.cameras.main.setBackgroundColor(css(TD_PALETTE.groundDeep));
     }
     this.cameras.main.setBounds(0, 0, AW, AH);
+    attachScreenFilter(this, true);
 
     this.physics.world.gravity.y = 0;
     this.physics.world.setBounds(0, 0, AW, AH);
 
     this.walls = this.physics.add.staticGroup();
+    this.boostGapWalls = this.physics.add.staticGroup();
     this.buildMap(); // carves rooms/halls, builds floor + solid walls + floorTiles
     this.buildExplorationWashes();
 
@@ -332,6 +342,7 @@ export class SweepScene extends Phaser.Scene {
     const spawnX = spawn.x;
     const spawnY = spawn.y;
     this.player = new BlipCraft(this, spawnX, spawnY, this.fx);
+    this.hoverTrailLast = { x: spawnX, y: spawnY + 15 };
     (this.player.body as Phaser.Physics.Arcade.Body).setCollideWorldBounds(true);
     this.applyWorldHandoff();
     this.entryGraceUntil = this.time.now + 1600;
@@ -385,6 +396,13 @@ export class SweepScene extends Phaser.Scene {
 
     // walls stop the player, the drones, and every bolt
     this.physics.add.collider(this.player, this.walls);
+    this.physics.add.collider(
+      this.player,
+      this.boostGapWalls,
+      undefined,
+      () => !this.player.isDashing,
+      this
+    );
     this.physics.add.collider(this.enemies, this.walls);
     this.physics.add.collider(this.playerShots, this.walls, (b) => this.onShotHitWall(b as Projectile));
     this.physics.add.collider(this.enemyShots, this.walls, (b) => (b as Projectile).kill());
@@ -431,7 +449,7 @@ export class SweepScene extends Phaser.Scene {
       this.cameras.main.fadeIn(350, 2, 3, 8);
       this.fx.scanRing(this.player.x, this.player.y, 200, 620, P.signal);
       if (this.arena.id === 'circuit-z2' && grantAbility('phase-shift')) {
-        bus.emit(EVT.toast, { text: 'PHASE SHIFT ONLINE — blink through scanner pressure', color: 'green' });
+        bus.emit(EVT.toast, { text: 'BOOST ONLINE - hold SHIFT through scanner pressure', color: 'green' });
       }
       bus.emit(EVT.toast, { text: this.goal.activeHint, color: 'green' });
     } else {
@@ -495,6 +513,7 @@ export class SweepScene extends Phaser.Scene {
     // truth and are used by BOTH paths — nothing about layout changes.
     if (this.td) {
       this.tdTerrain = new TdTerrain(this, {
+        arenaId: this.arena.id,
         tile: T, w: W, h: H, solid, halls: this.arena.halls,
         floor: floorCoords, markers: keyMarkers, art: this.tdArt,
         biome: this.tdBiome!,
@@ -532,6 +551,7 @@ export class SweepScene extends Phaser.Scene {
       }
       this.tdShadows = new TopDownShadows(this);
       this.tdNodeRig = new SignalNodeRig(this, node.x, node.y, this.tdLight);
+      this.buildBoostGaps();
       return;
     }
 
@@ -566,6 +586,7 @@ export class SweepScene extends Phaser.Scene {
         .setScale(Phaser.Math.FloatBetween(0.45, 0.85));
       scuff.setAngle(Phaser.Math.Between(0, 3) * 90);
     }
+    this.buildBoostGaps();
 
     // 4 — walls (visual tiles + merged collision bodies)
     for (let y = 0; y < H; y++) {
@@ -644,6 +665,104 @@ export class SweepScene extends Phaser.Scene {
     // fixed-size overlay can cover only part of the viewport and look broken.
   }
 
+  private buildBoostGaps(): void {
+    const gaps = this.arena.boostGaps ?? [];
+    if (!gaps.length) return;
+    const T = SWEEP.tile;
+    gaps.forEach((gap) => {
+      const x = gap.x * T;
+      const y = gap.y * T;
+      const w = gap.w * T;
+      const h = gap.h * T;
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      const rng = seededUnit(`boost-gap:${this.arena.id}:${gap.id}`);
+
+      const wash = this.add
+        .ellipse(cx, cy + 4, w * 1.04, h * 1.08, 0x05090b, 0.32)
+        .setDepth(4.2)
+        .setBlendMode(Phaser.BlendModes.MULTIPLY);
+      const g = this.add.graphics().setDepth(4.5);
+      const vertical = (gap.orientation ?? 'horizontal') === 'vertical';
+      const spine: Array<{ x: number; y: number }> = [];
+      const steps = 7;
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const wobble = (rng() - 0.5) * (vertical ? w * 0.18 : h * 0.2);
+        spine.push({
+          x: vertical ? cx + wobble : x + t * w,
+          y: vertical ? y + t * h : cy + wobble,
+        });
+      }
+      const left: Array<{ x: number; y: number }> = [];
+      const right: Array<{ x: number; y: number }> = [];
+      spine.forEach((p, i) => {
+        const width = (vertical ? w : h) * (0.12 + rng() * 0.08) + (i % 2 === 0 ? 5 : -2);
+        left.push({ x: p.x + (vertical ? -width : 0), y: p.y + (vertical ? 0 : -width) });
+        right.unshift({ x: p.x + (vertical ? width : 0), y: p.y + (vertical ? 0 : width) });
+      });
+      g.fillStyle(0x090306, 0.88);
+      g.fillPoints([...left, ...right], true);
+      g.lineStyle(7, P.danger, 0.12);
+      for (let i = 1; i < spine.length; i++) g.lineBetween(spine[i - 1].x, spine[i - 1].y, spine[i].x, spine[i].y);
+      g.lineStyle(4, P.danger, 0.42);
+      for (let i = 1; i < spine.length; i++) g.lineBetween(spine[i - 1].x, spine[i - 1].y, spine[i].x, spine[i].y);
+      g.lineStyle(2, 0xffb15a, 0.78);
+      for (let i = 1; i < spine.length; i++) g.lineBetween(spine[i - 1].x, spine[i - 1].y, spine[i].x, spine[i].y);
+      g.lineStyle(1, 0xfff0b0, 0.56);
+      for (let i = 1; i < spine.length - 1; i += 2) {
+        const p = spine[i];
+        const len = vertical ? w * (0.18 + rng() * 0.18) : h * (0.18 + rng() * 0.18);
+        const branchA = {
+          x: p.x + (vertical ? len : (rng() - 0.5) * 18),
+          y: p.y + (vertical ? (rng() - 0.5) * 18 : len),
+        };
+        const branchB = {
+          x: p.x - (vertical ? len * 0.72 : (rng() - 0.5) * 18),
+          y: p.y - (vertical ? (rng() - 0.5) * 18 : len * 0.72),
+        };
+        g.lineStyle(4, P.danger, 0.24);
+        g.lineBetween(p.x, p.y, branchA.x, branchA.y);
+        g.lineBetween(p.x, p.y, branchB.x, branchB.y);
+        g.lineStyle(1, 0xfff0b0, 0.58);
+        g.lineBetween(p.x, p.y, branchA.x, branchA.y);
+        g.lineBetween(p.x, p.y, branchB.x, branchB.y);
+        if (rng() < 0.8) {
+          const twig = {
+            x: branchA.x + (vertical ? len * 0.25 : (rng() - 0.5) * 12),
+            y: branchA.y + (vertical ? (rng() - 0.5) * 12 : len * 0.25),
+          };
+          g.lineStyle(1, P.danger, 0.5);
+          g.lineBetween(branchA.x, branchA.y, twig.x, twig.y);
+        }
+      }
+
+      this.add
+        .rectangle(cx, cy, w * 0.9, h * 0.48, P.danger, 0.18)
+        .setDepth(4.35)
+        .setBlendMode(Phaser.BlendModes.ADD);
+      const labelY = y - 12;
+      this.add
+        .rectangle(cx, labelY, Math.max(104, gap.label.length * 8), 18, P.black, 0.82)
+        .setStrokeStyle(1, P.danger, 0.78)
+        .setDepth(12);
+      this.add
+        .text(cx, labelY, 'HOLD BOOST', {
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: css(0xff9a5c),
+          align: 'center',
+        })
+        .setOrigin(0.5)
+        .setDepth(13);
+
+      const wall = this.boostGapWalls.create(cx, cy, TEX.px) as Phaser.Physics.Arcade.Image;
+      wall.setDisplaySize(Math.max(28, w * 0.86), Math.max(28, h * 0.78)).setVisible(false).refreshBody();
+      wall.setData('boostGapId', gap.id);
+      wash.setData('boostGapId', gap.id);
+    });
+  }
+
   private buildExplorationWashes(): void {
     if (!this.td) return;
     const T = SWEEP.tile;
@@ -674,6 +793,68 @@ export class SweepScene extends Phaser.Scene {
       w.seen = true;
       this.tweens.add({ targets: w.area, alpha: 0.025, duration: 520, ease: 'Sine.easeOut' });
     });
+  }
+
+  private updateHoverTrail(now: number): void {
+    if (!this.td || !this.player?.active || !this.player.alive) return;
+    const body = this.player.body as Phaser.Physics.Arcade.Body | null;
+    const speed = body?.velocity.length() ?? 0;
+    if (speed < 22) return;
+
+    const boosted = this.player.isDashing;
+    const interval = boosted ? 82 : 165;
+    const x = this.player.x;
+    const y = this.player.y + 18;
+    const last = this.hoverTrailLast;
+    const dist = Phaser.Math.Distance.Between(x, y, last.x, last.y);
+    if (now < this.hoverTrailAt && dist < (boosted ? 18 : 28)) return;
+    if (dist < 6 || dist > 150) {
+      this.hoverTrailLast = { x, y };
+      this.hoverTrailAt = now + interval;
+      return;
+    }
+
+    this.hoverTrailAt = now + interval;
+    this.hoverTrailLast = { x, y };
+    const angle = Math.atan2(y - last.y, x - last.x);
+    const nx = -Math.sin(angle);
+    const ny = Math.cos(angle);
+    const wobble = Math.sin(now * 0.017 + x * 0.013) * 1.8;
+    const trail = this.add.graphics().setDepth(4.05).setBlendMode(Phaser.BlendModes.ADD);
+    const sx = last.x + nx * wobble;
+    const sy = last.y + ny * wobble;
+    const ex = x - Math.cos(angle) * 5 - nx * wobble * 0.45;
+    const ey = y - Math.sin(angle) * 5 - ny * wobble * 0.45;
+    trail.lineStyle(boosted ? 16 : 10, P.neonCyan, boosted ? 0.08 : 0.045);
+    trail.lineBetween(sx, sy, ex, ey);
+    trail.lineStyle(boosted ? 7 : 4, 0x79f2ff, boosted ? 0.22 : 0.13);
+    trail.lineBetween(sx, sy, ex, ey);
+    trail.lineStyle(boosted ? 2 : 1, 0xe8ffff, boosted ? 0.46 : 0.24);
+    trail.lineBetween(sx, sy, ex, ey);
+    for (let i = 0; i < (boosted ? 3 : 1); i++) {
+      const t = (i + 1) / (boosted ? 4 : 2);
+      const px = Phaser.Math.Linear(sx, ex, t);
+      const py = Phaser.Math.Linear(sy, ey, t);
+      const flick = (i % 2 === 0 ? 1 : -1) * (boosted ? 7 : 4);
+      trail.lineStyle(1, P.neonCyan, boosted ? 0.18 : 0.08);
+      trail.lineBetween(px, py, px + nx * flick, py + ny * flick);
+    }
+    this.hoverTrail.push(trail);
+    this.tweens.add({
+      targets: trail,
+      alpha: 0,
+      duration: boosted ? 24000 : 19000,
+      ease: 'Sine.easeOut',
+      onComplete: () => {
+        Phaser.Utils.Array.Remove(this.hoverTrail, trail);
+        trail.destroy();
+      },
+    });
+
+    while (this.hoverTrail.length > 140) {
+      const old = this.hoverTrail.shift();
+      old?.destroy();
+    }
   }
 
   private buildEnvironmentalBlockers(solid: boolean[][], floorCoords: Array<{ tx: number; ty: number; edge: boolean }>): void {
@@ -838,7 +1019,141 @@ export class SweepScene extends Phaser.Scene {
     };
     route.toObjective.forEach((m) => build(m, 'objective'));
     route.toExit.forEach((m) => build(m, 'exit'));
+    this.buildAreaIdentityDressing();
     this.updateRouteMarkerVisibility();
+  }
+
+  private buildAreaIdentityDressing(): void {
+    if (!this.td) return;
+    const route = ROUTE_BEACONS[this.arena.id];
+    if (!route) return;
+    const T = SWEEP.tile;
+    [...route.toObjective, ...route.toExit].forEach((m) => {
+      this.decorateNamedArea(m.label, (m.tx + 0.5) * T, (m.ty + 0.5) * T);
+    });
+  }
+
+  private decorateNamedArea(label: string, x: number, y: number): void {
+    const T = SWEEP.tile;
+    const key = label.toUpperCase();
+    const g = this.add.graphics().setDepth(DEPTH.decal + 36).setAlpha(0.86);
+    const line = (color: number, alpha: number, width = 2) => g.lineStyle(width, color, alpha);
+    const fill = (color: number, alpha: number) => g.fillStyle(color, alpha);
+    const addProp = (tex: string, ox: number, oy: number, scale: number, tint?: number) => {
+      if (!this.textures.exists(tex)) return;
+      const img = this.add.image(x + ox, y + oy, tex).setOrigin(0.5, 1).setDepth(sortedDepth(y + oy)).setScale(scale).setAlpha(0.88);
+      if (tint) img.setTint(tint);
+      if ((ox + oy) % 2) img.setFlipX(true);
+    };
+    const addPost = (ox: number, oy: number, color: number, h = 34) => {
+      const pg = this.add.graphics().setDepth(sortedDepth(y + oy)).setAlpha(0.72);
+      pg.lineStyle(4, 0x171716, 0.88);
+      pg.lineBetween(0, 0, 0, -h);
+      pg.lineStyle(1, color, 0.52);
+      pg.lineBetween(1, -4, 1, -h + 4);
+      pg.fillStyle(color, 0.32);
+      pg.fillCircle(0, -h - 1, 4);
+      pg.setPosition(x + ox, y + oy);
+    };
+
+    if (this.arena.id === 'surface-z1') {
+      if (key.includes('FIELD') || key.includes('EAST') || key.includes('ROAD') || key.includes('BEND')) {
+        fill(0x2d2519, 0.24);
+        g.fillEllipse(x, y + 5, T * 2.3, T * 0.64);
+        line(0x756247, 0.18, 2);
+        g.lineBetween(x - T * 1.1, y + 6, x + T * 1.1, y - 4);
+        addProp(TEX.tdLog, -34, 26, 0.25);
+        addProp(TEX.tdRock, 34, 22, 0.25);
+      }
+      if (key.includes('WILLOW') || key.includes('CACHE') || key.includes('BREACH')) {
+        line(P.signalGreen, 0.18, 2);
+        g.strokeCircle(x, y + 4, 24);
+        addProp(TEX.tdFern, -28, 18, 0.34, 0xb8d4c0);
+        addProp(TEX.tdLmRoots, 32, 24, 0.2);
+      }
+      if (key.includes('MOTEL')) addPost(-30, 18, P.warning, 38);
+    } else if (this.arena.id === 'circuit-z2') {
+      if (key.includes('DRIVE') || key.includes('PARKING') || key.includes('SERVICE')) {
+        line(0xd9b464, 0.2, 2);
+        for (let i = -1; i <= 1; i++) g.lineBetween(x - 44, y + i * 13, x + 44, y + i * 13);
+        addProp('td-z2-cone', -38, 20, 0.28);
+        addProp('td-z2-tire', 38, 24, 0.26);
+      }
+      if (key.includes('CHECK-IN') || key.includes('ROOM')) {
+        fill(0x080b12, 0.28);
+        g.fillRoundedRect(x - 54, y - 16, 108, 24, 4);
+        line(0x56e3f0, 0.18, 2);
+        for (let i = -1; i <= 1; i++) g.strokeRect(x + i * 30 - 10, y - 12, 20, 15);
+        addProp('td-z2-lm-vending', 42, 22, 0.22);
+      }
+      if (key.includes('POOL')) {
+        fill(0x56e3f0, 0.14);
+        g.fillEllipse(x, y + 5, 92, 42);
+        line(0xd9f7ff, 0.25, 2);
+        g.strokeEllipse(x, y + 5, 100, 50);
+      }
+      if (key.includes('SCANNER') || key.includes('RIVER') || key.includes('TOWN')) {
+        addPost(-34, 22, P.danger, 42);
+        addPost(34, 22, P.neonCyan, 36);
+      }
+    } else if (this.arena.id === 'town-z3') {
+      if (key.includes('MAIN') || key.includes('STADIUM') || key.includes('COUNTY')) {
+        fill(0x1a1d22, 0.2);
+        g.fillRoundedRect(x - 70, y - 16, 140, 32, 5);
+        line(0xf0c36a, 0.24, 2);
+        g.lineBetween(x - 58, y, x - 14, y);
+        g.lineBetween(x + 14, y, x + 58, y);
+        addPost(-54, 22, 0xffc966, 44);
+        addProp('td-z2-lm-car', 48, 30, 0.2);
+      }
+      if (key.includes('MARKET')) {
+        fill(0x5a2e2e, 0.16);
+        for (let i = -1; i <= 1; i++) g.fillRoundedRect(x + i * 31 - 12, y - 18, 24, 18, 3);
+        addProp('td-z2-crate', -36, 24, 0.28);
+        addProp('td-z2-planter', 36, 22, 0.27);
+      }
+      if (key.includes('TOWER') || key.includes('ORCHARD')) {
+        addPost(-36, 24, key.includes('TOWER') ? P.danger : P.signalGreen, 50);
+        addProp('td-z2-lm-sign', 34, 24, 0.22);
+      }
+    } else if (this.arena.id === 'maze-z4') {
+      if (key.includes('ROWS') || key.includes('CROP') || key.includes('RIDGE')) {
+        line(0xaa7a34, 0.23, 3);
+        for (let i = -3; i <= 3; i++) g.lineBetween(x - 66, y + i * 10, x + 66, y + i * 4);
+        addProp('td-z4-hay', -44, 24, 0.28);
+        addProp('td-z4-pumpkin', 44, 22, 0.24);
+      }
+      if (key.includes('GRAVITY')) {
+        fill(P.cropGlow, 0.1);
+        g.fillCircle(x, y, 42);
+        line(P.cropGlow, 0.22, 2);
+        g.strokeCircle(x, y, 50);
+      }
+      if (key.includes('LOWER') || key.includes('STORM')) {
+        line(key.includes('STORM') ? P.danger : 0x5d8e9a, 0.22, 2);
+        g.lineBetween(x - 54, y + 18, x - 18, y + 8);
+        g.lineBetween(x - 18, y + 8, x + 28, y + 20);
+        g.lineBetween(x + 28, y + 20, x + 58, y + 8);
+      }
+      if (key.includes('SHELTER')) addProp('td-z4-lm-cart', -32, 26, 0.24);
+    } else if (this.arena.id === 'anomaly-01') {
+      if (key.includes('CORE') || key.includes('RIFT') || key.includes('RELAY')) {
+        fill(0x12091e, 0.28);
+        g.fillCircle(x, y, key.includes('CORE') ? 58 : 42);
+        line(key.includes('RIFT') ? P.danger : P.neonCyan, 0.28, 2);
+        for (let i = 0; i < 5; i++) {
+          const a = (Math.PI * 2 * i) / 5;
+          g.lineBetween(x, y, x + Math.cos(a) * 54, y + Math.sin(a) * 34);
+        }
+        addProp(TEX.tdLmRelay, -42, 26, 0.22, key.includes('RIFT') ? P.danger : P.neonCyan);
+        addProp(TEX.tdScrap, 42, 24, 0.28, 0xb06bff);
+      } else if (key.includes('RECOVERY')) {
+        fill(P.signalGreen, 0.08);
+        g.fillRoundedRect(x - 46, y - 20, 92, 40, 8);
+        line(P.signalGreen, 0.18, 2);
+        g.strokeRoundedRect(x - 50, y - 24, 100, 48, 8);
+      }
+    }
   }
 
   private updateRouteMarkerVisibility(): void {
@@ -920,8 +1235,8 @@ export class SweepScene extends Phaser.Scene {
       const bx = (bTx + 0.5) * T;
       const by = (bTy + 0.5) * T;
       const line = this.add.graphics().setDepth(14);
-      const emitter = this.add.image(ax, ay, TEX.glow8).setDepth(15).setTint(P.danger).setBlendMode(Phaser.BlendModes.ADD).setScale(0.72).setAlpha(0.75);
-      const receiver = this.add.image(bx, by, TEX.glow8).setDepth(15).setTint(P.danger).setBlendMode(Phaser.BlendModes.ADD).setScale(0.72).setAlpha(0.75);
+      const emitter = this.add.image(ax, ay, TEX.scannerRig).setDepth(15).setTint(P.danger).setScale(0.66).setAlpha(0.9);
+      const receiver = this.add.image(bx, by, TEX.scannerRig).setDepth(15).setTint(P.danger).setScale(0.66).setAlpha(0.9);
       const midX = (ax + bx) / 2;
       const midY = (ay + by) / 2;
       const text = this.add
@@ -943,7 +1258,7 @@ export class SweepScene extends Phaser.Scene {
     };
 
     SWEEP_MOTEL_SCANNERS.forEach((s) => addScanner(s.aTx, s.aTy, s.bTx, s.bTy, s.label));
-    bus.emit(EVT.toast, { text: 'MOTEL SECURITY — Phase Shift through red beams or fight the alert.', color: 'orange' });
+    bus.emit(EVT.toast, { text: 'MOTEL SECURITY - hold Boost through red beams or fight the alert.', color: 'orange' });
   }
 
   /** the Node is fully charged — light the breach and let the player route onward */
@@ -961,6 +1276,7 @@ export class SweepScene extends Phaser.Scene {
     }
     this.updateRouteMarkerVisibility();
     this.quietRoutePressure();
+    this.maybeAwardMotelStealthBonus();
     this.disableMotelScannersForRouteOpen();
     bus.emit(EVT.toast, { text: this.goal.exitHint, color: 'green' });
     this.showBanner(this.arena.nextLabel ? `ROUTE OPEN — ${this.arena.nextLabel.toUpperCase()}` : this.goal.completionBanner);
@@ -997,6 +1313,26 @@ export class SweepScene extends Phaser.Scene {
     });
     this.motelAlertUntil = 0;
     this.motelAlertCooldownUntil = 0;
+  }
+
+  private maybeAwardMotelStealthBonus(): void {
+    if (this.arena.id !== 'circuit-z2') return;
+    const status = this.motelScannerStatus();
+    if (status.total <= 0 || status.disabled < status.total || this.motelAlertCount > 0) return;
+    const key = 'motel:ghost-checkin-bonus';
+    let awarded = false;
+    updateSave((s) => {
+      if (s.rewards.awarded.includes(key)) return;
+      s.rewards.awarded.push(key);
+      awarded = true;
+    });
+    if (!awarded) return;
+    const bonus = 25;
+    addShards(bonus);
+    audio.badgePickup();
+    this.fx.scanRing(this.player.x, this.player.y, 76, 420, P.neonCyan);
+    this.fx.floatText(this.player.x, this.player.y - 18, `GHOST CHECK-IN +${bonus}`, P.neonCyan);
+    bus.emit(EVT.toast, { text: `GHOST CHECK-IN BONUS - all scanners phased offline without alert. +${bonus} shards.`, color: 'cyan' });
   }
 
   /** Zone 4 standout: charging the node blooms the route you traced into a giant
@@ -1810,7 +2146,10 @@ export class SweepScene extends Phaser.Scene {
       gravityWellRequired?: boolean;
       breachOpen: boolean;
       enemiesActive: number;
+      motelAlerts?: number;
       motelScanners?: { disabled: number; total: number };
+      boostGaps?: number;
+      hoverTrailCount?: number;
   } | null {
     if (!this.player?.active) return null;
     const motelScanners = this.motelScannerStatus();
@@ -1829,13 +2168,33 @@ export class SweepScene extends Phaser.Scene {
       gravityWellRequired: this.arena.id === 'maze-z4' ? true : undefined,
       breachOpen: this.breachOpen,
       enemiesActive: this.activeEnemyCount(),
+      motelAlerts: this.arena.id === 'circuit-z2' ? this.motelAlertCount : undefined,
       motelScanners: motelScanners.total ? motelScanners : undefined,
+      boostGaps: this.arena.boostGaps?.length,
+      hoverTrailCount: this.hoverTrail.length,
     };
+  }
+
+  debugSetPlayerWorldPosition(x: number, y: number): boolean {
+    if (!this.player?.active) return false;
+    const p = this.nearestWalkableWorld(x, y);
+    this.player.setPosition(p.x, p.y);
+    const body = this.player.body as Phaser.Physics.Arcade.Body | null;
+    body?.setVelocity(0, 0);
+    body?.setAcceleration(0, 0);
+    this.cameras.main.centerOn(p.x, p.y);
+    return true;
   }
 
   debugOpenRouteForInspection(): boolean {
     if (!this.traverse || !this.player?.active || this.exiting) return false;
     if (!this.breachOpen) this.openBreach();
+    return true;
+  }
+
+  debugDisableMotelScannersForInspection(): boolean {
+    if (this.arena.id !== 'circuit-z2' || !this.motelScanners.length) return false;
+    this.motelScanners.forEach((s) => { s.disabled = true; });
     return true;
   }
 
@@ -2681,22 +3040,22 @@ export class SweepScene extends Phaser.Scene {
         s.receiver.setVisible(false);
         return;
       }
-      s.line.lineStyle(alert ? 7 : 5, P.dangerDark, alert ? 0.4 : 0.22);
+      s.line.lineStyle(alert ? 7 : 5, P.dangerDark, alert ? 0.42 : 0.24);
       if (!disabled) s.line.lineBetween(s.ax, s.ay, s.bx, s.by);
-      s.line.lineStyle(alert ? 4 : 2, disabled ? P.neonCyan : P.danger, disabled ? 0 : alert ? 0.82 : 0.42 + pulse * 0.28);
+      s.line.lineStyle(alert ? 4 : 3, disabled ? P.neonCyan : P.danger, disabled ? 0 : alert ? 0.9 : 0.58 + pulse * 0.18);
       if (!disabled) s.line.lineBetween(s.ax, s.ay, s.bx, s.by);
       s.line.lineStyle(1, P.white, disabled ? 0 : alert ? 0.38 : 0.16);
       if (!disabled) s.line.lineBetween(s.ax, s.ay, s.bx, s.by);
       s.text
         .setVisible(true)
         .setText(disabled ? 'SCANNER OFFLINE' : s.label)
-        .setColor(css(disabled ? P.neonCyan : alert ? P.danger : P.warning))
+        .setColor(css(disabled ? P.neonCyan : P.danger))
         .setAlpha(disabled ? 0.55 : 0.92);
       [s.emitter, s.receiver].forEach((endpoint) => endpoint
         .setVisible(true)
         .setTint(disabled ? P.neonCyan : P.danger)
-        .setAlpha(disabled ? 0.34 : alert ? 0.95 : 0.55 + pulse * 0.25)
-        .setScale(disabled ? 0.48 : alert ? 0.95 : 0.68));
+        .setAlpha(disabled ? 0.34 : alert ? 0.98 : 0.72 + pulse * 0.14)
+        .setScale(disabled ? 0.5 : alert ? 0.76 : 0.64 + pulse * 0.04));
 
       if (this.breachOpen || !this.player.alive) return;
       const d = pointToSegment(this.player.x, this.player.y, s.ax, s.ay, s.bx, s.by);
@@ -2730,7 +3089,7 @@ export class SweepScene extends Phaser.Scene {
     audio.bossWarning();
     this.fx.flash(P.danger, 110);
     this.fx.floatText(this.player.x, this.player.y - 18, 'SCANNER ALERT', P.danger);
-    bus.emit(EVT.toast, { text: 'SCANNER ALERT — fight through or Phase Shift out.', color: 'orange' });
+    bus.emit(EVT.toast, { text: 'SCANNER ALERT - fight through or Boost out.', color: 'orange' });
     if (this.motelAlertCount <= 1) {
       const mx = (scanner.ax + scanner.bx) / 2;
       const my = (scanner.ay + scanner.by) / 2;
@@ -2790,6 +3149,7 @@ export class SweepScene extends Phaser.Scene {
 
     const wasShifting = this.player.isDashing;
     this.player.move(this.input2);
+    this.updateHoverTrail(now);
     if (!wasShifting && this.player.isDashing && loadSave().purchasedUpgrades.includes('ghost-protocol')) {
       this.heat = Math.max(0, this.heat - 18);
       this.fx.sparks(this.player.x, this.player.y, P.scoutCameron, 4);
@@ -2894,8 +3254,8 @@ export class SweepScene extends Phaser.Scene {
       const status = this.motelScannerStatus();
       const scannerCopy = status.total ? `Scanners offline ${status.disabled}/${status.total}. ` : '';
       objectiveSub = this.motelAlertUntil > this.time.now
-        ? `${scannerCopy}ALERT ACTIVE · fight through it or Phase Shift out. Reward: ${this.goal.rewardName}.`
-        : `${scannerCopy}Avoid red scanners or Phase Shift through them. Reward: ${this.goal.rewardName}.`;
+        ? `${scannerCopy}ALERT ACTIVE · fight through it or Boost out. Reward: ${this.goal.rewardName}.`
+        : `${scannerCopy}Avoid red scanners or hold Boost through them. Reward: ${this.goal.rewardName}.`;
     } else if (this.arena.id === 'maze-z4' && !this.breachOpen) {
       objectiveSub = this.gravityWell && !this.gravityWell.used
         ? 'Follow LOWER ROWS to the Gravity Well, enter the launch ring, then finish the Crop Circle route.'
@@ -3179,6 +3539,8 @@ export class SweepScene extends Phaser.Scene {
     this.objectiveArrow?.destroy();
     this.exploredWashes.forEach((w) => w.area.destroy());
     this.exploredWashes = [];
+    this.hoverTrail.forEach((t) => t.destroy());
+    this.hoverTrail = [];
     this.objectiveArrow = undefined;
     this.tdPlayerRim = undefined;
     this.tdRigs.forEach((r) => r.destroy());

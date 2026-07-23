@@ -1,5 +1,5 @@
 /**
- * HalftoneFX — comic halftone-print post-process for the MainMenu camera.
+ * HalftoneFX — comic halftone-print post-process for menu and gameplay cameras.
  * 45° dot screen sized by luminance. Presets (HALFTONE_FX in config.ts):
  * Halftone (ink dots on paper), Pop Art (dots over bold posterized color).
  * WebGL only.

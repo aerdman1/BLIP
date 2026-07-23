@@ -18,7 +18,9 @@ const LOCATION_NOTES = {
     ['Power Gate Shortcut', 66, 30, 'Simple substation-power shortcut back toward East Road.'],
     ['East Road', 52, 25, 'Main route after the objective opens.'],
     ['Motel Bend', 67, 37, 'Lower route / recovery lane toward Motel.'],
+    ['Lower-Lane Washout', 52, 45, 'First Boost-only cracked crossing on the lower shortcut lane.'],
     ['Scout Shelter Pocket', 76, 42, 'Best optional cache/reward pocket in Miller.'],
+    ['Old Mill Crack', 12, 19, 'Optional Boost crossing on the hidden old-mill spur.'],
     ['Motel Breach', 76, 21, 'Only actual transition into Motel Circuit.'],
   ],
   'circuit-z2': [
@@ -26,8 +28,8 @@ const LOCATION_NOTES = {
     ['Safe Shadow', 18, 35, 'Main stealth read in the parking lot.'],
     ['Check-In Office', 31, 35, 'Fallback combat route if stealth breaks.'],
     ['Room Row', 24, 15, 'Optional upper stealth branch with cache pressure.'],
-    ['Pool Courtyard', 45, 23, 'Phase Shift scanner crossing and breathing space.'],
-    ['Motel Circuit', 51, 34, 'Main infiltration objective.'],
+    ['Pool Courtyard', 45, 23, 'Boost scanner crossing and breathing space.'],
+    ['Scanner Core', 51, 34, 'Main infiltration objective: disable the scanner grid.'],
     ['Service Lot', 66, 36, 'Combat fallback and return loop.'],
     ['Motel Sign Ledge', 60, 15, 'Hidden overlook and reward pocket above the motel route.'],
     ['Dumpster Alcove', 36, 45, 'Small recovery pocket off the fallback route.'],
@@ -95,6 +97,7 @@ const COLORS = {
   enemy: '#ff5d73',
   weapon: '#b86dff',
   event: '#ffb84d',
+  boostGap: '#ff4d5e',
   note: '#f5efe0',
   text: '#e8f5de',
   wall: '#18252c',
@@ -194,6 +197,23 @@ function gravitySvg(well, tile, offsetX, offsetY) {
 <text x="${dx + 10}" y="${dy - 10}" font-size="10" fill="#8cffd2" font-family="monospace">RAISED RIDGE</text>`;
 }
 
+function boostGapSvg(gap, tile, offsetX, offsetY) {
+  const x = offsetX + gap.x * tile;
+  const y = offsetY + gap.y * tile;
+  const w = gap.w * tile;
+  const h = gap.h * tile;
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  const vertical = (gap.orientation ?? 'horizontal') === 'vertical';
+  const crack = vertical
+    ? `M ${cx - 2} ${y} L ${cx + 5} ${y + h * 0.22} L ${cx - 4} ${y + h * 0.48} L ${cx + 4} ${y + h * 0.72} L ${cx - 3} ${y + h}`
+    : `M ${x} ${cy - 2} L ${x + w * 0.22} ${cy + 4} L ${x + w * 0.48} ${cy - 5} L ${x + w * 0.72} ${cy + 3} L ${x + w} ${cy - 2}`;
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${COLORS.boostGap}" opacity="0.16" stroke="${COLORS.boostGap}" stroke-width="2" stroke-dasharray="5 4" />
+<path d="${crack}" fill="none" stroke="${COLORS.boostGap}" stroke-width="3" opacity="0.9" />
+<path d="${vertical ? `M ${cx} ${cy} L ${cx - w * 0.34} ${cy - h * 0.18} M ${cx} ${cy} L ${cx + w * 0.3} ${cy + h * 0.2}` : `M ${cx} ${cy} L ${cx - w * 0.18} ${cy - h * 0.34} M ${cx} ${cy} L ${cx + w * 0.2} ${cy + h * 0.3}`}" fill="none" stroke="#ffb15a" stroke-width="2" opacity="0.82" />
+<text x="${cx + 8}" y="${cy - 8}" font-size="10" fill="${COLORS.boostGap}" font-family="monospace">${esc(gap.label)}</text>`;
+}
+
 function generateArenaSvg(arena, routeBeacons, motelScanners, gravityWells) {
   const tile = arena.grid.w > 70 ? 11 : 13;
   const offsetX = 22;
@@ -217,6 +237,7 @@ function generateArenaSvg(arena, routeBeacons, motelScanners, gravityWells) {
   const markers = [
     ...(arena.id === 'circuit-z2' ? motelScanners.map((s) => scannerSvg(s, tile, offsetX, offsetY)) : []),
     ...(gravityWells[arena.id] ? [gravitySvg(gravityWells[arena.id], tile, offsetX, offsetY)] : []),
+    ...(arena.boostGaps ?? []).map((g) => boostGapSvg(g, tile, offsetX, offsetY)),
     markerSvg(arena.spawn, tile, offsetX, offsetY, '#ffffff', 'SPAWN', 'circle'),
     markerSvg(arena.node, tile, offsetX, offsetY, COLORS.marker, 'OBJECTIVE', 'diamond'),
     arena.breach ? markerSvg(arena.breach, tile, offsetX, offsetY, COLORS.exit, 'EXIT', 'diamond') : '',
@@ -245,7 +266,7 @@ function generateArenaSvg(arena, routeBeacons, motelScanners, gravityWells) {
   ${markers}
   <text x="${noteX}" y="26" font-size="14" fill="${COLORS.marker}" font-family="monospace" font-weight="700">Schematic Notes</text>
   <text x="${noteX}" y="47" font-size="10" fill="${COLORS.note}" font-family="monospace">${esc(REGION_SUMMARY[arena.id] ?? '')}</text>
-  <text x="${noteX}" y="75" font-size="11" fill="${COLORS.note}" font-family="monospace">Legend: white spawn · green objective/sign · cyan exit · yellow cache · red enemy · purple weapon · red line scanner · teal gravity</text>
+  <text x="${noteX}" y="75" font-size="11" fill="${COLORS.note}" font-family="monospace">Legend: white spawn · green objective/sign · cyan exit · yellow cache · red enemy/scanner · purple weapon · red dashed boost gap · teal gravity</text>
   ${noteRows}
 </svg>
 `;
@@ -306,6 +327,7 @@ function markdownFor(arenas) {
 - Caches: ${(arena.caches ?? []).map((c) => `\`${c.tx},${c.ty}\``).join(', ') || 'none'}
 - Field events: ${(arena.fieldEvents ?? []).map((e) => `\`${e.label}@${e.tx},${e.ty}:${e.trigger}${e.reward ? `:${e.reward}` : ''}\``).join(', ') || 'none'}
 - Weapon pickups: ${(arena.weaponSpawns ?? []).map((w) => `\`${w.wid}@${w.tx},${w.ty}\``).join(', ') || 'none'}
+- Boost gaps: ${(arena.boostGaps ?? []).map((g) => `\`${g.label}@${g.x},${g.y}:${g.w}x${g.h}\``).join(', ') || 'none'}
 - Current intent: ${REGION_SUMMARY[id] ?? 'See schematic.'}
 
 Key locations:
@@ -318,7 +340,7 @@ ${notes.map(([name, tx, ty, description]) => `- \`${tx},${ty}\` ${name}: ${descr
 
 Generated from the current arena data in \`src/game/data/sweepArenas.ts\`.
 
-These schematics are planning artifacts for map redesign prompts. They show the authored tile graph from a true top-down view: rooms, halls, spawn points, objectives, exits, caches, weapon pickups, route signs and enemy placements. They do not show every decorative rock/tree generated by the HD terrain renderer.
+These schematics are planning artifacts for map redesign prompts. They show the authored tile graph from a true top-down view: rooms, halls, spawn points, objectives, exits, caches, weapon pickups, boost gaps, route signs and enemy placements. They do not show every decorative rock/tree generated by the HD terrain renderer.
 
 ![Route overview](docs/map-schematics/00-route-overview.svg)
 

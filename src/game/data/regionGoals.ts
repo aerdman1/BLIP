@@ -27,7 +27,7 @@ export const REGION_GOALS: Record<string, RegionGoal> = {
   'circuit-z2': {
     arenaId: 'circuit-z2',
     objective: 'Infiltrate the scanner grid',
-    activeHint: 'Use Phase Shift through scanner pressure and disable the motel circuit.',
+    activeHint: 'Hold Boost through scanner pressure and disable the Scanner Core.',
     exitHint: 'Motel circuit offline: stand in the River Road breach.',
     rewardId: 'emp-burst',
     rewardName: 'EMP Burst',
@@ -43,7 +43,7 @@ export const REGION_GOALS: Record<string, RegionGoal> = {
     rewardId: 'ghost-protocol',
     rewardName: 'Ghost Protocol',
     rewardType: 'Scout upgrade',
-    rewardDescription: 'Detection builds slower after a Phase Shift.',
+    rewardDescription: 'Detection builds slower after a clean Boost surge.',
     completionBanner: 'RIVER ROAD TOWER DOWN',
   },
   'maze-z4': {
@@ -71,7 +71,7 @@ export const REGION_GOALS: Record<string, RegionGoal> = {
 };
 
 export const SYSTEM_CHECKLIST: Array<{ name: string; status: RegionGoalStatus; note: string }> = [
-  { name: 'True Phase Shift', status: 'implemented', note: 'SHIFT is now a short-range teleport with i-frames, start/end bursts and cooldown.' },
+  { name: 'Phase Boost', status: 'implemented', note: 'SHIFT/RB/touch Boost is now a held surge with boost energy, regeneration, i-frames and scanner crossing.' },
   { name: 'Signal Tubes', status: 'planned', note: 'Deferred until a later route needs fast conduit traversal.' },
   { name: 'Gravity Wells', status: 'partial', note: 'Playable introductory Orchard launch/raised-ridge interaction exists; deeper object/enemy redirection remains planned.' },
   { name: 'Phase Doors', status: 'planned', note: 'Tracked for future Phase Shift secrets and frequency gates.' },
@@ -80,7 +80,7 @@ export const SYSTEM_CHECKLIST: Array<{ name: string; status: RegionGoalStatus; n
   { name: 'Raised areas', status: 'partial', note: 'Orchard raised ridge is a controlled destination with safe spawn and HUD feedback.' },
   { name: 'Underground areas', status: 'planned', note: 'Tracked for future Scout shelters and signal pockets.' },
   { name: 'Region-specific puzzles', status: 'partial', note: 'Orchard has the first Gravity Well puzzle; other regions use combat/stealth identities.' },
-  { name: 'Stealth gameplay', status: 'partial', note: 'Motel scanner pressure and Phase Shift counterplay exist, but alert rules still need polish.' },
+  { name: 'Stealth gameplay', status: 'partial', note: 'Motel scanner pressure and Boost counterplay exist, but alert rules still need polish.' },
   { name: 'Weapon-specific secrets', status: 'partial', note: 'Town/Orchard cache hooks exist; bespoke weapon-only gates remain planned.' },
   { name: 'Weapon mutations', status: 'partial', note: 'Named region rewards are persisted; effects are intentionally light until the reward loop is expanded.' },
   { name: 'Major loot comparison/equip presentation', status: 'partial', note: 'Major rewards and weapon pickups show name/type/use; full compare/store/salvage is deferred.' },

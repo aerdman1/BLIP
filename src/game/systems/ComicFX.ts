@@ -1,5 +1,5 @@
 /**
- * ComicFX — comic/ink post-process filter for the MainMenu camera. Presets:
+ * ComicFX — comic/ink post-process filter for menu and gameplay cameras. Presets:
  *   comic      — posterize (cel bands) + THIN ink outline + grain
  *   sketch     — ink lines only over a paper tone (no color fill)
  *   crosshatch — cel + ink + diagonal hatch in shadow areas

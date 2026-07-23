@@ -22,7 +22,7 @@ export interface PadBinding {
 export const PAD_ACTIONS: { id: PadAction; label: string }[] = [
   { id: 'primary', label: 'Primary / Confirm' },
   { id: 'shoot', label: 'Fire Weapon' },
-  { id: 'dash', label: 'Phase Shift' },
+  { id: 'dash', label: 'Boost' },
   { id: 'scan', label: 'Sonar (Scan Pulse)' },
   { id: 'interact', label: 'Interact / Enter Node' },
   { id: 'echo', label: 'Echo Blink' },

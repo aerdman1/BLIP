@@ -21,7 +21,7 @@ export const THE_FIRST_CONTACT: QuestDef = {
   name: 'The First Contact',
   zone: 'miller-field',
   steps: [
-    { id: 'wake', objective: 'Reach the Miller Surface signal node.', hint: 'Move, aim, fire, dash, and scan from the same top-down controller.' },
+    { id: 'wake', objective: 'Reach the Miller Surface signal node.', hint: 'Move, aim, fire, hold Boost, and scan from the same top-down controller.' },
     { id: 'scanTutorial', objective: 'Scan the marked ground for buried Scout signal.', hint: 'Scan reveals caches, route hints, and hidden signal traces.' },
     { id: 'destroyDrones', objective: 'Clear the drones around the field node.', hint: 'Kills near the node charge it faster.' },
     { id: 'reachDoor', objective: 'Enter the open breach toward Motel Circuit.', hint: 'Your health, weapons, inventory, flags, and save progress carry forward.' },

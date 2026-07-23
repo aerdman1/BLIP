@@ -31,8 +31,8 @@ it preserves working regions, keeps state stable, and avoids a risky one-scene
 rewrite.
 
 The playable foundation is real: single save, Continue/New Game, pause Quit to
-Menu, shared player state across handoffs, three weapons, fast switching, Phase
-Shift, restrained trailing Phase Shift echoes, named region goals, hardened charge-plus-action route objectives, enemy
+Menu, shared player state across handoffs, three weapons, fast switching, Boost,
+an explicit BOOST meter, restrained trailing boost echoes, a capped fading cyan hover-fire ground trail, named region goals, hardened charge-plus-action route objectives, enemy
 roles, enemy pursuit/stuck-recovery hardening, HD visual scale decoupled from
 world-space hitboxes, safe marker resolution for authored spawns/exits, a first
 Gravity Well beat, schematic-first expanded layouts across all five route
@@ -41,7 +41,10 @@ authored field-event reward pockets with visible purpose-labeled markers, early
 weapon prototypes, optional ambush hooks, a first subtle discovered-area lighting
 read, a tightened pickup-label/equip-message path, a weapon feel pass across
 Pulse/Arc/Recall, Orchard Crop Circle gating through the
-Gravity Well/raised-ridge step, staged Signal Storm phase labels, generated map
+Gravity Well/raised-ridge step, two first-pass Miller Boost washout crossings,
+settings screen filters that apply to the active top-down world camera, additive
+environment-depth dressing with biome-specific ground wear, layered silhouettes,
+foreground framing and named-area identity dressing, staged Signal Storm phase labels, generated map
 schematics, AI Lab smoke harness and focused campaign evidence, HD top-down renderer, and the Tripo
 CONTACT-47 eight-facing sprite fallback pipeline.
 
@@ -53,7 +56,7 @@ mutations that need testing/polish, weak full-route AI completion evidence, and
 a finale that still needs a more authored climax. The latest automated sweep
 added stricter `qa:maps` structural checks plus `qa:route` runtime checks for HD
 rendering, objective copy, route-open guidance, pressure cleanup, Motel scanner
-identity/offline cleanup, Orchard Gravity Well gating and Signal Storm finale
+identity/offline cleanup, Ghost Check-In stealth-bonus gating, Orchard Gravity Well gating and Signal Storm finale
 copy. Latest public AI evidence is `first-three-route-regression-v8`: 6
 Miller→Motel→Town attempts, 6/6 completions, 0 deaths and 0 soft-lock-risk
 stalls after nearest-useful route-marker targeting, objective-marker stuck
@@ -150,7 +153,7 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 | Single canonical save | COMPLETE | `SaveSystem`, menu copy | Continue/New Game only, no slots | Save migration edge cases only | P0 | Save/load tests stay green |
 | Pause/Quit to Menu | COMPLETE | `ShellUI.confirmQuitToMenu()` | Warns return to autosave | No issue | P0 | E2E quit-to-menu test |
 | Dev region warps | COMPLETE | `ShellUI.devMode()` | Local/test/god warps work | Production hidden by design | P1 | Production default has no public warp buttons |
-| Desktop/controller/touch input | PARTIAL | `InputSystem`, `TouchInput`, `PadBindings`, E2E | Core mapping exists | Needs more touch/controller gameplay-specific tests | P1 | Add tests for Phase Shift, weapon switch, menu/pause on touch/controller |
+| Desktop/controller/touch input | PARTIAL | `InputSystem`, `TouchInput`, `PadBindings`, E2E | Core mapping exists; Boost is held across keyboard/controller/touch and has a smoke test | Needs more touch/controller gameplay-specific tests | P1 | Add tests for Boost, weapon switch, menu/pause on touch/controller |
 | Safe spawns/transitions | PARTIAL | arena spawn/breach markers, `nearestWalkableWorld()` | Main route transitions work in E2E; authored player/enemy/exit markers resolve to nearest walkable tile | Invalid spawn/soft-lock coverage is still shallow | P0 | Add invalid spawn and repeated-transition suite |
 | Performance/memory repeated transitions | MISSING | no long-run evidence | Basic build runs | No memory-leak campaign yet | P2 | Overnight transition loop with browser restarts |
 | More seamless geography | PLANNED | design docs | Separate scenes are retained | Needs better visual continuity/routes | P2 | Routes feel like roads/trails/gates, not level select |
@@ -175,9 +178,9 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 | Region scale/layout first pass | PARTIAL | `src/game/data/sweepArenas.ts`, `SWEEP_ROUTE_BEACONS`, `SWEEP_MOTEL_SCANNERS`, `SWEEP_GRAVITY_WELLS`, `MAP_SCHEMATICS.md`, `scripts/validate-map-data.mjs`, `tests/route-readiness.spec.ts` | All five route regions have schematic-first larger authored layouts, named-area purpose passes, data-driven helper coordinates, regenerated schematics, strict static map validation and runtime route-readiness coverage | Only subjective live feel review remains; first-route AI still needs tuning | P0 | Travel feel, cover placement and reward excitement feel good enough to tune encounters |
 | Map schematics | COMPLETE | `MAP_SCHEMATICS.md`, `docs/map-schematics/*.svg`, `scripts/generate-map-schematics.mjs` | Current arena data generates top-down planning SVGs plus coordinate notes for all five regions | Regenerate after coordinate changes | P0 | Future AI can inspect route layouts without rereading old prompts |
 | AI safety after layout pass | PARTIAL | `scripts/ai-player-campaign.mjs`, `tests/ai-player-lab.spec.ts`, `debugAiPerception()` | Personas use visible perception snapshots, labeled objective hints, visible field-event markers, scanners, enemies and pickups; behavior fights/evades visible threats before resuming objectives; campaign runner uses process-specific strict preview ports, per-run time budgets and objective-marker stuck recovery; reports include decision traces/stall samples; Orchard Gravity Well routing is fixed in focused samples; first-three focused sample is 6/6 | Broad overnight/full-route campaign still pending | P1 | Continue comparing same personas/seeds using visible perception only |
-| Miller Surface scale expansion | PARTIAL | `surface-z1`, `regionGoals.ts`, current route signs, `fieldEvents`, `weaponSpawns`, `MAP_SCHEMATICS.md` | Layout has Field Track, Willow Trail, Cache Grove, Old Mill Spur log/cache pocket, Substation Overlook power-shortcut beat, lower recovery lane shortcut, Scout Shelter pocket, early Arc/Disc prototypes and far-east Motel Breach | Needs manual travel-time/readability review and possible terrain-detail/cover adjustments | P0 | Main route and optional branches make sense, same actor/prop/camera scale, screenshots and travel-time comparison |
+| Miller Surface scale expansion | PARTIAL | `surface-z1`, `regionGoals.ts`, current route signs, `fieldEvents`, `weaponSpawns`, `boostGaps`, `MAP_SCHEMATICS.md` | Layout has Field Track, Willow Trail, Cache Grove, Old Mill Spur log/cache pocket, Substation Overlook power-shortcut beat, lower recovery lane shortcut, Scout Shelter pocket, early Arc/Disc prototypes, two optional red Boost washout crossings and far-east Motel Breach | Needs manual travel-time/readability review and possible terrain-detail/cover adjustments | P0 | Main route and optional branches make sense, same actor/prop/camera scale, screenshots and travel-time comparison |
 | Miller Surface gameplay | PARTIAL | `surface-z1`, `regionGoals.ts`, `fieldEvents`, `first-three-route-regression-v8` | Preserved layout, named Willow cache, early combat, gentler onboarding math, no early elite beam, authored optional rewards/ambushes; route arrows no longer pull back to skipped signs; focused first-three sample reaches Town 6/6 | Subjective travel/readability review remains | P0 | New-player can complete Miller and enter Motel |
-| Motel Circuit | PARTIAL | `SWEEP_MOTEL_SCANNERS`, expanded `circuit-z2`, `fieldEvents`, `MAP_SCHEMATICS.md`, `first-three-route-regression-v8` | Layout has scanner main route, optional Room Row stealth branch, Phase Shift-only Maintenance Pocket, Pool Courtyard crossing, Service Lot fallback loop, drainage shortcut, Motel Sign Ledge, early Safe Battery recovery, early Arc/Disc prototypes and Town breach. Ambiguous scanner/gate labels are removed; HUD says scanners offline instead of gate wording; active beams read red; open-route scanners disappear from perception/visual state | Needs stealth reward and live feel review | P0 | Personas use Phase Shift and reach Town legitimately |
+| Motel Circuit | PARTIAL | `SWEEP_MOTEL_SCANNERS`, expanded `circuit-z2`, `fieldEvents`, `MAP_SCHEMATICS.md`, `first-three-route-regression-v8`, `tests/route-readiness.spec.ts` | Layout has scanner main route, optional Room Row stealth branch, Boost-only Maintenance Pocket, Pool Courtyard crossing, Service Lot fallback loop, drainage shortcut, Motel Sign Ledge, early Safe Battery recovery, early Arc/Disc prototypes and Town breach. Ambiguous scanner/gate/circuit labels are removed; Scanner Core is the objective anchor; scanner endpoints use hardware sprites; HUD says scanners offline instead of gate wording; active beams read red; open-route scanners disappear from perception/visual state; all-scanners-offline/no-alert clears award Ghost Check-In | Needs live stealth feel review and broader route regression | P0 | Personas use Boost and reach Town legitimately |
 | Chagrin Falls Town | PARTIAL | expanded `town-z3`, stadium biome, `fieldEvents`, `weaponSpawns`, `MAP_SCHEMATICS.md` | Layout has Main Street, Neighborhood Block/Market Alley upper route, Bridge Overlook sniper/cache beat, River Walk lower shortcut, River Road Tower objective, Stadium Road recovery space, stadium back alley, early Arc/Disc prototypes and Orchard Gate | Needs dedicated Chagrin Falls asset identity and live cover/readability review | P1 | Two readable approaches and cover combat are obvious |
 | Patterson's Orchard | PARTIAL | `SWEEP_GRAVITY_WELLS`, expanded `maze-z4`, `fieldEvents`, `MAP_SCHEMATICS.md`, `orchard-ai-gravity-priority-v1` | Layout has tractor lane, Lower Creek secret puzzle pocket, required Gravity Well launch, Raised Ridge reward/switch step, West Rows Recall lane, East Rows pressure lane, Scout Shelter loop, storm-fence shortcut and Crop Circle gate. Focused AI now completes Orchard 6/6 with no soft locks/deaths | Gravity Well object/enemy/projectile redirection is still deferred; dormant Maze Heart boss gate is cut from the current route so Orchard stays traversal-focused | P1 | Gravity Well puzzle has purpose, reward, reset safety |
 | Signal Storm | PARTIAL | expanded `anomaly-01` waves, Storm Classifier copy, `fieldEvents`, `MAP_SCHEMATICS.md` | Finale arena has entry recovery lane, Classifier Core phase-one objective, West/East Relay Wing phase-two targets, North Rift phase-three anchor, coil pockets, pressure pockets, recovery pockets, field rewards and named phase banners | Needs authored boss behavior/presentation | P1 | Finale feels distinct from normal waves and completes slice clearly |
@@ -191,6 +194,7 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 | Lower paths/ravines/underground | PLANNED | design docs | None required now | Not implemented | P3 | Add only when route needs depth |
 | Hidden Scout shelters | PLANNED | Scouts/rewards/docs | Scout lore exists | No authored shelters | P2 | One optional shelter later in slice if useful |
 | Purposeful structures / landmarks | PARTIAL | `TdTerrain.placeLandmarks()`, authored field events | Random flat walk-through landmarks no longer spawn in central route spaces; decorative landmarks are edge-biased, while important objects should be authored | Existing authored set pieces still need manual readability/collision review | P1 | Every visible central structure is clearly decorative, interactive, blocked, or tied to a reward/objective |
+| Boost washout crossings | PARTIAL | `boostGaps`, `SweepScene.buildBoostGaps()`, `tests/smoke.spec.ts`, `MAP_SCHEMATICS.md` | Miller has two red corrupted cracked gaps that block walking and allow held-Boost crossing; schematics mark them | Needs live readability/timing review before copying to other regions | P1 | Cracks look dangerous, branch naturally, and never hard-block the main route |
 | Alternate-plane spectacle | PLANNED | story/docs | Signal Storm hints at it | Not implemented | P3 | Save for later full-game expansion |
 | Full 3D physics | CUT / NO LONGER APPLICABLE | guardrails | Not needed | Would derail 2.5D design | CUT | Continue controlled layers/depth sorting |
 
@@ -226,13 +230,14 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 | Store/salvage | DEFERRED | docs | Duplicate dust exists | Full inventory not needed now | P3 | Decide later |
 | AI ignored reward tracking | PARTIAL | AI JSON loot fields | Loot seen/ignored counted | Current evidence is short and route-biased | P1 | Overnight report ranks ignored rewards |
 
-### 8. Phase Shift
+### 8. Phase Boost
 
 | Item | Status | Evidence | Works | Missing / Risk | Priority | Acceptance / Tests |
 |---|---|---|---|---|---|---|
-| True short-range teleport | COMPLETE | `BlipCraft.move()`, `EffectsSystem.afterimage()` | Instant blink, i-frames, bursts, cooldown, smaller behind-the-player visual echo | Destination collision validation could improve | P0 | Phase Shift cannot put player in walls or cover the player with a full-size ghost |
+| Held boost movement | COMPLETE | `BlipCraft.move()`, `InputSystem`, `TouchInput`, `UIScene`, `tests/smoke.spec.ts` | Hold SHIFT/RB/touch Boost to surge, drain the boost meter, regenerate after release, leave restrained echoes and get brief i-frames. Top-down HUD now shows explicit BOOST full/empty feedback | Needs live tuning for speed/drain/regen feel | P0 | Boost drains, moves faster, regenerates and does not cover the player with huge ghost art |
+| Hover-fire ground trail | COMPLETE | `SweepScene.updateHoverTrail()`, `tests/smoke.spec.ts` | Moving CONTACT-47 stamps a capped, fading cyan ground residue so recent travel path is visible | Needs manual visual taste review for brightness/duration | P1 | Trail shows where the player has been without obscuring combat |
 | Keyboard/controller/touch input | PARTIAL | `InputSystem`, touch button, pad binding | Inputs exist | Dedicated tests incomplete | P1 | Input tests for all modes |
-| Scanner interaction | PARTIAL | Motel scanner code, `SWEEP_MOTEL_SCANNERS`, `tests/route-readiness.spec.ts` | Phase Shift through a beam disables scanner/charges objective. Labels explicitly end in SCANNER; active beams are red hazards; disabled scanners hide after the route opens so they do not look like random props | Tutorial/safe-zone rules and stealth reward still shallow | P0 | Player/AI uses Shift in Motel |
+| Scanner interaction | PARTIAL | Motel scanner code, `SWEEP_MOTEL_SCANNERS`, `tests/route-readiness.spec.ts` | Holding Boost through a beam disables scanner/charges objective. Labels explicitly end in SCANNER; endpoints use scanner hardware sprites; active beams are red hazards; disabled scanners hide after the route opens so they do not look like random props. Ghost Check-In rewards all-scanners-offline/no-alert clears and debug route-open cannot trigger it | Tutorial/safe-zone presentation is still shallow | P0 | Player/AI uses Boost in Motel |
 | Projectile/barrier/secret interactions | PLANNED | docs | Projectile phasing partly via i-frames | No phase doors/barrier secrets | P2 | Phase door/secret later |
 | Weapon follow-up interactions | PLANNED | docs | Phase-strike skin hook exists | Not a general weapon system | P2 | Weapon-specific follow-up pass |
 
@@ -301,7 +306,7 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 |---|---|---|---|---|---|---|
 | Mature tone target | COMPLETE | `TONE_PASS_NOTES.md`, Command Center art direction | Direction documented | Must remain enforced | P1 | No cute/toy drift in new work |
 | Combat force | PARTIAL | mechanical rupture, scorch, stronger hit pressure | Sparks/scorch/shake improved | Weapon-specific impact polish remains | P2 | Hits feel forceful without clutter |
-| Atmosphere/environment damage | PARTIAL | HD biomes, fog, shadows | Some darker mood exists | Need damaged buildings/vehicles/emergency cues | P2 | Tone pass per region |
+| Atmosphere/environment damage | PARTIAL | HD biomes, fog, shadows, `TdTerrain.buildGroundDepth()`, `SweepScene.decorateNamedArea()` | Biome-specific ground wear, cracks, grates, row marks, edge silhouettes, foreground framing and named-area dressing are live without changing routes/collision | Needs manual visual taste pass, stronger damaged buildings/vehicles/emergency cues and dedicated town asset pack | P2 | Tone pass per region |
 | Optional blood setting | DEFERRED | prompt only | Not needed for mechanical enemies | Organic enemies not current focus | P3 | Decide only if organic enemies arrive |
 
 ### 16. UI and Notification System
@@ -320,6 +325,7 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 | Main/pause menu cleanup | COMPLETE | menu has Continue/New Game; pause Quit | Reset Save removed from in-game menu | None known | P0 | Smoke test |
 | Region labels | COMPLETE | `UIScene` | Area name at top HUD | None known | P0 | Region names match routes |
 | Phase cooldown/mutation HUD | PARTIAL | core HUD exists | Weapon visible | Mutation/cooldown clarity weak | P1 | Cooldowns/upgrades visible enough |
+| Screen filters | COMPLETE | `Settings.ts`, `ScreenFilter.ts`, `ShellUI.ts`, `SweepScene.ts`, `tests/smoke.spec.ts` | Filter dropdown now affects the title and active top-down world camera; saved 0-100 intensity slider updates live; gameplay strength is capped for readability; None clears the pipeline | Canvas renderer fallback no-ops shader filters by design | P1 | Smoke verifies filter pipeline and intensity changes in SweepScene |
 | Accessibility settings | PARTIAL | audio/shake/settings exist | Core settings work | Blood toggle N/A; aim assist/readability sparse | P2 | Add only when feature exists |
 | Production test warps | NEEDS DECISION | hidden by current dev gate | Default hidden is correct | Tester-mode option undecided | P2 | Decide if a production QA URL should expose warps |
 
@@ -339,6 +345,7 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 |---|---|---|---|---|---|---|
 | HD top-down region assets | PARTIAL | `public/assets/topdown` | z1/z2/z4 packs exist, town uses hard-edge HD vocabulary | Dedicated town pack missing | P1 | No pixelated fallback maps in route |
 | Dedicated Chagrin Falls pack | PLANNED | docs | Need recognized town identity | Not built | P2 | Town landmarks/streets read immediately |
+| Environment-depth dressing | PARTIAL | `src/game/topdown/TdTerrain.ts`, `src/game/scenes/SweepScene.ts` | Shared HD renderer adds region-specific ground wear, medium/tall edge silhouettes, foreground framing and local dressing around route-beacon names so signs better match their areas | Manual camera-distance review still needed; future art pack should replace procedural dressing where it matters | P1 | Every named area has visible local identity without blocking gameplay readability |
 | Enemy/boss/hazard assets | PARTIAL | procedural/bestiary data | Current enemies render | Replacement art roadmap not complete | P2 | Important enemies not placeholder-looking |
 | Traversal device assets | PLANNED | Gravity Well procedural | Well exists | Tubes/doors/rails/contraptions missing | P3 | Add with mechanics |
 | Transparent PNG pipeline | COMPLETE | character PNG assets | Tripo output is transparent | Maintain asset checks | P1 | No checkerboard backgrounds |
@@ -429,10 +436,17 @@ a strong demo. Do not jump to later full-game systems until these are stable.
   design evidence, not deploy pass/fail.
 - World connection: the world is route-connected through separate scenes, not a
   seamless open map. This remains the safest architecture.
-- Phase Shift: SHIFT is now Phase Shift, not Phase Drift. Old "dash" language
-  remains only for internal input/config ids. Player-facing copy should say
-  Phase Shift, and the visual should be a restrained trail behind CONTACT-47,
-  not a large tinted duplicate over the actor.
+- Boost: SHIFT/RB/touch Boost is now held movement with a draining/regenerating
+  meter, not the old tap blink. Old "dash" language remains only for internal
+  input/config ids. Player-facing copy should say Boost or Phase Boost, and
+  the visual should be a restrained trail behind CONTACT-47, not a large
+  tinted duplicate over the actor.
+- Boost gaps: Miller has the first red corrupted cracked washout crossings as a
+  live traversal trial. They are not yet global level requirements and should be
+  reviewed manually before copying to Motel/Town/Orchard/Signal Storm.
+- Screen filters: the settings filters are active for the title and top-down
+  world camera, with a saved 0-100 intensity slider. Gameplay filters are capped
+  by `FILTER_GAME_STRENGTH`; DOM HUD/menu overlays stay readable.
 - Chagrin Falls Town: it is HD-rendered, but does not yet have a dedicated
   Chagrin Falls asset pack. It reuses current HD town/lot vocabulary.
 - Rewards: named region rewards exist and persist, but the broader mutation and

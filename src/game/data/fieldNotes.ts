@@ -40,8 +40,8 @@ export const FIELD_NOTES: FieldNoteDef[] = [
     id: 'danny-dare',
     scoutId: 'danny',
     title: "Danny's route mark",
-    body: '“The red light reads slow after a dash. I crossed the lot in four cuts. The drainpipe route still works if you do not freeze.”',
-    hint: 'Dash i-frames slip you clean through the security cones.',
+    body: '“The red light reads slow when the boost trail burns hot. I crossed the lot in one long surge. The drainpipe route still works if you do not freeze.”',
+    hint: 'Hold Boost to slip clean through scanner pressure.',
   },
 ];
 

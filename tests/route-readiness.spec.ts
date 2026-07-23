@@ -53,16 +53,38 @@ test.describe('route readiness automation', () => {
     });
   }
 
-  test('Motel starts as the stealth/Phase Shift region', async ({ page }) => {
+  test('Motel starts as the stealth/Boost region', async ({ page }) => {
     await bootToMenu(page);
     await api(page, `api.enterSweep('circuit-z2')`);
     const perception = await api<any>(page, 'api.getAiPerception()');
     expect(perception.objective.title).toMatch(/scanner/i);
-    expect(perception.objective.hint).toMatch(/Phase Shift/i);
+    expect(perception.objective.hint).toMatch(/Boost/i);
     expect(perception.visible.scanners.length).toBeGreaterThan(0);
+    expect(perception.visible.scanners.every((scanner: { label: string }) => /SCANNER$/.test(scanner.label))).toBe(true);
+    expect(perception.visible.scanners.map((scanner: { label: string }) => scanner.label).join(' ')).not.toMatch(/gate|motel circuit/i);
+    expect(perception.objectiveHint.label).not.toMatch(/gate|motel circuit/i);
     expect(await api<number>(page, 'api.getSweepRuntimeState().motelScanners.total')).toBeGreaterThanOrEqual(5);
     await expect(page.locator('.td-objective-sub')).toContainText(/Scanners offline/i);
     await expect(page.locator('.td-objective-sub')).not.toContainText(/gate/i);
+  });
+
+  test('Motel stealth bonus requires all scanners offline without alert', async ({ page }) => {
+    await bootToMenu(page);
+    await api(page, `api.enterSweep('circuit-z2')`);
+    expect(await api(page, 'api.openRouteForInspection()')).toBe(true);
+    expect(await api<boolean>(page, `api.getSaveData().rewards.awarded.includes('motel:ghost-checkin-bonus')`)).toBe(false);
+
+    await bootToMenu(page);
+    await api(page, `api.enterSweep('circuit-z2')`);
+    expect(await api(page, 'api.disableMotelScannersForInspection()')).toBe(true);
+    const disabled = await api<any>(page, 'api.getSweepRuntimeState()');
+    expect(disabled.motelAlerts).toBe(0);
+    expect(disabled.motelScanners.disabled).toBe(disabled.motelScanners.total);
+
+    expect(await api(page, 'api.openRouteForInspection()')).toBe(true);
+    const save = await api<any>(page, 'api.getSaveData()');
+    expect(save.rewards.awarded).toContain('motel:ghost-checkin-bonus');
+    expect(save.shards).toBeGreaterThanOrEqual(25);
   });
 
   test('Orchard requires Gravity Well before the Crop Circle route', async ({ page }) => {

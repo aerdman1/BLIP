@@ -120,7 +120,7 @@
 <circle cx="709.5" cy="565.5" r="5" fill="#ff5d73" /><text x="716.5" y="558.5" font-size="10" fill="#e8f5de" font-family="monospace">TAGGER</text>
   <text x="1062" y="26" font-size="14" fill="#9dff57" font-family="monospace" font-weight="700">Schematic Notes</text>
   <text x="1062" y="47" font-size="10" fill="#f5efe0" font-family="monospace">Orchard is now a traversal/puzzle graph with Gravity Well gate, raised ridge, lower creek secret, Scout shelter loop, pump-station return and storm-ridge exit.</text>
-  <text x="1062" y="75" font-size="11" fill="#f5efe0" font-family="monospace">Legend: white spawn · green objective/sign · cyan exit · yellow cache · red enemy · purple weapon · red line scanner · teal gravity</text>
+  <text x="1062" y="75" font-size="11" fill="#f5efe0" font-family="monospace">Legend: white spawn · green objective/sign · cyan exit · yellow cache · red enemy/scanner · purple weapon · red dashed boost gap · teal gravity</text>
   <text x="1062" y="106" font-size="12" fill="#e8f5de" font-family="monospace" font-weight="700">Orchard Entry (10,51)</text>
 <text x="1062" y="122" font-size="10" fill="#f5efe0" font-family="monospace">Spawn from Town on the tractor lane.</text>
 <text x="1062" y="149" font-size="12" fill="#e8f5de" font-family="monospace" font-weight="700">West Rows (12,29)</text>

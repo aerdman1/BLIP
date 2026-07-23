@@ -1,5 +1,5 @@
 /**
- * GradeFX — parametric tone / color-grade post-process for the MainMenu camera.
+ * GradeFX — parametric tone / color-grade post-process for menu and gameplay cameras.
  * One shader backs many filters via presets (GRADE_PRESETS in config.ts):
  * Noir, Sepia (duotone), Moonlight, Warm Dusk, Cool, Vintage (tint), Negative.
  * WebGL only.

@@ -24,7 +24,7 @@ export function createGame(parent: string | HTMLElement): Phaser.Game {
     backgroundColor: '#071126',
     pixelArt: true,
     roundPixels: true,
-    // registered globally; applied only to the MainMenu camera. Cast bridges
+    // registered globally; applied by ScreenFilter to menu/gameplay cameras. Cast bridges
     // Phaser's PipelineConfig type (assumes a `(config)` ctor) vs. PostFX
     // pipelines' conventional `(game)` ctor.
     pipeline: { ComicFX, GradeFX, RetroFX, HalftoneFX, SignalFX } as unknown as Phaser.Types.Core.PipelineConfig,

@@ -63,7 +63,15 @@
 <rect x="429" y="527" width="176" height="66" fill="#2f564b" opacity="0.92" rx="2" />
 <rect x="803" y="472" width="110" height="88" fill="#2f564b" opacity="0.92" rx="2" />
 <rect x="704" y="362" width="88" height="55" fill="#2f564b" opacity="0.92" rx="2" />
-  <circle cx="137.5" cy="510.5" r="5" fill="#ffffff" /><text x="144.5" y="503.5" font-size="10" fill="#e8f5de" font-family="monospace">SPAWN</text>
+  <rect x="572" y="527" width="55" height="44" fill="#ff4d5e" opacity="0.16" stroke="#ff4d5e" stroke-width="2" stroke-dasharray="5 4" />
+<path d="M 597.5 527 L 604.5 536.68 L 595.5 548.12 L 603.5 558.68 L 596.5 571" fill="none" stroke="#ff4d5e" stroke-width="3" opacity="0.9" />
+<path d="M 599.5 549 L 580.8 541.08 M 599.5 549 L 616 557.8" fill="none" stroke="#ffb15a" stroke-width="2" opacity="0.82" />
+<text x="607.5" y="541" font-size="10" fill="#ff4d5e" font-family="monospace">BOOST WASHOUT</text>
+<rect x="132" y="252" width="55" height="33" fill="#ff4d5e" opacity="0.16" stroke="#ff4d5e" stroke-width="2" stroke-dasharray="5 4" />
+<path d="M 132 266.5 L 144.1 272.5 L 158.4 263.5 L 171.6 271.5 L 187 266.5" fill="none" stroke="#ff4d5e" stroke-width="3" opacity="0.9" />
+<path d="M 159.5 268.5 L 149.6 257.28 M 159.5 268.5 L 170.5 278.4" fill="none" stroke="#ffb15a" stroke-width="2" opacity="0.82" />
+<text x="167.5" y="260.5" font-size="10" fill="#ff4d5e" font-family="monospace">OLD MILL CRACK</text>
+<circle cx="137.5" cy="510.5" r="5" fill="#ffffff" /><text x="144.5" y="503.5" font-size="10" fill="#e8f5de" font-family="monospace">SPAWN</text>
 <rect x="451.5" y="340.5" width="10" height="10" fill="#9dff57" transform="rotate(45 456.5 345.5)" /><text x="463.5" y="338.5" font-size="10" fill="#e8f5de" font-family="monospace">OBJECTIVE</text>
 <rect x="858.5" y="285.5" width="10" height="10" fill="#67d8ff" transform="rotate(45 863.5 290.5)" /><text x="870.5" y="283.5" font-size="10" fill="#e8f5de" font-family="monospace">EXIT</text>
 <circle cx="115.5" cy="180.5" r="5" fill="#ffd166" /><text x="122.5" y="173.5" font-size="10" fill="#e8f5de" font-family="monospace">CACHE 1</text>
@@ -96,7 +104,7 @@
 <circle cx="753.5" cy="389.5" r="5" fill="#ff5d73" /><text x="760.5" y="382.5" font-size="10" fill="#e8f5de" font-family="monospace">WEAVER</text>
   <text x="996" y="26" font-size="14" fill="#9dff57" font-family="monospace" font-weight="700">Schematic Notes</text>
   <text x="996" y="47" font-size="10" fill="#f5efe0" font-family="monospace">Miller is the schematic template: readable main road, objective grove, optional old-mill/substation/shelter branches, power-gate shortcut, and one far-east Motel breach.</text>
-  <text x="996" y="75" font-size="11" fill="#f5efe0" font-family="monospace">Legend: white spawn · green objective/sign · cyan exit · yellow cache · red enemy · purple weapon · red line scanner · teal gravity</text>
+  <text x="996" y="75" font-size="11" fill="#f5efe0" font-family="monospace">Legend: white spawn · green objective/sign · cyan exit · yellow cache · red enemy/scanner · purple weapon · red dashed boost gap · teal gravity</text>
   <text x="996" y="106" font-size="12" fill="#e8f5de" font-family="monospace" font-weight="700">Spawn Clearing (10,41)</text>
 <text x="996" y="122" font-size="10" fill="#f5efe0" font-family="monospace">Start point, low-pressure read of the field.</text>
 <text x="996" y="149" font-size="12" fill="#e8f5de" font-family="monospace" font-weight="700">Field Track (21,41)</text>
@@ -115,8 +123,12 @@
 <text x="996" y="423" font-size="10" fill="#f5efe0" font-family="monospace">Main route after the objective opens.</text>
 <text x="996" y="450" font-size="12" fill="#e8f5de" font-family="monospace" font-weight="700">Motel Bend (67,37)</text>
 <text x="996" y="466" font-size="10" fill="#f5efe0" font-family="monospace">Lower route / recovery lane toward Motel.</text>
-<text x="996" y="493" font-size="12" fill="#e8f5de" font-family="monospace" font-weight="700">Scout Shelter Pocket (76,42)</text>
-<text x="996" y="509" font-size="10" fill="#f5efe0" font-family="monospace">Best optional cache/reward pocket in Miller.</text>
-<text x="996" y="536" font-size="12" fill="#e8f5de" font-family="monospace" font-weight="700">Motel Breach (76,21)</text>
-<text x="996" y="552" font-size="10" fill="#f5efe0" font-family="monospace">Only actual transition into Motel Circuit.</text>
+<text x="996" y="493" font-size="12" fill="#e8f5de" font-family="monospace" font-weight="700">Lower-Lane Washout (52,45)</text>
+<text x="996" y="509" font-size="10" fill="#f5efe0" font-family="monospace">First Boost-only cracked crossing on the lower shortcut lane.</text>
+<text x="996" y="536" font-size="12" fill="#e8f5de" font-family="monospace" font-weight="700">Scout Shelter Pocket (76,42)</text>
+<text x="996" y="552" font-size="10" fill="#f5efe0" font-family="monospace">Best optional cache/reward pocket in Miller.</text>
+<text x="996" y="579" font-size="12" fill="#e8f5de" font-family="monospace" font-weight="700">Old Mill Crack (12,19)</text>
+<text x="996" y="595" font-size="10" fill="#f5efe0" font-family="monospace">Optional Boost crossing on the hidden old-mill spur.</text>
+<text x="996" y="622" font-size="12" fill="#e8f5de" font-family="monospace" font-weight="700">Motel Breach (76,21)</text>
+<text x="996" y="638" font-size="10" fill="#f5efe0" font-family="monospace">Only actual transition into Motel Circuit.</text>
 </svg>

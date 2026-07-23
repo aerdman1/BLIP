@@ -17,6 +17,7 @@ export interface TouchInputState {
   aimY: number;
   primaryHeld: boolean; // primary touch action
   shootHeld: boolean; // hold to auto-fire
+  dashHeld: boolean; // hold to boost
   // one-shot edges (set by overlay, cleared by PlayerInput.update)
   primaryQueued: boolean;
   dashQueued: boolean;
@@ -35,6 +36,7 @@ export const touchInput: TouchInputState = {
   aimY: 0,
   primaryHeld: false,
   shootHeld: false,
+  dashHeld: false,
   primaryQueued: false,
   dashQueued: false,
   scanQueued: false,
@@ -52,6 +54,7 @@ export function resetTouchInput(): void {
   touchInput.aimY = 0;
   touchInput.primaryHeld = false;
   touchInput.shootHeld = false;
+  touchInput.dashHeld = false;
   touchInput.primaryQueued = false;
   touchInput.dashQueued = false;
   touchInput.scanQueued = false;

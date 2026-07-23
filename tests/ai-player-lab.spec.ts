@@ -281,7 +281,7 @@ async function runPersona(page: Page, persona: Persona, seed: number): Promise<R
         aimX: aim.x,
         aimY: aim.y,
         fire,
-        dashQueued,
+        dashHeld: dashQueued,
         scanQueued,
         interactQueued,
         weaponNextQueued,

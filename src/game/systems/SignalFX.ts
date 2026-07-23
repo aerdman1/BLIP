@@ -1,5 +1,5 @@
 /**
- * SignalFX — sci-fi / "signal" post-process for the MainMenu camera (on-brand
+ * SignalFX — sci-fi / "signal" post-process for menu and gameplay cameras (on-brand
  * for a radar game). Presets (SIGNAL_PRESETS in config.ts): Night-Vision,
  * Thermal, Hologram, Interference. Uses uTime for the animated modes (frozen
  * under the preview's paused loop; animates on the user's machine). WebGL only.

@@ -949,8 +949,12 @@ export class ShellUI {
           <div class="toggle" id="setting-crt" role="switch" tabindex="0"><i></i></div>
         </div>
         <div class="settings-row">
-          <div class="row-label">SCREEN FILTER<span class="row-sub">stylize the title screen — more coming</span></div>
+          <div class="row-label">SCREEN FILTER<span class="row-sub">stylize the title and top-down world</span></div>
           <select class="filter-select" id="setting-filter"></select>
+        </div>
+        <div class="settings-row">
+          <div class="row-label">FILTER INTENSITY<span class="row-sub" id="filter-intensity-readout"></span></div>
+          <input type="range" class="vol" id="setting-filter-intensity" min="0" max="100" step="5" />
         </div>
         <div class="settings-row">
           <div class="row-label">SCREEN SHAKE<span class="row-sub">impacts, explosions, boss slams</span></div>
@@ -970,7 +974,7 @@ export class ShellUI {
         <table class="settings-table">
           <tr><th>ACTION</th><th>KEYBOARD / MOUSE</th><th>XBOX · PLAYSTATION</th></tr>
           <tr><td>Move</td><td class="key">WASD · ARROWS</td><td class="pad">Left stick · D-pad</td></tr>
-          <tr><td>Dash</td><td class="key">SHIFT</td><td class="pad">RB / LB · R1 / L1</td></tr>
+          <tr><td>Boost</td><td class="key">hold SHIFT</td><td class="pad">hold RB / LB · R1 / L1</td></tr>
           <tr><td>Fire</td><td class="key">X · LEFT CLICK</td><td class="pad">X / RT · ▢ / R2</td></tr>
           <tr><td>Switch Weapon</td><td class="key">1 / 2 / 3 · R</td><td class="pad">L-stick / R-stick click</td></tr>
           <tr><td>Scan Pulse</td><td class="key">RIGHT CLICK · Q</td><td class="pad">Y / LT · △ / L2</td></tr>
@@ -1053,7 +1057,7 @@ export class ShellUI {
     wireToggle('setting-crt', 'crt');
     wireToggle('setting-shake', 'shake');
 
-    // screen-filter dropdown (post-fx on the title camera; extend FILTERS to add more)
+    // screen-filter dropdown (post-fx on menu/gameplay cameras; extend FILTERS to add more)
     const filterSel = $('setting-filter') as unknown as HTMLSelectElement;
     let filterHtml = '';
     let curGroup = '__root__';
@@ -1075,6 +1079,20 @@ export class ShellUI {
       audio.uiToggle();
     });
 
+    const filterIntensity = $('setting-filter-intensity') as unknown as HTMLInputElement;
+    const syncFilterIntensity = () => {
+      const v = Math.round(settings.get('filterIntensity') * 100);
+      filterIntensity.value = String(v);
+      filterIntensity.style.setProperty('--fill', `${v}%`);
+      $('filter-intensity-readout').textContent = `${v}%`;
+    };
+    filterIntensity.addEventListener('input', () => {
+      audio.unlock();
+      settings.set('filterIntensity', Number(filterIntensity.value) / 100);
+      syncFilterIntensity();
+      audio.uiToggle();
+    });
+
     // on-screen touch controls mode (auto / on / off)
     const touchSel = $('setting-touch') as unknown as HTMLSelectElement;
     touchSel.value = settings.get('touchControls');
@@ -1085,6 +1103,7 @@ export class ShellUI {
     });
     syncVol();
     syncMusicVol();
+    syncFilterIntensity();
 
     // "Get Latest" — nuke any service worker + Cache Storage, then hard-reload so
     // the newest deploy is fetched fresh. A manual escape hatch from stale PWAs.
@@ -1415,7 +1434,7 @@ export class ShellUI {
           <button data-act="fly" id="dev-fly">Fly Mode: OFF</button>
           <button data-act="reset" class="danger">Clear Local Save</button>
         </div>
-        <div class="dev-hint">Top-down only: <b>WASD</b> move · mouse/right stick aim · <b>X/click</b> fires · <b>Q</b> scans · <b>SHIFT</b> Phase Shifts · <b>G</b> toggles god mode.</div>
+        <div class="dev-hint">Top-down only: <b>WASD</b> move · mouse/right stick aim · <b>X/click</b> fires · <b>Q</b> scans · hold <b>SHIFT</b> boosts · <b>G</b> toggles god mode.</div>
         <div class="dev-status" id="dev-status"></div>
       </div>`;
     document.body.appendChild(el);

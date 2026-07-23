@@ -5,6 +5,7 @@ export interface VirtualInputState {
   aimX: number;
   aimY: number;
   fire: boolean;
+  dashHeld: boolean;
   dashQueued: boolean;
   scanQueued: boolean;
   interactQueued: boolean;
@@ -19,6 +20,7 @@ export const virtualInput: VirtualInputState = {
   aimX: 1,
   aimY: 0,
   fire: false,
+  dashHeld: false,
   dashQueued: false,
   scanQueued: false,
   interactQueued: false,
@@ -33,6 +35,7 @@ export function driveVirtualInput(next: Partial<VirtualInputState>): void {
   virtualInput.aimX = next.aimX ?? virtualInput.aimX;
   virtualInput.aimY = next.aimY ?? virtualInput.aimY;
   virtualInput.fire = next.fire ?? false;
+  virtualInput.dashHeld = next.dashHeld ?? false;
   if (next.dashQueued) virtualInput.dashQueued = true;
   if (next.scanQueued) virtualInput.scanQueued = true;
   if (next.interactQueued) virtualInput.interactQueued = true;
@@ -47,6 +50,7 @@ export function resetVirtualInput(): void {
   virtualInput.aimX = 1;
   virtualInput.aimY = 0;
   virtualInput.fire = false;
+  virtualInput.dashHeld = false;
   virtualInput.dashQueued = false;
   virtualInput.scanQueued = false;
   virtualInput.interactQueued = false;

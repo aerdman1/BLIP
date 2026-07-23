@@ -1,5 +1,5 @@
 /**
- * RetroFX — parametric retro/pixel post-process for the MainMenu camera.
+ * RetroFX — parametric retro/pixel post-process for menu and gameplay cameras.
  * Presets (RETRO_PRESETS in config.ts): Game Boy (4-tone green ramp + Bayer
  * dither), 1-Bit Dither, Lo-Fi (per-channel palette crush), CRT Scanline.
  * WebGL only.

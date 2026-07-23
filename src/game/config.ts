@@ -185,10 +185,10 @@ export const PALETTE = {
 /** how many Signal Fragments exist across the playable campaign (HUD "0 / 5") */
 export const FRAGMENT_TOTAL = 5;
 
-/* --------------------- screen filters (title screen only) ------------------ */
-/** Post-process "screen filters" on the MainMenu camera. Add an entry here (+ a
- *  group for the dropdown), then map its id -> {pipeline, preset} in
- *  MainMenuScene's FILTER_FX. Per-filter tuning lives in the *_PRESETS tables. */
+/* ----------------------------- screen filters ------------------------------ */
+/** Post-process "screen filters" for the title and top-down world cameras. Add
+ *  an entry here (+ a group for the dropdown), then map its id -> {pipeline,
+ *  preset} in ScreenFilter.ts. Per-filter tuning lives in the *_PRESETS tables. */
 export const FILTERS = [
   { id: 'none', label: 'None', group: '' },
   // Comic / Ink
@@ -703,12 +703,21 @@ export const SWEEP = {
   cameraZoom: 0.82, // pulled-back top-down view: see more arena, still readable
   touchCameraZoom: 0.72, // phones/tablets need more tactical context around controls
   maxHp: 5,
-  moveSpeed: 118, // top-down roam speed (clamped; dash exceeds it)
+  moveSpeed: 118, // top-down roam speed (clamped; boost exceeds it)
   accel: 1600,
   drag: 1400,
-  dashMs: 180,
+  dashMs: 180, // legacy tuning name retained for old upgrade hooks; active movement uses hold-to-boost below
   dashSpeed: 300,
   dashCooldownMs: 700,
+  boostEnergyMax: 100,
+  boostSpeed: 236,
+  boostAccel: 2600,
+  boostDrainPerSec: 58,
+  boostRegenPerSec: 34,
+  boostRegenDelayMs: 380,
+  boostMinStart: 8,
+  boostIFrameRefreshMs: 90,
+  boostAfterimageMs: 68,
   invulnMs: 520,
   knockback: 150,
   fireCooldownMs: 200, // auto-aim cadence

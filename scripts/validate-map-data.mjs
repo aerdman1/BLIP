@@ -219,6 +219,19 @@ function checkLabelCrowding(arena, phaseName, routeSigns) {
   }
 }
 
+function checkPurposefulRouteLabels(arena) {
+  const signs = [...(routeBeacons[arena.id]?.toObjective ?? []), ...(routeBeacons[arena.id]?.toExit ?? [])];
+  const ambiguous = /\b(?:CIRCUIT GATE|SCANNER GATE|GATE DOWN|MOTEL CIRCUIT)\b/i;
+  for (const sign of signs) {
+    if (ambiguous.test(sign.label)) {
+      errors.push(`${arena.id}: ambiguous route sign "${sign.label}" reads like a random device instead of a place, hazard or route`);
+    }
+    if (sign.label.length > 18) {
+      errors.push(`${arena.id}: route sign "${sign.label}" is too long for the in-world sign format`);
+    }
+  }
+}
+
 for (const arena of Object.values(arenas)) {
   const walk = buildWalkable(arena);
   checkMarker(arena, walk, 'spawn', arena.spawn);
@@ -233,9 +246,24 @@ for (const arena of Object.values(arenas)) {
     checkMarker(arena, walk, `fieldEvent[${i}] ${event.id}`, event);
     for (const [j, spawn] of (event.spawns ?? []).entries()) checkMarker(arena, walk, `fieldEvent[${i}] spawn[${j}] ${spawn.type}`, spawn);
   }
+  for (const [i, gap] of (arena.boostGaps ?? []).entries()) {
+    if (!gap.id || !gap.label) errors.push(`${arena.id}: boostGap[${i}] missing id or label`);
+    if (gap.w < 2 || gap.h < 2) errors.push(`${arena.id}: boostGap[${i}] ${gap.id} too small to read as a traversal gap`);
+    const corners = [
+      { tx: gap.x, ty: gap.y },
+      { tx: gap.x + gap.w - 1, ty: gap.y },
+      { tx: gap.x, ty: gap.y + gap.h - 1 },
+      { tx: gap.x + gap.w - 1, ty: gap.y + gap.h - 1 },
+    ];
+    corners.forEach((corner, j) => checkMarker(arena, walk, `boostGap[${i}] ${gap.id} corner[${j}]`, corner));
+    if (Math.abs((gap.x + gap.w / 2) - arena.spawn.tx) + Math.abs((gap.y + gap.h / 2) - arena.spawn.ty) < 5) {
+      errors.push(`${arena.id}: boostGap[${i}] ${gap.id} too close to spawn`);
+    }
+  }
   for (const beacon of [...(routeBeacons[arena.id]?.toObjective ?? []), ...(routeBeacons[arena.id]?.toExit ?? [])]) {
     checkMarker(arena, walk, `route sign ${beacon.label}`, beacon);
   }
+  checkPurposefulRouteLabels(arena);
   if (arena.id === 'circuit-z2') {
     for (const scanner of motelScanners) {
       checkMarker(arena, walk, `scanner ${scanner.label} A`, { tx: scanner.aTx, ty: scanner.aTy });
@@ -309,10 +337,10 @@ for (const arena of Object.values(arenas)) {
   if (arena.id === 'circuit-z2') {
     assertMin(arena, 'scanner beams', motelScanners.length, 5);
     if (!(arena.fieldEvents ?? []).some((event) => /maintenance/i.test(event.id) && event.trigger === 'scan')) {
-      errors.push(`${arena.id}: missing Phase Shift/maintenance secret scan event`);
+      errors.push(`${arena.id}: missing Boost/maintenance secret scan event`);
     }
     const motelGoalCopy = `${arena.label} ${(routeBeacons[arena.id]?.toObjective ?? []).map((b) => b.label).join(' ')} ${(routeBeacons[arena.id]?.toExit ?? []).map((b) => b.label).join(' ')}`;
-    if (/CIRCUIT GATE|SCANNER GATE|GATE DOWN/i.test(motelGoalCopy)) {
+    if (/CIRCUIT GATE|SCANNER GATE|GATE DOWN|MOTEL CIRCUIT/i.test(motelGoalCopy)) {
       errors.push(`${arena.id}: stale gate wording remains in Motel route labels`);
     }
   }

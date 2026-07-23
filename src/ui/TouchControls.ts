@@ -4,7 +4,7 @@
  * which PlayerInput reads each frame (see src/game/systems/TouchInput.ts).
  *
  * Layout: a virtual thumbstick bottom-left, an action cluster bottom-right
- * (FIRE · SHOOT · SCAN · DASH · WPN · ECHO · INTERACT), and a small PAUSE pip top-right.
+ * (FIRE · SHOOT · SCAN · BOOST · WPN · ECHO · INTERACT), and a small PAUSE pip top-right.
  * Visibility is driven by ShellUI (only during unobstructed gameplay).
  */
 import { touchInput, resetTouchInput } from '../game/systems/TouchInput';
@@ -86,9 +86,9 @@ export class TouchControls {
     // held buttons: level-triggered primary action and hold-to-autofire
     actions.appendChild(this.heldButton('tc-btn tc-primary', 'FIRE', 'primaryHeld', true));
     actions.appendChild(this.aimFireButton('tc-btn tc-shoot', '◎'));
-    // tap buttons: one-shot edges
+    // tap buttons: one-shot edges; boost is held so touch matches keyboard/controller.
     actions.appendChild(this.tapButton('tc-btn tc-scan', '((·))', 'scanQueued'));
-    actions.appendChild(this.tapButton('tc-btn tc-dash', '»', 'dashQueued'));
+    actions.appendChild(this.heldButton('tc-btn tc-dash', 'BOOST', 'dashHeld', false));
     actions.appendChild(this.tapButton('tc-btn tc-weapon', 'WPN', 'weaponNextQueued'));
     actions.appendChild(this.tapButton('tc-btn tc-echo', 'ECHO', 'echoQueued'));
     actions.appendChild(this.tapButton('tc-btn tc-interact', 'E', 'interactQueued'));
@@ -190,7 +190,7 @@ export class TouchControls {
   }
 
   /** A hold-to-act button: sets a boolean held flag true on press, false on release. */
-  private heldButton(className: string, glyph: string, flag: 'primaryHeld' | 'shootHeld', alsoQueuePrimary: boolean): HTMLElement {
+  private heldButton(className: string, glyph: string, flag: 'primaryHeld' | 'shootHeld' | 'dashHeld', alsoQueuePrimary: boolean): HTMLElement {
     const b = this.makeButton(className, glyph);
     const down = (e: Event) => {
       e.preventDefault();

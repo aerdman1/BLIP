@@ -2,11 +2,11 @@
  * Unified poll-based input: keyboard + gamepad + on-screen touch (Xbox /
  * PlayStation standard mapping), shared by every gameplay scene.
  *
- * Keyboard: WASD + arrows · SHIFT dash · X/left-click pulse ·
+ * Keyboard: WASD + arrows · hold SHIFT boost · X/left-click pulse ·
  *           RIGHT-CLICK/Q sonar · E interact · 1/2/3 or R weapon · ESC pause
  * Gamepad:  stick/dpad move · A confirm/primary · X/RT pulse · B interact · Y/LT scan ·
- *           RB/LB dash · stick-click weapon swap · START pause · BACK command center
- * Touch:    on-screen D-pad + FIRE/SHOOT/SCAN/DASH/INTERACT buttons feed the
+ *           hold RB/LB boost · stick-click weapon swap · START pause · BACK command center
+ * Touch:    on-screen D-pad + FIRE/SHOOT/SCAN/BOOST/INTERACT buttons feed the
  *           shared `touchInput` state (src/ui/TouchControls.ts writes it).
  *
  * Call update() ONCE at the top of scene.update() — it snapshots the pad and
@@ -162,6 +162,10 @@ export class PlayerInput {
     const queued = virtualInput.dashQueued;
     virtualInput.dashQueued = false;
     return Phaser.Input.Keyboard.JustDown(this.k.dash) || this.actJust('dash') || this.tDashJust || queued;
+  }
+
+  get dashDown(): boolean {
+    return this.k.dash.isDown || this.actDown('dash') || touchInput.dashHeld || (virtualInput.active && virtualInput.dashHeld);
   }
 
   /** held — shots auto-fire on the pulse cooldown */
