@@ -56,6 +56,9 @@ const WORLD_HANDOFF_KEY = 'sweepWorldHandoff';
 const WEAPON_LOADOUT = ['pulse', 'arc', 'disc'] as const;
 const BREACH_ENTRY_RADIUS = 66;
 const BREACH_ENTRY_DWELL_MS = 180;
+const MILLER_CRASH_INTRO_AWARD = 'intro:miller-crash-site';
+const MILLER_CRASH_INTRO_EVENTS = ['crash-site-core', 'spark-line', 'first-kit-cache'] as const;
+const MILLER_CRASH_INTRO_SET = new Set<string>(MILLER_CRASH_INTRO_EVENTS);
 
 const SCOUT_TINT: Record<string, number> = {
   will: P.scoutWill,
@@ -199,6 +202,7 @@ export class SweepScene extends Phaser.Scene {
   private stormRelaysActivated = new Set<string>();
   private stormRelayWarnAt = 0;
   private cipherZones: Array<{ x: number; y: number; radius: number; lockAt: number; explodeAt: number; gfx: Phaser.GameObjects.Graphics; caster?: SweepEnemy }> = [];
+  private introEnemiesSeeded = false;
 
   /* ---- HD top-down visual treatment (per biome; see TdBiomes) ---- */
   private td = false; // is the HD treatment active for this arena?
@@ -301,6 +305,7 @@ export class SweepScene extends Phaser.Scene {
     this.orchardGateWarnAt = 0;
     this.stormRelaysActivated.clear();
     this.stormRelayWarnAt = 0;
+    this.introEnemiesSeeded = false;
 
     this.arena = SWEEP_ARENAS[arenaId] ?? SWEEP_ARENAS[DEFAULT_ARENA];
     this.goal = goalForArena(this.arena.id);
@@ -458,7 +463,13 @@ export class SweepScene extends Phaser.Scene {
       this.buildRouteMarkers();
       this.buildFieldEvents();
       this.buildRegionSetPieces();
-      this.seedEnemies();
+      if (this.isMillerCrashIntroPending()) {
+        this.fx.floatText(this.player.x, this.player.y - 26, 'SYSTEM WAKE', P.scoutWill);
+        bus.emit(EVT.toast, { text: 'CRASH SITE - recover the first kit before the field wakes up.', color: 'cyan' });
+      } else {
+        this.seedEnemies();
+        this.introEnemiesSeeded = true;
+      }
       this.seedWeaponPickups();
       if (this.arena.elite) this.spawnElite();
       // "surfaced" intro — a scan bloom + objective
@@ -1839,6 +1850,9 @@ export class SweepScene extends Phaser.Scene {
 
   private fieldEventActionLabel(def: SweepFieldEvent): string {
     if (!this.fieldEventAvailable(def)) return 'RIDGE LOCKED';
+    if (def.id === 'crash-site-core') return 'WAKE';
+    if (def.id === 'spark-line') return 'SCAN TO JOLT';
+    if (def.id === 'first-kit-cache') return 'RECOVER';
     if (def.reward === 'health') return 'RECOVERY';
     if (def.reward === 'weapon') return def.wid ? `${String(def.wid).toUpperCase()} WEAPON` : 'WEAPON';
     if (def.reward === 'overdrive') return 'OVERDRIVE';
@@ -1925,6 +1939,7 @@ export class SweepScene extends Phaser.Scene {
         break;
     }
     this.trackStormRelay(event);
+    this.trackMillerCrashIntro(event);
     (def.spawns ?? []).forEach((m, i) => {
       this.time.delayedCall(240 + i * 160, () => {
         const T = SWEEP.tile;
@@ -1932,6 +1947,70 @@ export class SweepScene extends Phaser.Scene {
         this.fx.sparks(p.x, p.y, P.danger, 6);
         this.addEnemy(new SweepEnemy(this, p.x, p.y, m.type));
       });
+    });
+  }
+
+  private isMillerCrashIntroComplete(): boolean {
+    return loadSave().rewards.awarded.includes(MILLER_CRASH_INTRO_AWARD);
+  }
+
+  private isMillerCrashIntroPending(): boolean {
+    return this.arena?.id === 'surface-z1' && !this.breachOpen && !this.isMillerCrashIntroComplete();
+  }
+
+  private currentMillerCrashIntroEvent(): { def: SweepFieldEvent; x: number; y: number; marker: Phaser.GameObjects.Image; label: Phaser.GameObjects.Text; claimed: boolean } | null {
+    if (!this.isMillerCrashIntroPending()) return null;
+    for (const id of MILLER_CRASH_INTRO_EVENTS) {
+      const event = this.fieldEventObjects.find((candidate) => candidate.def.id === id && !candidate.claimed);
+      if (event) return event;
+    }
+    return null;
+  }
+
+  private currentMillerCrashIntroHint(): string {
+    const target = this.currentMillerCrashIntroEvent();
+    switch (target?.def.id) {
+      case 'crash-site-core':
+        return 'Wake CONTACT-47 at the impact crater and read the Scout tag.';
+      case 'spark-line':
+        return 'Scan the broken Spark Line to restore movement power.';
+      case 'first-kit-cache':
+        return 'Recover the first kit, then follow Willow Trail toward the cache.';
+      default:
+        return 'Follow Willow Trail and find the buried Scout cache.';
+    }
+  }
+
+  private trackMillerCrashIntro(event: { def: SweepFieldEvent; x: number; y: number }): void {
+    if (this.arena.id !== 'surface-z1' || !MILLER_CRASH_INTRO_SET.has(event.def.id)) return;
+    if (event.def.id !== 'first-kit-cache') {
+      this.emitHudStats();
+      return;
+    }
+    updateSave((s) => {
+      if (!s.rewards.awarded.includes(MILLER_CRASH_INTRO_AWARD)) s.rewards.awarded.push(MILLER_CRASH_INTRO_AWARD);
+      if (!s.completedQuestSteps.includes('crash-site-first-kit')) s.completedQuestSteps.push('crash-site-first-kit');
+      s.questStep = 'recover-willow-cache';
+      s.currentQuest = 'the-first-contact';
+    });
+    this.fx.scanRing(event.x, event.y, 150, 650, P.scoutWill);
+    bus.emit(EVT.rewardBanner, {
+      kind: 'story',
+      title: 'FIRST KIT RECOVERED',
+      sub: 'THE FIVE SIGNAL SCOUTS',
+      desc: "Willow and Chip left proof that CONTACT-47 can protect Chagrin Falls. The field wakes up between you and Willow's cache.",
+      color: css(P.scoutWill),
+      icon: 'badge',
+      rarity: 'story',
+      big: true,
+    });
+    this.time.delayedCall(650, () => {
+      if (!this.scene.isActive() || this.introEnemiesSeeded) return;
+      this.seedEnemies();
+      this.introEnemiesSeeded = true;
+      this.fx.scanRing(this.player.x, this.player.y, 210, 620, P.danger);
+      bus.emit(EVT.toast, { text: "FIELD WAKE - reach Willow's cache before the classifiers lock on.", color: 'orange' });
+      this.emitHudStats();
     });
   }
 
@@ -2507,6 +2586,7 @@ export class SweepScene extends Phaser.Scene {
       cameraElevationZoom?: number;
       elevationZones?: number;
       stormRelays?: { activated: number; required: number };
+      crashIntroPending?: boolean;
   } | null {
     if (!this.player?.active) return null;
     const motelScanners = this.motelScannerStatus();
@@ -2534,6 +2614,7 @@ export class SweepScene extends Phaser.Scene {
       cameraElevationZoom: Number(this.cameraElevationZoom.toFixed(3)),
       elevationZones: this.arena.elevationZones?.length,
       stormRelays: this.arena.id === 'anomaly-01' ? { activated: this.stormRelaysActivated.size, required: 2 } : undefined,
+      crashIntroPending: this.arena.id === 'surface-z1' ? this.isMillerCrashIntroPending() : undefined,
     };
   }
 
@@ -2640,8 +2721,12 @@ export class SweepScene extends Phaser.Scene {
         overdrive: Math.round(Phaser.Math.Clamp(this.overdrive / SWEEP.overdriveMax, 0, 1) * 100),
       },
       objective: {
-        title: this.traverse ? (this.breachOpen ? 'Route open' : this.goal.objective) : this.goal.objective,
-        hint: this.breachOpen ? this.goal.exitHint : this.goal.activeHint,
+        title: this.isMillerCrashIntroPending()
+          ? 'Crash-site recovery'
+          : this.traverse ? (this.breachOpen ? 'Route open' : this.goal.objective) : this.goal.objective,
+        hint: this.isMillerCrashIntroPending()
+          ? this.currentMillerCrashIntroHint()
+          : this.breachOpen ? this.goal.exitHint : this.goal.activeHint,
         reward: this.goal.rewardName,
       },
       visible: {
@@ -2678,6 +2763,8 @@ export class SweepScene extends Phaser.Scene {
       if (relay) return { kind: 'field-event', label: relay.def.label, x: relay.x, y: relay.y };
     }
     if (!this.traverse) return { kind: 'survive', x: this.nodePos.x, y: this.nodePos.y };
+    const introEvent = this.currentMillerCrashIntroEvent();
+    if (introEvent) return { kind: 'field-event', label: introEvent.def.label, x: introEvent.x, y: introEvent.y };
     const route = ROUTE_BEACONS[this.arena.id];
     if (this.gravityWell && !this.gravityWell.used && this.arena.id === 'maze-z4') {
       const routedToWell = route ? this.routeBeaconTarget('objective', route.toObjective.filter((m) => m.label !== 'CROP CIRCLE')) : null;
@@ -3807,13 +3894,16 @@ export class SweepScene extends Phaser.Scene {
 
   /** push the top-down combat HUD state to UIScene (rendered zoom-1, screen-fixed) */
   private emitHudStats(): void {
-    const objectiveTitle = this.traverse
+    let objectiveTitle = this.traverse
       ? this.breachOpen ? 'Route open' : this.goal.objective
       : this.goal.objective;
     let objectiveSub = this.traverse
       ? this.breachOpen ? this.goal.exitHint : `${this.goal.activeHint} Reward: ${this.goal.rewardName}.`
       : `${this.arena.waves?.[this.waveIdx]?.label ?? `Wave ${this.waveIdx + 1} / ${this.arena.waves?.length ?? 0}`} · Reward: ${this.goal.rewardName}.`;
-    if (this.arena.id === 'circuit-z2' && !this.breachOpen) {
+    if (this.isMillerCrashIntroPending()) {
+      objectiveTitle = 'Crash-site recovery';
+      objectiveSub = `${this.currentMillerCrashIntroHint()} Reward: Willow Mutation Choice.`;
+    } else if (this.arena.id === 'circuit-z2' && !this.breachOpen) {
       const status = this.motelScannerStatus();
       const scannerCopy = status.total ? `Scanners offline ${status.disabled}/${status.total}. ` : '';
       objectiveSub = this.motelAlertUntil > this.time.now

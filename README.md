@@ -48,7 +48,7 @@ Progress autosaves to localStorage. The **Command Center** (C) holds the story b
 
 ### Ending / Finale
 
-The finale path is the Signal Storm route. Story, bosses, Scouts, rewards, and Signal Fragment structure all build on the connected top-down foundation. A short crash-site onboarding scene where CONTACT-47 meets the Scout trail and recovers the first kit is planned, but not yet implemented.
+The finale path is the Signal Storm route. Story, bosses, Scouts, rewards, and Signal Fragment structure all build on the connected top-down foundation. Miller now opens with a short crash-site recovery beat where CONTACT-47 wakes up, follows Scout/kid evidence, restores movement power through a Spark Line, recovers the first kit, and then the field wakes into combat.
 
 ## Tech
 

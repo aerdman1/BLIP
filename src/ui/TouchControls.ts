@@ -4,7 +4,7 @@
  * which PlayerInput reads each frame (see src/game/systems/TouchInput.ts).
  *
  * Layout: a virtual thumbstick bottom-left, an action cluster bottom-right
- * (FIRE · SHOOT · SCAN · BOOST · WPN · ECHO · INTERACT), and a small PAUSE pip top-right.
+ * (FIRE · BOOST · SCAN · WPN · ECHO · ACT), and a small PAUSE pip top-right.
  * Visibility is driven by ShellUI (only during unobstructed gameplay).
  */
 import { touchInput, resetTouchInput } from '../game/systems/TouchInput';
@@ -83,15 +83,14 @@ export class TouchControls {
     // ── action cluster (bottom-right) ────────────────────────────────────
     const actions = document.createElement('div');
     actions.className = 'tc-actions';
-    // held buttons: level-triggered primary action and hold-to-autofire
+    // held buttons: level-triggered primary action and hold-to-boost
     actions.appendChild(this.heldButton('tc-btn tc-primary', 'FIRE', 'primaryHeld', true));
-    actions.appendChild(this.aimFireButton('tc-btn tc-shoot', '◎'));
     // tap buttons: one-shot edges; boost is held so touch matches keyboard/controller.
-    actions.appendChild(this.tapButton('tc-btn tc-scan', '((·))', 'scanQueued'));
+    actions.appendChild(this.tapButton('tc-btn tc-scan', 'SCAN', 'scanQueued'));
     actions.appendChild(this.heldButton('tc-btn tc-dash', 'BOOST', 'dashHeld', false));
     actions.appendChild(this.tapButton('tc-btn tc-weapon', 'WPN', 'weaponNextQueued'));
     actions.appendChild(this.tapButton('tc-btn tc-echo', 'ECHO', 'echoQueued'));
-    actions.appendChild(this.tapButton('tc-btn tc-interact', 'E', 'interactQueued'));
+    actions.appendChild(this.tapButton('tc-btn tc-interact', 'ACT', 'interactQueued'));
     this.root.appendChild(actions);
 
     // ── pause pip (top-right) ────────────────────────────────────────────
@@ -127,66 +126,6 @@ export class TouchControls {
     // auto-aims the nearest enemy, so it ignores aimX/aimY regardless.)
     touchInput.moveX = nx < -0.25 ? -1 : nx > 0.25 ? 1 : 0;
     touchInput.moveY = ny < -0.25 ? -1 : ny > 0.25 ? 1 : 0;
-  }
-
-  /** SHOOT doubles as an aim control: hold to fire, DRAG in any direction to aim
-   *  the shot there (360°). A small tap = fire along the current facing. */
-  private aimFireButton(className: string, glyph: string): HTMLElement {
-    const b = this.makeButton(className, glyph);
-    let pid: number | null = null;
-    let cx = 0;
-    let cy = 0;
-    const DEAD = 16; // px drag before directional aim kicks in
-    const setAim = (e: PointerEvent) => {
-      const dx = e.clientX - cx;
-      const dy = e.clientY - cy;
-      const len = Math.hypot(dx, dy);
-      if (len < DEAD) {
-        touchInput.aimX = 0;
-        touchInput.aimY = 0;
-        return;
-      }
-      touchInput.aimX = dx / len;
-      touchInput.aimY = dy / len;
-    };
-    const down = (e: PointerEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      pid = e.pointerId;
-      try {
-        b.setPointerCapture?.(e.pointerId);
-      } catch {
-        /* capture can fail (e.g. stale pointer) — drag-aim still works via move events */
-      }
-      const r = b.getBoundingClientRect();
-      cx = r.left + r.width / 2;
-      cy = r.top + r.height / 2;
-      touchInput.shootHeld = true;
-      setAim(e);
-      b.classList.add('active');
-      audio.unlock();
-    };
-    const move = (e: PointerEvent) => {
-      if (pid !== e.pointerId) return;
-      e.preventDefault();
-      e.stopPropagation();
-      setAim(e); // pointer is captured, so this keeps tracking outside the button
-    };
-    const up = (e: PointerEvent) => {
-      if (pid !== null && pid !== e.pointerId) return;
-      e.preventDefault();
-      e.stopPropagation();
-      pid = null;
-      touchInput.shootHeld = false;
-      touchInput.aimX = 0;
-      touchInput.aimY = 0;
-      b.classList.remove('active');
-    };
-    b.addEventListener('pointerdown', down);
-    b.addEventListener('pointermove', move);
-    b.addEventListener('pointerup', up);
-    b.addEventListener('pointercancel', up);
-    return b;
   }
 
   /** A hold-to-act button: sets a boolean held flag true on press, false on release. */

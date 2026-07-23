@@ -50,6 +50,7 @@ foreground framing, built-roof service details, named-area identity dressing and
 data-driven elevation zones with stronger follow-camera offset/zoom, staged Signal Storm phase labels, generated map
 schematics, AI Lab smoke harness and focused campaign evidence, HD top-down renderer, the Tripo
 CONTACT-47 eight-facing sprite fallback pipeline, and a main-menu radar hero that uses the Tripo CONTACT-47 render.
+Miller now also has a playable cold-start crash-site onboarding beat: CONTACT-47 wakes at the impact site, reads Scout/kid evidence, scans Chip's Spark Line, recovers the first kit, sees a centered story reward card, and only then releases the first enemies.
 The old Wardrobe / Signal Skin system is cut from active gameplay; legacy save
 fields remain only for compatibility, cache rewards no longer roll skins, and
 future Scout rewards should be explicit upgrades, abilities, lore or route tools.
@@ -58,7 +59,7 @@ The game is not yet a strong vertical slice. The biggest current gaps are:
 manual feel review on the newly expanded purposeful layouts, objective/route
 completion on short AI region runs, region variety still needing live encounter polish, incomplete
 notification/reward consolidation, shallow loot presentation despite larger cache-like pickup art and stronger first-pass projectile/Arc VFX, progression
-mutations that need testing/polish, no crash-site/non-combat onboarding scene yet, weak full-route AI completion evidence, and
+mutations that need testing/polish, crash-site onboarding needing manual tone/pacing review, weak full-route AI completion evidence, and
 a finale that still needs a more authored climax despite the new relay gate. The latest automated sweep
 added stricter `qa:maps` structural checks plus `qa:route` runtime checks for HD
 rendering, objective copy, route-open guidance, pressure cleanup, Motel scanner
@@ -94,8 +95,8 @@ Audited backlog records in this file:
 | Status | Count |
 |---|---:|
 | COMPLETE | 36 |
-| PARTIAL | 58 |
-| PLANNED | 17 |
+| PARTIAL | 59 |
+| PLANNED | 16 |
 | MISSING | 7 |
 | DEFERRED | 13 |
 | CUT / NO LONGER APPLICABLE | 4 |
@@ -124,10 +125,10 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 4. Progression/motivation spine: verify the new Miller mutation choice, Motel
    Phase Boost+, Town Scout Relay Pylon, Orchard Scan Memory secret and Signal
    Storm relay gate in real play and focused automation.
-5. Crash Site Onboarding package: add a short pre-Miller or Miller-opening
-   non-combat beat where CONTACT-47 recovers from a crash, receives Scout/kid
-   context, repairs Boost or recovers the first weapon, and gets an immediate
-   reason to protect the town. Keep it brief and do not derail the current route.
+5. Crash Site Onboarding polish: the playable first pass is live in Miller. Do
+   a manual tone/pacing pass on the wake marker, Spark Line scan, first-kit
+   reward modal and delayed enemy wake, but do not rebuild it unless playtesting
+   proves it drags.
 6. AI Player Lab safety and route guidance: continue before/after comparisons
    using visible perception only. The focused first-three sample
    `first-three-route-regression-v8` now reaches Town 6/6 with 0 deaths and 0
@@ -165,8 +166,8 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 | Shared player state | COMPLETE | `tests/smoke.spec.ts` | HP/weapon persist through tested transitions | Need repeated-transition memory checks | P1 | Add long transition loop later |
 | Single canonical save | COMPLETE | `SaveSystem`, menu copy | Continue/New Game only, no slots | Save migration edge cases only | P0 | Save/load tests stay green |
 | Pause/Quit to Menu | COMPLETE | `ShellUI.confirmQuitToMenu()` | Warns return to autosave | No issue | P0 | E2E quit-to-menu test |
-| Dev region warps | COMPLETE | `ShellUI.devMode()` | Local/test/god warps work | Production hidden by design | P1 | Production default has no public warp buttons |
-| Desktop/controller/touch input | PARTIAL | `InputSystem`, `TouchInput`, `PadBindings`, E2E | Core mapping exists; Boost is held across keyboard/controller/touch and has a smoke test | Needs more touch/controller gameplay-specific tests | P1 | Add tests for Boost, weapon switch, menu/pause on touch/controller |
+| Dev region warps | COMPLETE | `ShellUI.devMode()`, `#menu-dev-warps`, `tests/smoke.spec.ts` | Local/test/god warps work and now render as a compact bottom-left DEV WARPS rail instead of full main-menu entries | Production hidden by design | P1 | Production default has no public warp buttons |
+| Desktop/controller/touch input | PARTIAL | `InputSystem`, `TouchInput`, `PadBindings`, E2E | Core mapping exists; Boost is held across keyboard/controller/touch, iPad touch controls use separated FIRE/BOOST/SCAN/WPN/ECHO/ACT buttons, keyboard hint chips hide on touch, and tablet layout has a smoke regression | Needs more controller gameplay-specific tests | P1 | Add tests for weapon switch, menu/pause on touch/controller |
 | Safe spawns/transitions | PARTIAL | arena spawn/breach markers, `nearestWalkableWorld()` | Main route transitions work in E2E; authored player/enemy/exit markers resolve to nearest walkable tile | Invalid spawn/soft-lock coverage is still shallow | P0 | Add invalid spawn and repeated-transition suite |
 | Performance/memory repeated transitions | MISSING | no long-run evidence | Basic build runs | No memory-leak campaign yet | P2 | Overnight transition loop with browser restarts |
 | More seamless geography | PLANNED | design docs | Separate scenes are retained | Needs better visual continuity/routes | P2 | Routes feel like roads/trails/gates, not level select |
@@ -249,7 +250,7 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 |---|---|---|---|---|---|---|
 | Held boost movement | COMPLETE | `BlipCraft.move()`, `InputSystem`, `TouchInput`, `UIScene`, `tests/smoke.spec.ts` | Hold SHIFT/RB/touch Boost to surge, drain the boost meter, regenerate after release, leave restrained echoes and get brief i-frames. Top-down HUD now shows explicit BOOST full/empty feedback | Needs live tuning for speed/drain/regen feel | P0 | Boost drains, moves faster, regenerates and does not cover the player with huge ghost art |
 | Hover-fire ground trail | COMPLETE | `SweepScene.updateHoverTrail()`, `tests/smoke.spec.ts` | Moving CONTACT-47 stamps a capped, fading cyan ground residue so recent travel path is visible | Needs manual visual taste review for brightness/duration | P1 | Trail shows where the player has been without obscuring combat |
-| Keyboard/controller/touch input | PARTIAL | `InputSystem`, touch button, pad binding | Inputs exist | Dedicated tests incomplete | P1 | Input tests for all modes |
+| Keyboard/controller/touch input | PARTIAL | `InputSystem`, `TouchControls`, pad binding, `tests/smoke.spec.ts` | Inputs exist; touch cluster was cleaned up for iPad with distinct FIRE/BOOST/SCAN/WPN/ECHO/ACT buttons and non-overlap regression | Controller-specific gameplay tests remain incomplete | P1 | Input tests for all modes |
 | Scanner interaction | PARTIAL | Motel scanner code, `SWEEP_MOTEL_SCANNERS`, `tests/route-readiness.spec.ts` | Holding Boost through a beam disables scanner/charges objective. Labels explicitly end in SCANNER; endpoints use scanner hardware sprites; active beams are red hazards; disabled scanners hide after the route opens so they do not look like random props. Ghost Check-In rewards all-scanners-offline/no-alert clears and debug route-open cannot trigger it | Tutorial/safe-zone presentation is still shallow | P0 | Player/AI uses Boost in Motel |
 | Projectile/barrier/secret interactions | PARTIAL | `BlipCraft`, `SweepScene.updatePhaseBoostPlus()` | Phase Boost+ clears nearby hostile bolts while boosting; scanner crossing works | No phase doors/barrier secrets yet | P2 | Phase door/secret later |
 | Weapon follow-up interactions | PLANNED | docs | Old Phase-strike skin hook is cut from active gameplay | Needs a real weapon/ability system if revived | P2 | Weapon-specific follow-up pass |
@@ -310,7 +311,7 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 |---|---|---|---|---|---|---|
 | CONTACT-47 / Scouts / Engine | COMPLETE | `gameBible.ts`, `scouts.ts`, docs | Core story survived pivot | Continue cleaning stale wording | P1 | No side-scroll story assumptions |
 | Region story reasons | PARTIAL | `regionGoals.ts`, quests | Named objectives exist | Objective why/payoff still thin in-game | P0 | Player knows why each region matters |
-| Intro/finale payoff | PARTIAL | Main menu, finale copy | Identity exists | Needs cinematic/authoring pass | P2 | Stronger opening/finale once gameplay stable |
+| Intro/finale payoff | PARTIAL | Main menu, Miller crash-site events, finale copy, `tests/smoke.spec.ts` | Miller has a playable non-combat crash recovery/first-kit beat before enemies wake; finale has identity copy and relay gate | Needs manual tone/pacing review and stronger finale authoring | P2 | Stronger opening/finale once gameplay stable |
 | Willow naming | NEEDS DECISION | Will/Willow both appear | Could be nickname or mismatch | Needs canonical decision | P2 | Decide Will vs Willow and update docs/data |
 
 ### 15. Tone and Maturity
@@ -480,15 +481,15 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 
 ## Proposed Next Work Package
 
-Next package: Crash Site Onboarding, then full-route regression and subjective feel review.
+Next package: full-route regression and subjective feel review, including the new crash-site opening.
 
 Scope:
 
-1. Add a brief non-combat opening beat without rebuilding the route:
+1. Validate the playable crash-site opening:
    - CONTACT-47 wakes at a crash scar near Miller Field
-   - visible kid/Scout evidence explains that the town is in danger and CONTACT-47 is not just an enemy signal
-   - a simple electric-line/jolt puzzle repairs Boost or recovers the first weapon
-   - the player earns one clear “you can now do X” tool before combat starts
+   - visible Scout/kid evidence explains that the town is in danger and CONTACT-47 is not just an enemy signal
+   - Chip's Spark Line scan and the first-kit recovery are clear, quick and worth reading
+   - the player understands Boost/first-kit recovery before combat starts
    - then the current Miller route begins normally
 2. Continue automated route-following:
    - use `first-three-route-regression-v8` as the current first-three baseline

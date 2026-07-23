@@ -811,18 +811,6 @@ export class ShellUI {
       sub: hasSave ? 'erase the current run and start over' : 'start the connected Chagrin Falls route',
       action: () => this.startNewGame(hasSave),
     });
-    if (this.devMode()) {
-      DEV_WARP_ZONES.forEach(([zoneId, label]) => {
-        this.menuEntries.push({
-          label: `WARP · ${label.toUpperCase()}`,
-          icon: '◇',
-          cls: 'dev-warp',
-          id: `menu-warp-${zoneId}`,
-          sub: 'dev test jump',
-          action: () => this.devWarp(zoneId),
-        });
-      });
-    }
     this.menuEntries.push(
       { label: 'COMMAND CENTER', icon: '▦', id: 'menu-command-center', action: () => this.openCommandCenter() },
       { label: 'SIGNAL ARCHIVE', icon: '▤', id: 'menu-archive', action: () => bus.emit(EVT.rewardOpenArchive, {}) },
@@ -835,6 +823,7 @@ export class ShellUI {
       this.menuFocus = i;
       this.renderMenuFocus($('menu-items'), i);
     });
+    this.renderDevWarpRail();
   }
 
   private startNewGame(hasExistingSave: boolean): void {
@@ -861,6 +850,31 @@ export class ShellUI {
       s.questStep = 'wake';
     });
     bus.emit(EVT.uiStartGame, { continueRun: true });
+  }
+
+  private renderDevWarpRail(): void {
+    const rail = $('menu-dev-warps');
+    const show = this.devMode();
+    rail.classList.toggle('hidden', !show);
+    rail.innerHTML = '';
+    if (!show) return;
+    const title = document.createElement('div');
+    title.className = 'dev-warp-title';
+    title.textContent = 'DEV WARPS';
+    rail.appendChild(title);
+    DEV_WARP_ZONES.forEach(([zoneId, label]) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'dev-warp-chip';
+      btn.id = `menu-warp-${zoneId}`;
+      btn.textContent = label;
+      btn.addEventListener('click', () => {
+        audio.unlock();
+        audio.uiToggle();
+        this.devWarp(zoneId);
+      });
+      rail.appendChild(btn);
+    });
   }
 
   private renderMenu(rootEl: HTMLElement, entries: MenuEntry[], focus: number, onHover: (i: number) => void): void {

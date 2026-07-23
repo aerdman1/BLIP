@@ -3,7 +3,7 @@
  * game starts, Command Center opens, route warps work.
  */
 import { expect, test } from '@playwright/test';
-import { api, bootToMenu, playerState, startGame, watchConsole } from './helpers';
+import { api, bootToMenu, playerState, startGame, waitForScene, watchConsole } from './helpers';
 
 test('boots to the main menu without console errors', async ({ page }) => {
   const watcher = watchConsole(page);
@@ -50,7 +50,8 @@ test('top-down route transitions preserve SweepScene and advance save zone', asy
   expect(startState.breachOpen).toBe(false);
   expect(startState.chargeTarget).toBeGreaterThanOrEqual(50);
   expect(startState.objectiveActionsRequired).toBeGreaterThanOrEqual(2);
-  expect(startState.enemiesActive).toBeGreaterThan(0);
+  expect(startState.crashIntroPending).toBe(true);
+  expect(startState.enemiesActive).toBe(0);
   await page.keyboard.press('2');
   await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSweepRuntimeState().weaponId === 'arc');
   await page.keyboard.press('3');
@@ -95,6 +96,37 @@ test('top-down route transitions preserve SweepScene and advance save zone', asy
   expect(saveAfterRoute.purchasedUpgrades).toEqual(expect.arrayContaining(['pulse-resonance', 'phase-drift-plus', 'relay-pylon', 'pulse-ricochet']));
   expect(saveAfterRoute.rewards.awarded).not.toContain('milestone:sweep-first');
   expect(saveAfterRoute.rewards.owned).not.toEqual(expect.arrayContaining(['medal-bronze', 'medal-silver', 'medal-gold']));
+});
+
+test('Miller opens with a crash-site recovery beat before enemies wake', async ({ page }) => {
+  await bootToMenu(page);
+  await api(page, `api.enterSweep('surface-z1')`);
+  await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSceneName() === 'SweepScene');
+  await page.waitForTimeout(300);
+
+  let state = await api<any>(page, 'api.getSweepRuntimeState()');
+  expect(state.crashIntroPending).toBe(true);
+  expect(state.enemiesActive).toBe(0);
+  let perception = await api<any>(page, 'api.getAiPerception()');
+  expect(perception.objective.title).toMatch(/crash-site/i);
+  expect(perception.objectiveHint.label).toBe('SPARK LINE');
+
+  await api(page, `api.setPlayerWorldPosition(${14.5 * 32}, ${31.5 * 32})`);
+  await api(page, `api.driveAi({ scanQueued: true })`);
+  await page.waitForTimeout(250);
+  perception = await api<any>(page, 'api.getAiPerception()');
+  expect(perception.objectiveHint.label).toBe('FIRST KIT');
+
+  await api(page, `api.setPlayerWorldPosition(${17.5 * 32}, ${36.5 * 32})`);
+  await page.waitForTimeout(900);
+  await expect(page.locator('.rw-reward-modal')).toContainText(/FIRST KIT RECOVERED/i);
+  await page.locator('.rw-b-continue').click();
+  await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSweepRuntimeState().crashIntroPending === false);
+  await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSweepRuntimeState().enemiesActive > 0);
+  state = await api<any>(page, 'api.getSweepRuntimeState()');
+  expect(state.crashIntroPending).toBe(false);
+  expect(state.enemiesActive).toBeGreaterThan(0);
+  expect(await api<boolean>(page, `api.getSaveData().rewards.awarded.includes('intro:miller-crash-site')`)).toBe(true);
 });
 
 test('Motel Circuit communicates scanner stealth and River Road exit guidance', async ({ page }) => {
@@ -284,4 +316,70 @@ test('quit to menu preserves autosave and dev warp buttons jump regions', async 
   await page.click('#menu-warp-pattersons-orchard');
   await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSceneName() === 'SweepScene');
   expect(await api(page, 'api.getSaveData().currentZone')).toBe('pattersons-orchard');
+});
+
+test.describe('tablet touch layout', () => {
+  test.use({ viewport: { width: 1024, height: 768 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+
+  test('iPad controls are separated and dev warps stay out of the main menu', async ({ page }) => {
+    await bootToMenu(page);
+    await page.evaluate(() => {
+      localStorage.setItem('blip_settings_v1', JSON.stringify({
+        muted: true,
+        volume: 0.35,
+        music: false,
+        musicVolume: 0.6,
+        crt: false,
+        playerAura: false,
+        shake: true,
+        filter: 'none',
+        filterIntensity: 1,
+        touchControls: 'on',
+      }));
+    });
+    await page.reload();
+    await waitForScene(page, 'MainMenuScene');
+
+    await expect(page.locator('#menu-dev-warps')).toBeVisible();
+    await expect(page.locator('#menu-items')).not.toContainText(/WARP/i);
+    const menuBox = await page.locator('#menu-items').boundingBox();
+    const warpBox = await page.locator('#menu-dev-warps').boundingBox();
+    expect(menuBox).not.toBeNull();
+    expect(warpBox).not.toBeNull();
+    expect((warpBox as { right?: number; x: number; width: number }).x + (warpBox as { width: number }).width).toBeLessThan((menuBox as { x: number }).x);
+
+    await api(page, `api.enterSweep('surface-z1')`);
+    await waitForScene(page, 'SweepScene');
+    await page.waitForTimeout(800);
+
+    await expect(page.locator('#touch-controls')).toBeVisible();
+    await expect(page.locator('#touch-controls .tc-shoot')).toHaveCount(0);
+    await expect(page.locator('#sweep-hud-dom .td-abilities')).toBeHidden();
+
+    const boxes = await page.evaluate(() => {
+      const read = (selector: string) => {
+        const el = document.querySelector(selector);
+        const r = el?.getBoundingClientRect();
+        return r ? { selector, x: r.x, y: r.y, width: r.width, height: r.height } : null;
+      };
+      return [
+        read('#touch-controls .tc-primary'),
+        read('#touch-controls .tc-dash'),
+        read('#touch-controls .tc-scan'),
+        read('#touch-controls .tc-weapon'),
+        read('#touch-controls .tc-echo'),
+        read('#touch-controls .tc-interact'),
+        read('#touch-controls .tc-stick'),
+        read('#sweep-hud-dom .td-vitals'),
+      ].filter(Boolean) as Array<{ selector: string; x: number; y: number; width: number; height: number }>;
+    });
+    const overlap = (a: (typeof boxes)[number], b: (typeof boxes)[number]) =>
+      Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) *
+      Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        expect(overlap(boxes[i], boxes[j]), `${boxes[i].selector} overlaps ${boxes[j].selector}`).toBeLessThan(8);
+      }
+    }
+  });
 });

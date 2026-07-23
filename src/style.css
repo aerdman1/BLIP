@@ -599,6 +599,7 @@ body.td-hud-active .toast {
 #menu-overlay.peeking > #menu-tagline,
 #menu-overlay.peeking > #menu-subtitle,
 #menu-overlay.peeking > #menu-items,
+#menu-overlay.peeking > #menu-dev-warps,
 #menu-overlay.peeking > #menu-footer,
 #menu-overlay.peeking > #menu-peek {
   opacity: 0;
@@ -608,7 +609,7 @@ body.td-hud-active .toast {
 #menu-overlay.peeking .menu-scout-hit { pointer-events: none; }
 #menu-overlay.peeking > #menu-restore { display: inline-flex; }
 /* smooth the fade back in too */
-#menu-hero, #menu-logo, #menu-tagline, #menu-subtitle, #menu-items, #menu-footer, #menu-peek {
+#menu-hero, #menu-logo, #menu-tagline, #menu-subtitle, #menu-items, #menu-dev-warps, #menu-footer, #menu-peek {
   transition: opacity 0.28s ease;
 }
 .menu-scout-hit {
@@ -705,6 +706,46 @@ body.td-hud-active .toast {
 #menu-subtitle::after { content: ' ◆'; color: var(--lime); }
 
 #menu-items { display: flex; flex-direction: column; gap: clamp(3px, 0.7vh, 5px); width: min(320px, 62%); }
+#menu-dev-warps {
+  position: absolute;
+  left: max(12px, env(safe-area-inset-left));
+  bottom: max(18px, calc(env(safe-area-inset-bottom) + 12px));
+  z-index: 3;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 86px));
+  gap: 5px;
+  width: 178px;
+  pointer-events: auto;
+  opacity: 0.82;
+}
+#menu-dev-warps.hidden { display: none; }
+#menu-dev-warps .dev-warp-title {
+  grid-column: 1 / -1;
+  font: 800 7px/1 var(--mono, monospace);
+  letter-spacing: 1.2px;
+  color: rgba(168, 255, 62, 0.7);
+  text-align: left;
+}
+#menu-dev-warps .dev-warp-chip {
+  min-height: 22px;
+  padding: 3px 5px;
+  overflow: hidden;
+  border: 1px solid rgba(168, 255, 62, 0.28);
+  border-radius: 6px;
+  background: rgba(5, 10, 14, 0.58);
+  color: rgba(246, 231, 180, 0.8);
+  font: 700 7px/1.05 var(--mono, monospace);
+  letter-spacing: 0.4px;
+  text-align: center;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+#menu-dev-warps .dev-warp-chip:hover,
+#menu-dev-warps .dev-warp-chip:focus-visible {
+  border-color: rgba(168, 255, 62, 0.62);
+  color: var(--lime);
+  box-shadow: 0 0 10px rgba(168, 255, 62, 0.16);
+}
 .menu-item {
   display: flex;
   align-items: center;
@@ -1378,11 +1419,8 @@ body.sweep-active #touch-controls .tc-primary {
 }
 body.sweep-active #touch-controls .tc-primary::after {
   content: 'FIRE';
-  font-size: 16px;
+  font-size: 14px;
   letter-spacing: 1px;
-}
-body.sweep-active #touch-controls .tc-shoot {
-  opacity: 0.58;
 }
 body.compact-gameplay.sweep-active .sweep-hud-overdrive {
   width: min(32vw, 170px);
@@ -1640,19 +1678,68 @@ body.compact-gameplay.sweep-active .sweep-hud-banner {
   position: absolute;
   right: max(20px, env(safe-area-inset-right));
   bottom: max(20px, env(safe-area-inset-bottom));
-  width: 200px;
+  width: 220px;
   height: 168px;
   pointer-events: none;
 }
 #touch-controls .tc-actions .tc-btn { border-radius: 50%; }
-#touch-controls .tc-primary { right: 0; bottom: 40px; width: 92px; height: 92px; font-size: 16px; letter-spacing: 1px; color: var(--lime); border-color: var(--lime-dim); }
-#touch-controls .tc-shoot { right: 96px; bottom: 4px; width: 74px; height: 74px; font-size: 26px; color: var(--warning); border-color: var(--amber-dim); }
-#touch-controls .tc-scan { right: 104px; bottom: 84px; width: 60px; height: 60px; font-size: 13px; }
-#touch-controls .tc-dash { right: 4px; bottom: 138px; width: 56px; height: 56px; font-size: 24px; }
-/* bottom was 142, which left ECHO's box overlapping SCAN's top edge by ~2px —
-   a mis-tap risk on touch. 152 gives clear separation. */
-#touch-controls .tc-echo { right: 130px; bottom: 152px; width: 58px; height: 44px; font-size: 10px; letter-spacing: 1px; color: var(--violet); border-color: rgba(124, 92, 255, 0.65); }
-#touch-controls .tc-interact { right: 70px; bottom: 150px; width: 52px; height: 52px; font-size: 18px; }
+#touch-controls .tc-primary {
+  right: 0;
+  bottom: 0;
+  width: 82px;
+  height: 82px;
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: var(--lime);
+  border-color: var(--lime-dim);
+}
+#touch-controls .tc-scan {
+  right: 96px;
+  bottom: 92px;
+  width: 54px;
+  height: 54px;
+  font-size: 11px;
+}
+#touch-controls .tc-dash {
+  right: 0;
+  bottom: 94px;
+  width: 88px;
+  height: 54px;
+  border-radius: 28px;
+  font-size: 13px;
+  letter-spacing: 0.8px;
+  color: #8defff;
+  border-color: rgba(61, 240, 255, 0.58);
+}
+#touch-controls .tc-weapon {
+  right: 96px;
+  bottom: 30px;
+  width: 54px;
+  height: 54px;
+  font-size: 11px;
+  color: var(--warning);
+  border-color: var(--amber-dim);
+}
+#touch-controls .tc-echo {
+  right: 160px;
+  bottom: 100px;
+  width: 50px;
+  height: 38px;
+  border-radius: 12px;
+  font-size: 9px;
+  letter-spacing: 0.8px;
+  color: var(--violet);
+  border-color: rgba(124, 92, 255, 0.58);
+}
+#touch-controls .tc-interact {
+  right: 160px;
+  bottom: 50px;
+  width: 50px;
+  height: 38px;
+  border-radius: 12px;
+  font-size: 9px;
+  letter-spacing: 0.8px;
+}
 
 /* pause pip top-right (clears the top instrument bar which is outside the frame) */
 #touch-controls .tc-pause {
@@ -1730,9 +1817,18 @@ body.compact-gameplay #touch-controls .tc-btn {
   border-color: rgba(246, 231, 180, 0.28);
 }
 body.compact-gameplay #touch-controls .tc-stick {
+  left: max(12px, env(safe-area-inset-left));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  transform: scale(0.78);
+  transform-origin: bottom left;
+  opacity: 0.82;
   background:
     radial-gradient(circle at 50% 50%, rgba(168, 255, 62, 0.08), rgba(8, 14, 26, 0.14) 43%, rgba(8, 14, 26, 0.28) 44%, rgba(8, 14, 26, 0.1) 72%),
     repeating-radial-gradient(circle, rgba(246, 231, 180, 0.14) 0 1px, transparent 1px 15px);
+}
+
+body.compact-gameplay #sweep-hud-dom.td-hud .td-abilities {
+  display: none;
 }
 
 /* ============================================================================
@@ -1950,6 +2046,9 @@ body.td-hud-active #game-frame { border-radius: 0; }
   /* the touch cluster already shows the abilities — never duplicate them */
   body.compact-gameplay #sweep-hud-dom.td-hud .td-abilities { display: none; }
   #sweep-hud-dom.td-hud .td-overdrive { width: clamp(110px, 34vw, 190px); }
+}
+body.compact-gameplay #sweep-hud-dom.td-hud .td-vitals {
+  bottom: max(154px, calc(env(safe-area-inset-bottom) + 154px));
 }
 @media (max-width: 420px) {
   #sweep-hud-dom.td-hud .td-objective { min-width: 0; max-width: 52vw; }

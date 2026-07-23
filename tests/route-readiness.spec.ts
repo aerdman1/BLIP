@@ -28,7 +28,12 @@ test.describe('route readiness automation', () => {
       expect(start.hp).toBe(start.maxHp);
       expect(start.chargeTarget).toBeGreaterThan(0);
       expect(start.objectiveActionsRequired).toBeGreaterThanOrEqual(2);
-      expect(start.enemiesActive).toBeGreaterThan(0);
+      if (arena.id === 'surface-z1') {
+        expect(start.crashIntroPending).toBe(true);
+        expect(start.enemiesActive).toBe(0);
+      } else {
+        expect(start.enemiesActive).toBeGreaterThan(0);
+      }
 
       const perception = await api<any>(page, 'api.getAiPerception()');
       expect(perception.objective.title).not.toMatch(/charge the signal node/i);
@@ -36,6 +41,10 @@ test.describe('route readiness automation', () => {
       expect(perception.objective.reward).toContain(arena.reward);
       expect(perception.objectiveHint, `${arena.id} should expose a visible next-step hint`).toBeTruthy();
       expect(['route-beacon', 'field-event', 'gravity-well', 'node']).toContain(perception.objectiveHint.kind);
+      if (arena.id === 'surface-z1') {
+        expect(perception.objective.title).toMatch(/crash-site/i);
+        expect(perception.objectiveHint.kind).toBe('field-event');
+      }
 
       expect(await api(page, 'api.openRouteForInspection()')).toBe(true);
       await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSweepRuntimeState().breachOpen === true);
