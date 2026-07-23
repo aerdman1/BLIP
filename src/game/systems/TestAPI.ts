@@ -177,6 +177,19 @@ export function installTestAPI(game: Phaser.Game): void {
       rewards.grantReward(id);
       return rewards.owns(id);
     },
+    showRewardBanner: (payload: Partial<{ kind: string; title: string; sub: string; desc: string; color: string; icon: string; rarity: string; big: boolean }> = {}): boolean => {
+      bus.emit(EVT.rewardBanner, {
+        kind: payload.kind ?? 'test',
+        title: payload.title ?? 'TEST UNLOCK',
+        sub: payload.sub ?? 'SIGNAL PRIZE',
+        desc: payload.desc ?? 'Automation-only reward modal.',
+        color: payload.color ?? '#a8ff3e',
+        icon: payload.icon ?? 'trophy-cache',
+        rarity: payload.rarity ?? 'rare',
+        big: payload.big ?? false,
+      });
+      return true;
+    },
     equipReward: (id: string): boolean => {
       rewards.equip(id);
       return true;
@@ -192,9 +205,10 @@ export function installTestAPI(game: Phaser.Game): void {
     enterZone: (zoneId: string): boolean => startSweep(ARENA_BY_ZONE[zoneId] ?? 'surface-z1', zoneId),
     enterSweep: (arenaId = 'surface-z1'): boolean => startSweep(arenaId),
     completeRoute: (): boolean => {
-      const sweep = sweepScene() as (Phaser.Scene & { debugRouteToBreach?: () => void }) | null;
+      const sweep = sweepScene() as (Phaser.Scene & { debugRouteToBreach?: (suppressRewardModal?: boolean) => void }) | null;
       if (!sweep?.debugRouteToBreach) return false;
-      sweep.debugRouteToBreach();
+      (window as unknown as { __BLIP_SUPPRESS_REWARD_MODALS_UNTIL?: number }).__BLIP_SUPPRESS_REWARD_MODALS_UNTIL = performance.now() + 1800;
+      sweep.debugRouteToBreach(true);
       return true;
     },
     openRouteForInspection: (): boolean => {

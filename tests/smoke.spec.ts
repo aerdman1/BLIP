@@ -165,6 +165,26 @@ test('Miller boost washout blocks walking but allows held boost crossing', async
   expect(crossed.x).toBeGreaterThan(54 * 32);
 });
 
+test('elevation zones add camera depth without changing region architecture', async ({ page }) => {
+  await bootToMenu(page);
+  await api(page, `api.enterSweep('maze-z4')`);
+  expect(await api(page, 'api.getSweepRuntimeState().elevationZones')).toBeGreaterThanOrEqual(3);
+
+  await api(page, `api.setPlayerWorldPosition(${50.5 * 32}, ${10.5 * 32})`);
+  await page.waitForTimeout(850);
+  const ridge = await api(page, 'api.getSweepRuntimeState()');
+  expect(ridge.elevationLabel).toContain('RAISED RIDGE');
+  expect(ridge.cameraElevationOffsetY).toBeLessThan(-8);
+  expect(ridge.cameraElevationZoom).toBeGreaterThan(1);
+
+  await api(page, `api.setPlayerWorldPosition(${25 * 32}, ${50 * 32})`);
+  await page.waitForTimeout(850);
+  const creek = await api(page, 'api.getSweepRuntimeState()');
+  expect(creek.elevationLabel).toContain('LOWER CREEK');
+  expect(creek.cameraElevationOffsetY).toBeGreaterThan(8);
+  expect(creek.cameraElevationZoom).toBeLessThan(1);
+});
+
 test('screen filter setting applies to the top-down world camera', async ({ page }) => {
   await bootToMenu(page);
   await api(page, `api.enterSweep('surface-z1')`);
@@ -191,6 +211,28 @@ test('screen filter setting applies to the top-down world camera', async ({ page
   const cleared = await api(page, 'api.getScreenFilterState()');
   expect(cleared.filter).toBe('none');
   if (cleared.webgl) expect(cleared.postPipelineCount).toBe(0);
+});
+
+test('major reward modal pauses gameplay until Continue', async ({ page }) => {
+  await bootToMenu(page);
+  await api(page, `api.enterSweep('surface-z1')`);
+  await api(page, `api.showRewardBanner({ title: 'TROPHY UNLOCKED', sub: 'FIELD TEST', desc: 'Modal proof for important rewards.', icon: 'trophy-cache', rarity: 'rare' })`);
+  await expect(page.locator('#rw-banners.rw-modal-host .rw-reward-modal')).toBeVisible();
+  await expect(page.locator('#rw-banners .rw-reward-modal')).toContainText('FIELD TEST');
+  await expect(page.locator('#rw-banners [data-continue]')).toBeVisible();
+
+  const before = await playerState(page);
+  await api(page, `api.driveAi({ moveX: 1, moveY: 0, aimX: 1, aimY: 0, dashHeld: true })`);
+  await page.waitForTimeout(650);
+  const paused = await playerState(page);
+  expect(Math.abs(paused.x - before.x)).toBeLessThanOrEqual(2);
+
+  await page.click('#rw-banners [data-continue]');
+  await expect(page.locator('#rw-banners.rw-modal-host')).toHaveCount(0);
+  await page.waitForTimeout(650);
+  const resumed = await playerState(page);
+  expect(resumed.x).toBeGreaterThan(before.x + 20);
+  await api(page, 'api.stopAi()');
 });
 
 test('Chagrin Falls Town spawn does not apply invisible immediate damage', async ({ page }) => {

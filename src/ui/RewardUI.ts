@@ -2,7 +2,7 @@
  * RewardUI — the DOM/CSS reward layer for BLIP's Signal Cache system.
  * Lives beside ShellUI/CommandCenter (crisp HTML over the pixel canvas) so it's
  * readable + touchable on desktop / iPad / iPhone. Owns:
- *   1. cache-earned + trophy popups (top-center banners)
+ *   1. cache-earned + trophy/major-reward modals
  *   2. the interactive Signal Cache OPENING screen (radar rings, flash, cards)
  *   3. the Signal ARCHIVE (collection terminal)
  * Driven entirely by EVT.* bus events + RewardSystem. Input works with
@@ -78,6 +78,7 @@ export class RewardUI {
   // banner queue — rewards reveal ONE AT A TIME, each with its own spotlight
   private bannerQueue: BannerPayload[] = [];
   private bannerActive = false;
+  private bannerModalOpen = false;
   private bannerTimers: number[] = [];
 
   // archive state
@@ -147,6 +148,8 @@ export class RewardUI {
 
   /** Enqueue a reward banner. Reveals are strictly ONE AT A TIME (see pumpBanner). */
   private showBanner(p: BannerPayload): void {
+    const suppressUntil = Number((window as unknown as { __BLIP_SUPPRESS_REWARD_MODALS_UNTIL?: number }).__BLIP_SUPPRESS_REWARD_MODALS_UNTIL ?? 0);
+    if (suppressUntil > performance.now()) return;
     this.bannerQueue.push(p);
     this.pumpBanner();
   }
@@ -158,14 +161,14 @@ export class RewardUI {
    */
   private pumpBanner(): void {
     // hold everything back while the cache-opening screen owns the spotlight
-    if (this.bannerActive || this.cacheOpen || this.bannerQueue.length === 0) return;
+    if (this.bannerActive || this.cacheOpen || this.archiveOpen || this.bannerQueue.length === 0) return;
     const p = this.bannerQueue.shift() as BannerPayload;
     this.bannerActive = true;
 
     const color = p.color || '#a8ff3e';
     const remaining = this.bannerQueue.length;
     const el = document.createElement('div');
-    el.className = `rw-banner${p.big ? ' big' : ''}`;
+    el.className = `rw-banner rw-reward-modal${p.big ? ' big' : ''}`;
     el.style.setProperty('--c', color);
     el.style.setProperty('--rw-enter', `${REWARD_BANNER.enterMs}ms`);
     el.style.setProperty('--rw-exit', `${REWARD_BANNER.exitMs}ms`);
@@ -180,29 +183,51 @@ export class RewardUI {
       `<div class="rw-b-sub">${esc(p.sub)}</div>` +
       descHtml +
       `</div>` +
-      moreHtml;
+      moreHtml +
+      `<button class="rw-b-continue" data-continue>CONTINUE</button>`;
     // hard guarantee: nothing else is on the rail
     this.banners.innerHTML = '';
     this.banners.appendChild(el);
+    this.banners.classList.add('rw-modal-host');
+    if (!this.bannerModalOpen) {
+      this.bannerModalOpen = true;
+      this.pushModal();
+    }
     try { audio.uiToggle(); } catch { /* audio best-effort */ }
-
-    const hold = remaining >= REWARD_BANNER.backlogThreshold
-      ? REWARD_BANNER.backlogHoldMs
-      : p.big ? REWARD_BANNER.bigHoldMs : REWARD_BANNER.holdMs;
-    const life = REWARD_BANNER.enterMs + hold;
-
-    this.bannerTimers.push(window.setTimeout(() => el.classList.add('out'), life));
-    this.bannerTimers.push(window.setTimeout(() => {
-      el.remove();
-      this.bannerActive = false;
-      // brief beat, then the next reward gets its own moment
-      this.bannerTimers.push(window.setTimeout(() => this.pumpBanner(), REWARD_BANNER.gapMs));
-    }, life + REWARD_BANNER.exitMs));
+    el.querySelector('[data-continue]')?.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      this.closeBannerModal();
+    });
   }
 
   /** Cache screen closed — resume revealing any rewards that queued behind it. */
   private flushDeferredBanners(): void {
     this.pumpBanner();
+  }
+
+  private closeBannerModal(): void {
+    if (!this.bannerActive) return;
+    this.bannerTimers.forEach((t) => window.clearTimeout(t));
+    this.bannerTimers = [];
+    const el = this.banners.querySelector('.rw-banner') as HTMLElement | null;
+    const finish = () => {
+      this.banners.innerHTML = '';
+      this.bannerActive = false;
+      const keepPausedForNext = this.bannerQueue.length > 0;
+      if (!keepPausedForNext) this.banners.classList.remove('rw-modal-host');
+      if (this.bannerModalOpen && !keepPausedForNext) {
+        this.bannerModalOpen = false;
+        this.popModal();
+      }
+      this.bannerTimers.push(window.setTimeout(() => this.pumpBanner(), REWARD_BANNER.gapMs));
+    };
+    if (!el) {
+      finish();
+      return;
+    }
+    el.classList.add('out');
+    this.bannerTimers.push(window.setTimeout(finish, REWARD_BANNER.exitMs));
   }
 
   /* ============================ 2. CACHE-OPENING SCREEN =================== */
@@ -721,6 +746,14 @@ export class RewardUI {
       }
       return;
     }
+    if (this.bannerActive) {
+      if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Escape') {
+        ev.preventDefault();
+        ev.stopPropagation();
+        this.closeBannerModal();
+      }
+      return;
+    }
     if (this.archiveOpen) {
       if (ev.key === 'Escape' || ev.key === 'Tab') { ev.preventDefault(); ev.stopPropagation(); this.closeArchive(); return; }
       if (ev.key === 'ArrowRight' || ev.key === 'ArrowLeft') {
@@ -767,6 +800,10 @@ export class RewardUI {
         if (this.padJust(pad, PAD.interact) || this.padJust(pad, PAD.select) || this.padJust(pad, PAD.start)) this.closeArchive();
         else if (this.padJust(pad, PAD.dpadRight) || xEdge > 0) this.cycleTab(1);
         else if (this.padJust(pad, PAD.dpadLeft) || xEdge < 0) this.cycleTab(-1);
+      } else if (this.bannerActive) {
+        if (this.padJust(pad, PAD.primary) || this.padJust(pad, PAD.interact) || this.padJust(pad, PAD.start)) {
+          this.closeBannerModal();
+        }
       }
     }
     this.prevPad = pad;

@@ -203,7 +203,6 @@ const MOTEL: TdBiomeDef = {
     ['td-z2-lm-vending', 'td-z2-lm-vending-emis', 0.34],
     // index 1 is the biome's warm/powered anchor — see TdTerrain.placeLandmarks
     ['td-z2-lm-lamp', 'td-z2-lm-lamp-emis', 0.40],
-    ['td-z2-lm-car', null, 0.30],
     ['td-z2-lm-sign', 'td-z2-lm-sign-emis', 0.38],
   ],
   flatLandmark: null, // nothing here lies flat on the ground the way a pool does
@@ -278,7 +277,6 @@ const STADIUM: TdBiomeDef = {
   bank: ['td-z2-rubble', 'td-z2-crate', 'td-z2-tire'],
   canopy: null,
   landmarks: [
-    ['td-z2-lm-car', null, 0.32],
     ['td-z2-lm-lamp', 'td-z2-lm-lamp-emis', 0.42],
     ['td-z2-lm-sign', 'td-z2-lm-sign-emis', 0.34],
     ['td-z2-lm-vending', 'td-z2-lm-vending-emis', 0.30],

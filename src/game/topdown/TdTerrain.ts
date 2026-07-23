@@ -78,6 +78,7 @@ export class TdTerrain {
     this.bakeGround(AW, AH);
     this.buildGroundDepth(AW, AH);
     this.buildWalls();
+    this.buildSolidSurfaceDetails();
     this.dressEdges();
     this.scatterProps();
     this.placeLayeredDepthProps();
@@ -522,6 +523,138 @@ export class TdTerrain {
       }
   }
 
+  /* ------------------------- 2b. roof/ridge readability --------------------- */
+  private buildSolidSurfaceDetails(): void {
+    const { tile: T, w: W, h: H, solid, art } = this.input;
+    if (!art.hd) return;
+
+    const style = this.visualStyle;
+    const g = this.makeDrawing(DEPTH.sorted - 1, style === 'motel' || style === 'stadium' ? 0.86 : 0.62);
+
+    if (style === 'motel' || style === 'stadium') {
+      // Built collision masses are motel roofs / walls / service blocks, not
+      // playable floor. Add parapets and rooftop equipment so large solid caps
+      // do not read as empty tiled pavement.
+      const roofCells: Array<{ tx: number; ty: number; exposed: boolean }> = [];
+      for (let ty = 1; ty < H - 1; ty++) {
+        for (let tx = 1; tx < W - 1; tx++) {
+          if (!solid[ty][tx]) continue;
+          const exposed = !solid[ty + 1]?.[tx] || !solid[ty - 1]?.[tx] || !solid[ty]?.[tx - 1] || !solid[ty]?.[tx + 1];
+          if (exposed || this.rng() < 0.045) roofCells.push({ tx, ty, exposed });
+        }
+      }
+
+      // Parapet/highlight lines along exposed built edges.
+      for (const p of roofCells) {
+        if (!p.exposed) continue;
+        const x = p.tx * T;
+        const y = p.ty * T;
+        if (!solid[p.ty - 1]?.[p.tx]) {
+          g.lineStyle(2, 0x9fb1c4, 0.18);
+          g.lineBetween(x + 4, y + 3, x + T - 4, y + 3);
+        }
+        if (!solid[p.ty + 1]?.[p.tx]) {
+          g.lineStyle(4, 0x03060a, 0.32);
+          g.lineBetween(x + 3, y + T - 2, x + T - 3, y + T - 2);
+        }
+        if (!solid[p.ty]?.[p.tx - 1]) {
+          g.lineStyle(2, 0x0b1119, 0.24);
+          g.lineBetween(x + 2, y + 5, x + 2, y + T - 4);
+        }
+        if (!solid[p.ty]?.[p.tx + 1]) {
+          g.lineStyle(2, 0x5a6a78, 0.14);
+          g.lineBetween(x + T - 2, y + 5, x + T - 2, y + T - 4);
+        }
+      }
+
+      const shuffled = roofCells.filter((p) => !p.exposed || this.rng() < 0.28);
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(this.rng() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      const count = Math.min(style === 'motel' ? 28 : 34, shuffled.length);
+      for (let i = 0; i < count; i++) {
+        const p = shuffled[i];
+        const cx = (p.tx + 0.5) * T + (this.rng() - 0.5) * T * 0.38;
+        const cy = (p.ty + 0.5) * T + (this.rng() - 0.5) * T * 0.38;
+        if (!this.isClearOfMarkers(cx, cy, T * 4)) continue;
+        const kind = i % 5;
+        if (kind === 0) this.drawRoofVent(g, cx, cy, style === 'stadium');
+        else if (kind === 1) this.drawRooftopBox(g, cx, cy, style === 'stadium');
+        else if (kind === 2) this.drawRoofPipe(g, cx, cy, style === 'stadium');
+        else if (kind === 3) this.drawRoofPatch(g, cx, cy);
+        else this.drawJaggedCrack(g, cx, cy, T * (0.55 + this.rng() * 0.9), 0x090d14, 0.2);
+      }
+      return;
+    }
+
+    // Outdoor solid masses are ridges, hedges, rows or corrupted banks. Add
+    // ledge highlights and base shadows so the boundary reads as elevation.
+    for (let ty = 1; ty < H - 1; ty++) {
+      for (let tx = 1; tx < W - 1; tx++) {
+        if (!solid[ty][tx]) continue;
+        const x = tx * T;
+        const y = ty * T;
+        if (!solid[ty - 1]?.[tx] && this.rng() < 0.7) {
+          g.lineStyle(2, style === 'orchard' ? 0xb9934c : style === 'storm' ? 0x7a51b0 : 0x5f765e, 0.18);
+          g.lineBetween(x + 4, y + 4, x + T - 4, y + 2);
+        }
+        if (!solid[ty + 1]?.[tx] && this.rng() < 0.82) {
+          g.lineStyle(5, 0x030604, style === 'storm' ? 0.28 : 0.2);
+          g.lineBetween(x + 2, y + T - 1, x + T - 2, y + T - 1);
+          if (style === 'orchard' && this.rng() < 0.24) {
+            g.lineStyle(2, 0x6d5628, 0.22);
+            g.lineBetween(x + 7, y + T - 7, x + T - 9, y + T - 12);
+          }
+        }
+      }
+    }
+  }
+
+  private drawRoofVent(g: Phaser.GameObjects.Graphics, x: number, y: number, town = false): void {
+    const w = 18 + this.rng() * 12;
+    const h = 10 + this.rng() * 8;
+    g.fillStyle(0x080b10, 0.4);
+    g.fillEllipse(x + 4, y + 5, w * 1.15, h * 0.8);
+    g.fillStyle(town ? 0x303640 : 0x1d2530, 0.86);
+    g.fillRoundedRect(x - w / 2, y - h / 2, w, h, 2);
+    g.lineStyle(1, 0x9fb1c4, 0.28);
+    for (let k = -2; k <= 2; k++) g.lineBetween(x + k * 3, y - h / 2 + 2, x + k * 3, y + h / 2 - 2);
+  }
+
+  private drawRooftopBox(g: Phaser.GameObjects.Graphics, x: number, y: number, town = false): void {
+    const w = 24 + this.rng() * 18;
+    const h = 15 + this.rng() * 12;
+    g.fillStyle(0x020408, 0.36);
+    g.fillRoundedRect(x - w / 2 + 5, y - h / 2 + 5, w, h, 3);
+    g.fillStyle(town ? 0x27313b : 0x18202a, 0.9);
+    g.fillRoundedRect(x - w / 2, y - h / 2, w, h, 3);
+    g.lineStyle(2, town ? 0xd4a64d : 0x43dff2, 0.18);
+    g.lineBetween(x - w / 2 + 5, y, x + w / 2 - 5, y);
+    g.lineStyle(1, 0xaebccc, 0.18);
+    g.strokeRoundedRect(x - w / 2 + 2, y - h / 2 + 2, w - 4, h - 4, 2);
+  }
+
+  private drawRoofPipe(g: Phaser.GameObjects.Graphics, x: number, y: number, town = false): void {
+    const len = 34 + this.rng() * 44;
+    const horizontal = this.rng() < 0.55;
+    g.lineStyle(5, 0x05070a, 0.24);
+    g.lineBetween(x - (horizontal ? len / 2 : 0) + 3, y - (horizontal ? 0 : len / 2) + 3, x + (horizontal ? len / 2 : 0) + 3, y + (horizontal ? 0 : len / 2) + 3);
+    g.lineStyle(3, town ? 0x66717d : 0x43515f, 0.5);
+    g.lineBetween(x - (horizontal ? len / 2 : 0), y - (horizontal ? 0 : len / 2), x + (horizontal ? len / 2 : 0), y + (horizontal ? 0 : len / 2));
+    g.fillStyle(town ? 0xd5a347 : 0x4fd6e3, 0.24);
+    g.fillCircle(x, y, 4);
+  }
+
+  private drawRoofPatch(g: Phaser.GameObjects.Graphics, x: number, y: number): void {
+    const w = 28 + this.rng() * 32;
+    const h = 10 + this.rng() * 18;
+    g.fillStyle(0x05070c, 0.18);
+    g.fillRoundedRect(x - w / 2, y - h / 2, w, h, 4);
+    g.lineStyle(1, 0x8fa0b4, 0.12);
+    g.strokeRoundedRect(x - w / 2 + 2, y - h / 2 + 2, w - 4, h - 4, 3);
+  }
+
   /* ------------------------------ 3. irregular edges ------------------------- */
   /** Bury every straight room/hall boundary under organic cover. */
   private dressEdges(): void {
@@ -654,9 +787,9 @@ export class TdTerrain {
   private depthImagePool(): string[] {
     switch (this.visualStyle) {
       case 'motel':
-        return ['td-z2-lm-lamp', 'td-z2-lm-car', 'td-z2-lm-vending', 'td-z2-crate', 'td-z2-planter', 'td-z2-scrap'];
+        return ['td-z2-lm-lamp', 'td-z2-lm-sign', 'td-z2-lm-vending', 'td-z2-crate', 'td-z2-planter', 'td-z2-scrap'];
       case 'stadium':
-        return ['td-z2-lm-car', 'td-z2-lm-lamp', 'td-z2-lm-sign', 'td-z2-crate', 'td-z2-planter', 'td-z2-rubble'];
+        return ['td-z2-lm-lamp', 'td-z2-lm-sign', 'td-z2-lm-vending', 'td-z2-crate', 'td-z2-planter', 'td-z2-rubble'];
       case 'orchard':
         return ['td-z4-lm-cart', 'td-z4-lm-scarecrow', 'td-z4-lm-hay', 'td-z4-hay', 'td-z4-crate', 'td-z4-pumpkin'];
       case 'storm':

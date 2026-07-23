@@ -44,7 +44,8 @@ Pulse/Arc/Recall, Orchard Crop Circle gating through the
 Gravity Well/raised-ridge step, two first-pass Miller Boost washout crossings,
 settings screen filters that apply to the active top-down world camera, additive
 environment-depth dressing with biome-specific ground wear, layered silhouettes,
-foreground framing and named-area identity dressing, staged Signal Storm phase labels, generated map
+foreground framing, built-roof service details, named-area identity dressing and
+data-driven elevation zones with subtle follow-camera offset/zoom, staged Signal Storm phase labels, generated map
 schematics, AI Lab smoke harness and focused campaign evidence, HD top-down renderer, and the Tripo
 CONTACT-47 eight-facing sprite fallback pipeline.
 
@@ -123,7 +124,7 @@ a strong demo. Do not jump to later full-game systems until these are stable.
    without hidden navigation. Current focused evidence is strong enough to move
    on to broader route regression and subjective live-feel review.
 6. Unified notification and reward UI: one objective card, one activity feed,
-   one major queued reward, no overlapping popups.
+   centered blocking read-and-continue major reward cards, no overlapping popups.
 7. Major reward presentation: clear name, type, rarity/importance, behavior,
    equip/activate where relevant, and no generic diamond for important rewards.
 8. Meaningful progression: test/polish the first live behavior hooks, then add
@@ -165,8 +166,8 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 |---|---|---|---|---|---|---|
 | Named region objectives | COMPLETE | `src/game/data/regionGoals.ts` | Each region has named objective/reward copy | Some objectives still operate as charge loops underneath | P0 | HUD and Command Center show named goals |
 | Visible progress | PARTIAL | HUD node stats, breach feedback, debug `objectiveActions`, field events | Node/route state visible; route opens require charge plus real progress actions; enlarged Miller/Town/Orchard thresholds now better match authored field-event pacing | Too much still reads as generic node charge | P0 | Players/AI know what action progresses objective |
-| Completion feedback | PARTIAL | `awardRegionReward()`, banners/toasts, `RewardUI`, `UIScene` | Reward and route-open messages exist; major reward rail and center HUD callouts queue one at a time | Shell toasts/HUD banners still need one shared manager/showcase | P0 | Unified notification manager |
-| Reward preview/delivery | PARTIAL | region goals, rewards save, weapon pickup labels | Rewards are named/persisted and important weapon drops show name/role plus a queued weapon acquire card; random health drops no longer carry stale weapon ids | Presentation is not yet comparable/equippable enough | P0 | Major reward card shows effect and why it matters |
+| Completion feedback | PARTIAL | `awardRegionReward()`, banners/toasts, `RewardUI`, `UIScene` | Reward and route-open messages exist; center HUD callouts queue one at a time; major reward/trophy/weapon cards pause gameplay in a centered read-and-continue modal | Shell toasts/HUD banners still need one shared manager/showcase | P0 | Unified notification manager |
+| Reward preview/delivery | PARTIAL | region goals, rewards save, weapon pickup labels, `RewardUI` | Rewards are named/persisted and important weapon drops show name/role in a blocking acquire card; random health drops no longer carry stale weapon ids | Presentation is not yet comparable/equippable enough | P0 | Major reward card shows effect and why it matters |
 | Forward route clarity | PARTIAL | route signs, breach dwell, latest AI JSON, `tests/route-readiness.spec.ts` | Broad surprise warp removed; route markers simplified; visible field-event markers give players/AI more local goals; objective arrows now choose the nearest useful unvisited route marker instead of sending players backward to skipped signs; `first-three-route-regression-v8` reached 6/6 Town arrivals with 0 deaths/soft locks; Orchard-focused AI reaches 6/6 after Gravity Well objective-priority fix | Full-route evidence still missing; failed lower-road and Motel Check-Out breadcrumb experiments were reverted after worse samples | P0 | Focused first-three route campaign improves Motel/Town arrivals |
 | No endless combat after complete | COMPLETE | `quietRoutePressure()`, `tests/route-readiness.spec.ts` | Enemies/bolts clear after breach opens; route-clear group mutation bug fixed by snapshotting enemy removal and using explicit live-enemy counts | Continue regression coverage | P1 | E2E route-open state has no endless spawns |
 | Full-route AI completion | MISSING | `public/ai-playtest/latest.json` | AI harness exists; latest public sample is `first-three-route-regression-v8` at 6/6 Miller→Motel→Town completions with 0 deaths and 0 soft-lock-risk stalls; Orchard-focused sample remains 6/6 | No full-route completions in current shipped evidence | P1 | Overnight campaign after route clarity |
@@ -190,7 +191,7 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 | Item | Status | Evidence | Works | Missing / Risk | Priority | Acceptance / Tests |
 |---|---|---|---|---|---|---|
 | Multiple routes | PARTIAL | arena rooms/halls, discovered-room washes | Some route alternatives exist and unvisited HD rooms start subtly dimmer until entered | Not always readable as choice; needs live feel review | P2 | At least Town has two legible approaches |
-| Bridges/hills/ridges/overlooks | PARTIAL | town bridge concept, Orchard ridge | A ridge beat exists | Limited elevation vocabulary | P2 | Controlled 2.5D elevation with safe collision |
+| Bridges/hills/ridges/overlooks | PARTIAL | town bridge concept, Orchard ridge, `SweepElevationZone`, `tests/smoke.spec.ts` | All five route regions now have data-driven rise/drop/roofline/creek/rift zones with visible ground cues and subtle follow-camera offset/zoom; Orchard ridge beat exists | Manual feel review still needed; full 3D elevation/collision states remain deferred | P1 | Controlled 2.5D elevation with safe collision and no route rewrites |
 | Lower paths/ravines/underground | PLANNED | design docs | None required now | Not implemented | P3 | Add only when route needs depth |
 | Hidden Scout shelters | PLANNED | Scouts/rewards/docs | Scout lore exists | No authored shelters | P2 | One optional shelter later in slice if useful |
 | Purposeful structures / landmarks | PARTIAL | `TdTerrain.placeLandmarks()`, authored field events | Random flat walk-through landmarks no longer spawn in central route spaces; decorative landmarks are edge-biased, while important objects should be authored | Existing authored set pieces still need manual readability/collision review | P1 | Every visible central structure is clearly decorative, interactive, blocked, or tied to a reward/objective |
@@ -225,7 +226,7 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 | Item | Status | Evidence | Works | Missing / Risk | Priority | Acceptance / Tests |
 |---|---|---|---|---|---|---|
 | Basic resources/caches | COMPLETE | `RewardSystem`, `rewards.ts` | Caches, shards, archive, trophies exist | Some charm rewards may still feel toy-like | P2 | Reward archive remains functional |
-| Major reward cards | PARTIAL | toasts/banners, region goals, `RewardUI`, pickup labels | Name/type/description appears, major reward banners queue one at a time, weapon pickups/equip messages resolve from the actual weapon id, and health drops no longer have stale weapon ids | Not yet a single polished acquire/equip flow | P0 | Major reward card is unmistakable and non-overlapping |
+| Major reward cards | PARTIAL | toasts/modals, region goals, `RewardUI`, pickup labels | Name/type/description appears, major reward modals pause gameplay and queue one at a time, weapon pickups/equip messages resolve from the actual weapon id, and health drops no longer have stale weapon ids | Not yet a single polished acquire/equip flow | P0 | Major reward card is unmistakable and non-overlapping |
 | Comparison/equip | PARTIAL | `RewardUI`, `rewards.equip()` | Cosmetic equip exists | Gameplay reward compare/equip shallow | P1 | Simple acquire/activate/equip flow |
 | Store/salvage | DEFERRED | docs | Duplicate dust exists | Full inventory not needed now | P3 | Decide later |
 | AI ignored reward tracking | PARTIAL | AI JSON loot fields | Loot seen/ignored counted | Current evidence is short and route-biased | P1 | Overnight report ranks ignored rewards |
@@ -306,7 +307,7 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 |---|---|---|---|---|---|---|
 | Mature tone target | COMPLETE | `TONE_PASS_NOTES.md`, Command Center art direction | Direction documented | Must remain enforced | P1 | No cute/toy drift in new work |
 | Combat force | PARTIAL | mechanical rupture, scorch, stronger hit pressure | Sparks/scorch/shake improved | Weapon-specific impact polish remains | P2 | Hits feel forceful without clutter |
-| Atmosphere/environment damage | PARTIAL | HD biomes, fog, shadows, `TdTerrain.buildGroundDepth()`, `SweepScene.decorateNamedArea()` | Biome-specific ground wear, cracks, grates, row marks, edge silhouettes, foreground framing and named-area dressing are live without changing routes/collision | Needs manual visual taste pass, stronger damaged buildings/vehicles/emergency cues and dedicated town asset pack | P2 | Tone pass per region |
+| Atmosphere/environment damage | PARTIAL | HD biomes, fog, shadows, `TdTerrain.buildGroundDepth()`, `TdTerrain.buildSolidSurfaceDetails()`, `SweepScene.decorateNamedArea()`, `SweepElevationZone` | Biome-specific ground wear, cracks, grates, row marks, edge silhouettes, foreground framing, rooftop/parapet/service detail, named-area dressing and camera-reactive elevation zones are live without changing routes/collision; ambiguous Motel/Town car landmark is no longer auto-placed | Needs manual visual taste pass, stronger damaged buildings/vehicles/emergency cues and dedicated town asset pack | P2 | Tone pass per region |
 | Optional blood setting | DEFERRED | prompt only | Not needed for mechanical enemies | Organic enemies not current focus | P3 | Decide only if organic enemies arrive |
 
 ### 16. UI and Notification System
@@ -314,8 +315,8 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 | Item | Status | Evidence | Works | Missing / Risk | Priority | Acceptance / Tests |
 |---|---|---|---|---|---|---|
 | Objective card/HUD | PARTIAL | `UIScene`, HUD events | Region label/objective visible | Needs persistent priority design | P0 | Objective always readable, no overlap |
-| Popup/toast/banners | PARTIAL | `ShellUI`, `RewardUI`, `SweepScene`, `UIScene` | Routine toasts dedupe and shrink; combat toasts cap at two with shorter routine dwell; important route/reward/alert toasts stay readable; reward banners and center HUD callouts queue one at a time; routine region entry no longer fires a giant center banner | Independent HUD/banner systems still need one manager/showcase | P0 | Shared notification manager |
-| Major reward notification | PARTIAL | reward banners/toasts, weapon pickup flow | One major reward banner at a time; important weapon pickups show a queued acquire card with weapon role; routine health pickups do not report stale weapon ids | Acquire/equip/comparison flow still shallow | P0 | One major reward at a time |
+| Popup/toast/banners | PARTIAL | `ShellUI`, `RewardUI`, `SweepScene`, `UIScene` | Routine toasts dedupe and shrink; combat toasts cap at two with shorter routine dwell; important route/alert toasts stay readable; major reward/trophy/weapon cards queue one at a time as centered blocking modals; routine region entry no longer fires a giant center banner | Independent HUD/banner systems still need one manager/showcase | P0 | Shared notification manager |
+| Major reward notification | PARTIAL | reward banners/toasts, weapon pickup flow, `tests/smoke.spec.ts` | Major rewards now pause gameplay in a centered read-and-continue modal, reveal one at a time, and avoid overlapping world signs or HUD text; important weapon pickups show a queued acquire card with weapon role; routine health pickups do not report stale weapon ids | Acquire/equip/comparison flow still shallow | P0 | One major reward at a time |
 | Notification developer showcase | MISSING | no showcase | None | Needed after manager | P2 | Test all notification classes |
 
 ### 17. HUD, Menus, Settings, Accessibility
@@ -345,7 +346,7 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 |---|---|---|---|---|---|---|
 | HD top-down region assets | PARTIAL | `public/assets/topdown` | z1/z2/z4 packs exist, town uses hard-edge HD vocabulary | Dedicated town pack missing | P1 | No pixelated fallback maps in route |
 | Dedicated Chagrin Falls pack | PLANNED | docs | Need recognized town identity | Not built | P2 | Town landmarks/streets read immediately |
-| Environment-depth dressing | PARTIAL | `src/game/topdown/TdTerrain.ts`, `src/game/scenes/SweepScene.ts` | Shared HD renderer adds region-specific ground wear, medium/tall edge silhouettes, foreground framing and local dressing around route-beacon names so signs better match their areas | Manual camera-distance review still needed; future art pack should replace procedural dressing where it matters | P1 | Every named area has visible local identity without blocking gameplay readability |
+| Environment-depth dressing | PARTIAL | `src/game/topdown/TdTerrain.ts`, `src/game/scenes/SweepScene.ts`, `src/game/topdown/TdBiomes.ts`, `src/game/data/sweepArenas.ts` | Shared HD renderer adds region-specific ground wear, medium/tall edge silhouettes, foreground framing, roof/parapet/service-equipment details, local dressing around route-beacon names and camera-reactive elevation zones so signs better match their areas; unclear car landmark removed from auto-placement | Manual camera-distance review still needed; future art pack should replace procedural dressing where it matters | P1 | Every named area has visible local identity without blocking gameplay readability |
 | Enemy/boss/hazard assets | PARTIAL | procedural/bestiary data | Current enemies render | Replacement art roadmap not complete | P2 | Important enemies not placeholder-looking |
 | Traversal device assets | PLANNED | Gravity Well procedural | Well exists | Tubes/doors/rails/contraptions missing | P3 | Add with mechanics |
 | Transparent PNG pipeline | COMPLETE | character PNG assets | Tripo output is transparent | Maintain asset checks | P1 | No checkerboard backgrounds |

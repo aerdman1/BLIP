@@ -11,7 +11,7 @@ import { buildSweepTextures } from '../art/sweepTextures';
 import { BlipCraft } from '../entities/sweep/BlipCraft';
 import { SweepEnemy, type SweepEnemyDebugState } from '../entities/sweep/SweepEnemy';
 import { Projectile, fireFrom, makeProjectileGroup } from '../entities/Projectile';
-import { DEFAULT_ARENA, SWEEP_ARENAS, SWEEP_GRAVITY_WELLS, SWEEP_MOTEL_SCANNERS, SWEEP_ROUTE_BEACONS, type SweepArena, type SweepFieldEvent } from '../data/sweepArenas';
+import { DEFAULT_ARENA, SWEEP_ARENAS, SWEEP_GRAVITY_WELLS, SWEEP_MOTEL_SCANNERS, SWEEP_ROUTE_BEACONS, type SweepArena, type SweepElevationZone, type SweepFieldEvent } from '../data/sweepArenas';
 import { goalForArena, type RegionGoal } from '../data/regionGoals';
 import { WEAPONS, WEAPON_PICKUPS, type SweepWeapon } from '../data/sweepWeapons';
 import { audio } from '../systems/AudioSystem';
@@ -206,6 +206,11 @@ export class SweepScene extends Phaser.Scene {
   private tdNodeRig?: SignalNodeRig;
   private tdRigs = new Map<Phaser.GameObjects.GameObject, ActorRig>();
   private tdPlayerRim?: Phaser.GameObjects.Image;
+  private cameraBaseZoom = 1;
+  private cameraElevationOffsetY = 0;
+  private cameraElevationZoom = 1;
+  private activeElevationLabel = '';
+  private suppressRewardModalOnce = false;
 
   private exiting = false;
   private gameOverShown = false;
@@ -316,6 +321,10 @@ export class SweepScene extends Phaser.Scene {
     // world region is identical to the 480x270 build — no gameplay retuning.
     const dens = this.scale.width / VIEW_W;
     this.cameras.main.setZoom(dens * RENDER_ZOOM * (coarsePointer ? SWEEP.touchCameraZoom : SWEEP.cameraZoom));
+    this.cameraBaseZoom = this.cameras.main.zoom;
+    this.cameraElevationOffsetY = 0;
+    this.cameraElevationZoom = 1;
+    this.activeElevationLabel = '';
     if (this.td) {
       // Pixel-snapping at a fractional zoom produces jitter, and y-sorted
       // shadows need sub-pixel continuity. Sweep camera only.
@@ -890,7 +899,7 @@ export class SweepScene extends Phaser.Scene {
         return ['td-z2-rubble', 'td-z2-scrap', 'td-z2-tire', 'td-z2-cone', 'td-z2-crate', 'td-z2-planter'];
       }
       if (this.arena.id === 'town-z3') {
-        return ['td-z2-lm-car', 'td-z2-lm-lamp', 'td-z2-rubble', 'td-z2-planter', 'td-z2-crate', 'td-z2-cone'];
+        return ['td-z2-lm-lamp', 'td-z2-lm-sign', 'td-z2-rubble', 'td-z2-planter', 'td-z2-crate', 'td-z2-cone'];
       }
       if (this.arena.id === 'maze-z4') {
         return ['td-z4-hay', 'td-z4-crate', 'td-z4-pumpkin', 'td-z4-gourd', 'td-z4-basket', 'td-z4-tuft'];
@@ -1104,7 +1113,8 @@ export class SweepScene extends Phaser.Scene {
         g.lineBetween(x - 58, y, x - 14, y);
         g.lineBetween(x + 14, y, x + 58, y);
         addPost(-54, 22, 0xffc966, 44);
-        addProp('td-z2-lm-car', 48, 30, 0.2);
+        addProp('td-z2-crate', 48, 24, 0.3);
+        addProp('td-z2-planter', 66, 22, 0.28);
       }
       if (key.includes('MARKET')) {
         fill(0x5a2e2e, 0.16);
@@ -1186,6 +1196,7 @@ export class SweepScene extends Phaser.Scene {
 
   private buildRegionSetPieces(): void {
     if (this.arena.id === 'circuit-z2') this.buildMotelScanners();
+    this.buildElevationZones();
     if (this.arena.id !== 'maze-z4') return;
     const T = SWEEP.tile;
     const well = SWEEP_GRAVITY_WELLS[this.arena.id];
@@ -1225,6 +1236,83 @@ export class SweepScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setResolution(2)
       .setDepth(13);
+  }
+
+  private buildElevationZones(): void {
+    if (!this.td || !this.arena.elevationZones?.length) return;
+    const T = SWEEP.tile;
+    this.arena.elevationZones.forEach((zone) => {
+      const x = zone.x * T;
+      const y = zone.y * T;
+      const w = zone.w * T;
+      const h = zone.h * T;
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      const g = this.add.graphics().setDepth(DEPTH.decal + 52).setAlpha(0.72);
+      const color = zone.kind === 'rise' || zone.kind === 'roofline'
+        ? P.warning
+        : zone.kind === 'rift'
+          ? P.violetGlitch
+          : P.neonCyan;
+      const shadow = zone.kind === 'rift' ? P.danger : 0x030508;
+      g.fillStyle(shadow, zone.kind === 'rise' || zone.kind === 'roofline' ? 0.055 : 0.085);
+      g.fillRoundedRect(x + 8, y + 8, w - 16, h - 16, 10);
+      g.lineStyle(3, shadow, 0.22);
+      g.lineBetween(x + 12, y + h - 12, x + w - 12, y + h - 16);
+      g.lineStyle(2, color, zone.kind === 'rift' ? 0.22 : 0.14);
+      g.lineBetween(x + 14, y + 10, x + w - 16, y + 14);
+      const hatchCount = Math.max(4, Math.min(16, Math.floor(w / 60)));
+      for (let i = 0; i < hatchCount; i++) {
+        const t = i / Math.max(1, hatchCount - 1);
+        const hx = Phaser.Math.Linear(x + 18, x + w - 18, t);
+        const hy = cy + Math.sin(t * Math.PI * 2) * h * 0.18;
+        const dir = zone.kind === 'rise' || zone.kind === 'roofline' ? -1 : 1;
+        g.lineStyle(1, color, zone.kind === 'rift' ? 0.18 : 0.1);
+        g.lineBetween(hx - 18, hy + 8 * dir, hx + 18, hy - 8 * dir);
+      }
+      if (zone.kind === 'creek') {
+        g.lineStyle(2, P.neonCyan, 0.18);
+        for (let i = 0; i < 3; i++) {
+          const yy = y + h * (0.35 + i * 0.12);
+          g.beginPath();
+          g.moveTo(x + 14, yy);
+          for (let step = 1; step <= 8; step++) {
+            const xx = x + 14 + (w - 28) * (step / 8);
+            g.lineTo(xx, yy + Math.sin(step * 1.4 + i) * 7);
+          }
+          g.strokePath();
+        }
+      }
+      if (zone.kind === 'rift') {
+        const core = this.add.image(cx, cy, TEX.glow8).setDepth(DEPTH.decal + 51).setTint(P.violetGlitch).setBlendMode(Phaser.BlendModes.ADD).setScale(Math.max(2.2, Math.min(4.8, w / 150))).setAlpha(0.12);
+        this.tweens.add({ targets: core, alpha: { from: 0.08, to: 0.22 }, scale: { from: core.scale * 0.92, to: core.scale * 1.08 }, duration: 1400, yoyo: true, repeat: -1 });
+      }
+    });
+  }
+
+  private zoneContains(zone: SweepElevationZone, x: number, y: number): boolean {
+    const T = SWEEP.tile;
+    const left = zone.x * T;
+    const top = zone.y * T;
+    return x >= left && x <= left + zone.w * T && y >= top && y <= top + zone.h * T;
+  }
+
+  private currentElevationZone(): SweepElevationZone | null {
+    const zones = this.arena.elevationZones ?? [];
+    return zones.find((zone) => this.zoneContains(zone, this.player.x, this.player.y)) ?? null;
+  }
+
+  private updateCameraElevation(dt: number): void {
+    if (!this.td || !this.player?.active) return;
+    const zone = this.currentElevationZone();
+    const targetOffsetY = zone?.cameraOffsetY ?? 0;
+    const targetZoom = zone?.cameraZoom ?? 1;
+    const t = Phaser.Math.Clamp(dt * 5.2, 0.05, 0.18);
+    this.cameraElevationOffsetY = Phaser.Math.Linear(this.cameraElevationOffsetY, targetOffsetY, t);
+    this.cameraElevationZoom = Phaser.Math.Linear(this.cameraElevationZoom, targetZoom, t);
+    this.activeElevationLabel = zone?.label ?? '';
+    this.cameras.main.setFollowOffset(0, this.cameraElevationOffsetY);
+    this.cameras.main.setZoom(this.cameraBaseZoom * this.cameraElevationZoom);
   }
 
   private buildMotelScanners(): void {
@@ -1376,6 +1464,10 @@ export class SweepScene extends Phaser.Scene {
     this.fx.flash(P.signal, 150);
     this.fx.scanRing(this.player.x, this.player.y, 96, 460, P.signal);
     this.fx.floatText(this.player.x, this.player.y - 16, goal.rewardName.toUpperCase(), P.signal);
+    if (this.suppressRewardModalOnce) {
+      this.suppressRewardModalOnce = false;
+      return;
+    }
     bus.emit(EVT.rewardBanner, {
       kind: 'region-reward',
       title: goal.rewardName.toUpperCase(),
@@ -2150,6 +2242,10 @@ export class SweepScene extends Phaser.Scene {
       motelScanners?: { disabled: number; total: number };
       boostGaps?: number;
       hoverTrailCount?: number;
+      elevationLabel?: string;
+      cameraElevationOffsetY?: number;
+      cameraElevationZoom?: number;
+      elevationZones?: number;
   } | null {
     if (!this.player?.active) return null;
     const motelScanners = this.motelScannerStatus();
@@ -2172,6 +2268,10 @@ export class SweepScene extends Phaser.Scene {
       motelScanners: motelScanners.total ? motelScanners : undefined,
       boostGaps: this.arena.boostGaps?.length,
       hoverTrailCount: this.hoverTrail.length,
+      elevationLabel: this.activeElevationLabel || undefined,
+      cameraElevationOffsetY: Math.round(this.cameraElevationOffsetY),
+      cameraElevationZoom: Number(this.cameraElevationZoom.toFixed(3)),
+      elevationZones: this.arena.elevationZones?.length,
     };
   }
 
@@ -3150,6 +3250,7 @@ export class SweepScene extends Phaser.Scene {
     const wasShifting = this.player.isDashing;
     this.player.move(this.input2);
     this.updateHoverTrail(now);
+    this.updateCameraElevation(dt);
     if (!wasShifting && this.player.isDashing && loadSave().purchasedUpgrades.includes('ghost-protocol')) {
       this.heat = Math.max(0, this.heat - 18);
       this.fx.sparks(this.player.x, this.player.y, P.scoutCameron, 4);
@@ -3382,9 +3483,11 @@ export class SweepScene extends Phaser.Scene {
   }
 
   /** DEV: move straight to the breach so the route transition fires next update. */
-  debugRouteToBreach(): void {
+  debugRouteToBreach(suppressRewardModal = false): void {
     if (!this.traverse || !this.player || this.exiting) return;
+    this.suppressRewardModalOnce = suppressRewardModal;
     if (!this.breachOpen) this.openBreach();
+    this.suppressRewardModalOnce = false;
     this.player.setPosition(this.breachPos.x, this.breachPos.y);
     (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
     this.breachEntryStartedAt = this.time.now - BREACH_ENTRY_DWELL_MS;

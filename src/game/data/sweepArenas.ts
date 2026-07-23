@@ -61,6 +61,17 @@ export interface SweepBoostGap {
   h: number;
   orientation?: 'horizontal' | 'vertical';
 }
+export interface SweepElevationZone {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  kind: 'rise' | 'drop' | 'roofline' | 'creek' | 'rift';
+  cameraOffsetY?: number;
+  cameraZoom?: number;
+}
 export interface SweepFieldEvent {
   id: string;
   label: string;
@@ -105,6 +116,7 @@ export interface SweepArena {
   weaponSpawns?: { tx: number; ty: number; wid: string }[]; // guaranteed weapon pickups
   bossFinale?: boolean; // optional dormant boss gate; current slice keeps Orchard traversal-focused
   boostGaps?: SweepBoostGap[]; // cracked washouts that normal movement cannot cross; hold Boost to pass
+  elevationZones?: SweepElevationZone[]; // visual 2.5D areas that shift camera/ground read without changing collision
   fieldEvents?: SweepFieldEvent[]; // authored pocket rewards, ambushes and one-off power-ups
 }
 
@@ -163,6 +175,11 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     boostGaps: [
       { id: 'lower-lane-washout', label: 'BOOST WASHOUT', x: 50, y: 43, w: 5, h: 4, orientation: 'vertical' },
       { id: 'old-mill-crack', label: 'OLD MILL CRACK', x: 10, y: 18, w: 5, h: 3, orientation: 'horizontal' },
+    ],
+    elevationZones: [
+      { id: 'substation-overlook-rise', label: 'SUBSTATION OVERLOOK', x: 53, y: 5, w: 18, h: 10, kind: 'rise', cameraOffsetY: -20, cameraZoom: 1.025 },
+      { id: 'lower-field-dip', label: 'LOWER FIELD', x: 36, y: 42, w: 25, h: 7, kind: 'drop', cameraOffsetY: 18, cameraZoom: 0.985 },
+      { id: 'old-mill-bank', label: 'OLD MILL BANK', x: 5, y: 8, w: 17, h: 11, kind: 'rise', cameraOffsetY: -14, cameraZoom: 1.015 },
     ],
     // ROSTER — "the open field": the fundamentals (drifter/tagger/diver) plus a first
     // taste of the JITTER weaver so Zone 1 teaches the verbs before later zones twist them.
@@ -281,6 +298,11 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     weaponSpawns: [
       { tx: 31, ty: 35, wid: 'arc' }, // Check-In fallback route — encourages parry/close play in halls
       { tx: 59, ty: 15, wid: 'disc' }, // Motel Sign Ledge — rewards stealth/overlook exploration
+    ],
+    elevationZones: [
+      { id: 'room-row-overhang', label: 'ROOM ROW ROOF EDGE', x: 18, y: 22, w: 16, h: 11, kind: 'roofline', cameraOffsetY: -12, cameraZoom: 1.018 },
+      { id: 'pool-courtyard-low', label: 'POOL COURTYARD', x: 39, y: 18, w: 16, h: 11, kind: 'drop', cameraOffsetY: 16, cameraZoom: 0.988 },
+      { id: 'river-ramp-rise', label: 'RIVER RAMP', x: 68, y: 17, w: 10, h: 10, kind: 'rise', cameraOffsetY: -18, cameraZoom: 1.022 },
     ],
     // ROSTER — "the firewall circuit": tight corridors reward flanking, so FIREWALL wardens
     // clog the halls (dash through / hit their backs) and a rooted PYLON turret guards the node.
@@ -420,6 +442,11 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
       { tx: 45, ty: 48, wid: 'disc' }, // River Walk — rewards the lower shortcut
       { tx: 59, ty: 50, wid: 'arc' }, // Broken Bridge pocket — close-range tool for Stadium Road
     ],
+    elevationZones: [
+      { id: 'market-upper-route', label: 'MARKET ALLEY RISE', x: 34, y: 13, w: 18, h: 11, kind: 'rise', cameraOffsetY: -20, cameraZoom: 1.02 },
+      { id: 'river-walk-low', label: 'RIVER WALK', x: 50, y: 43, w: 23, h: 8, kind: 'creek', cameraOffsetY: 20, cameraZoom: 0.985 },
+      { id: 'stadium-road-crown', label: 'STADIUM ROAD CROWN', x: 62, y: 37, w: 17, h: 10, kind: 'roofline', cameraOffsetY: -10, cameraZoom: 1.012 },
+    ],
     enemies: [
       { tx: 18, ty: 43, type: 'tagger' }, { tx: 31, ty: 42, type: 'drifter' }, { tx: 40, ty: 17, type: 'sniper' },
       { tx: 56, ty: 35, type: 'turret' }, { tx: 69, ty: 14, type: 'weaver' }, { tx: 64, ty: 26, type: 'warden' },
@@ -556,6 +583,11 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
       { tx: 72, ty: 47, wid: 'disc' }, // H — positioning tool near Scout shelter
       { tx: 31, ty: 49, wid: 'arc' }, // B — risky burst option before the boss finale
     ],
+    elevationZones: [
+      { id: 'lower-creek-drop', label: 'LOWER CREEK', x: 20, y: 47, w: 18, h: 8, kind: 'creek', cameraOffsetY: 22, cameraZoom: 0.982 },
+      { id: 'raised-ridge', label: 'RAISED RIDGE', x: 42, y: 5, w: 20, h: 12, kind: 'rise', cameraOffsetY: -26, cameraZoom: 1.028 },
+      { id: 'crop-circle-bowl', label: 'CROP CIRCLE BOWL', x: 42, y: 22, w: 18, h: 12, kind: 'drop', cameraOffsetY: 13, cameraZoom: 0.992 },
+    ],
     // ROSTER — "the hunting maze": long corn lanes let PINPOINT snipers line up telegraphed
     // shots (break line-of-sight around a hedge), JITTER weavers dart the rows, REPLICATOR
     // splitters swarm the clearings, and FIREWALL wardens + a PYLON turret anchor the chokes —
@@ -676,6 +708,11 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     node: { tx: 41, ty: 29 },
     spawn: { tx: 41, ty: 47 },
     caches: [{ tx: 18, ty: 14 }, { tx: 63, ty: 14 }, { tx: 24, ty: 42 }, { tx: 57, ty: 42 }],
+    elevationZones: [
+      { id: 'classifier-core-bowl', label: 'CLASSIFIER CORE BOWL', x: 30, y: 22, w: 22, h: 14, kind: 'rift', cameraOffsetY: 12, cameraZoom: 1.015 },
+      { id: 'north-rift-rise', label: 'NORTH RIFT RISE', x: 28, y: 4, w: 26, h: 14, kind: 'rise', cameraOffsetY: -28, cameraZoom: 1.035 },
+      { id: 'relay-wing-ledges', label: 'RELAY WING LEDGES', x: 11, y: 9, w: 60, h: 10, kind: 'roofline', cameraOffsetY: -16, cameraZoom: 1.018 },
+    ],
     fieldEvents: [
       {
         id: 'west-relay-cache',
