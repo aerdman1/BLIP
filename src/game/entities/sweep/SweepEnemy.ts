@@ -6,6 +6,7 @@
  */
 import Phaser from 'phaser';
 import { PALETTE as P, SWEEP, SWEEP_ENEMIES, TEX, type SweepEnemyKind } from '../../config';
+import type { AffinityState } from '../../systems/DamageAffinity';
 
 const TEX_FOR: Record<SweepEnemyKind, string> = {
   drifter: TEX.sweepDrifter,
@@ -16,11 +17,18 @@ const TEX_FOR: Record<SweepEnemyKind, string> = {
   splitter: TEX.sweepSplitter,
   weaver: TEX.sweepWeaver,
   turret: TEX.sweepTurret,
+  cipher: TEX.sweepCipher,
+  graviton: TEX.sweepGraviton,
+  undertow: TEX.sweepUndertow,
+  decoy: TEX.sweepDecoy,
+  dormant: TEX.sweepDormant,
 };
 
 type FireBolt = (x: number, y: number, vx: number, vy: number) => void;
 type DiveState = 'idle' | 'diving' | 'recover';
 type ShotBlockState = 'none' | 'blocked' | 'overloaded';
+type AmbushState = 'hidden' | 'waking' | 'active';
+type UndertowState = 'burrowed' | 'locking' | 'surfaced';
 export interface SweepEnemyDebugState {
   kind: SweepEnemyKind;
   hp: number;
@@ -69,6 +77,12 @@ export class SweepEnemy extends Phaser.Physics.Arcade.Sprite {
   private shieldBrokenUntil = 0;
   private readonly anchorX: number;
   private readonly anchorY: number;
+  private ambushState: AmbushState = 'hidden';
+  private ambushAt = 0;
+  private undertowState: UndertowState = 'burrowed';
+  private undertowAt = 0;
+  private undertowTargetX = 0;
+  private undertowTargetY = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number, kind: SweepEnemyKind) {
     super(scene, x, y, TEX_FOR[kind]);
@@ -95,6 +109,16 @@ export class SweepEnemy extends Phaser.Physics.Arcade.Sprite {
     this.lastMoveX = x;
     this.lastMoveY = y;
     this.lastMoveCheckAt = scene.time.now;
+    if (this.cfg.behavior === 'decoy') {
+      this.setAlpha(0.86).setTint(P.signal);
+      body.setImmovable(true);
+    } else if (this.cfg.behavior === 'dormant') {
+      this.setAlpha(0.82).setTint(0x6c7278);
+      body.setImmovable(true);
+    } else if (this.cfg.behavior === 'undertow') {
+      this.setAlpha(0.58).setTint(P.warning);
+      this.undertowAt = scene.time.now + 900 + Math.random() * 800;
+    }
   }
 
   /** how many shards this enemy bursts into when killed (REPLICATOR) — scene spawns them */
@@ -145,6 +169,13 @@ export class SweepEnemy extends Phaser.Physics.Arcade.Sprite {
       charging: this.charging,
       pathRecovering: this.scene.time.now < this.unstuckUntil,
     };
+  }
+
+  affinityState(): AffinityState {
+    if (this.cfg.behavior === 'graviton' && this.scene.time.now < (Number(this.getData('gravitonActiveUntil')) || 0)) return 'field-active';
+    if (this.cfg.behavior === 'undertow') return this.undertowState === 'surfaced' ? 'surfaced' : 'burrowed';
+    if (this.cfg.behavior === 'decoy' || this.cfg.behavior === 'dormant') return this.ambushState === 'hidden' || this.ambushState === 'waking' ? 'disguised' : 'active';
+    return 'normal';
   }
 
   /** redraw the little HP bar only when hp changed; reposition above the drone */
@@ -264,7 +295,8 @@ export class SweepEnemy extends Phaser.Physics.Arcade.Sprite {
     const dist = Phaser.Math.Distance.Between(this.x, this.y, px, py);
     this.slotDrift();
     if (this.updateStuckRecovery(now, body, px, py, spd, pathing)) return;
-    if (pathing && this.cfg.behavior !== 'turret') {
+    const specialPathing = this.cfg.behavior === 'cipher' || this.cfg.behavior === 'graviton' || this.cfg.behavior === 'undertow' || this.cfg.behavior === 'decoy' || this.cfg.behavior === 'dormant';
+    if (pathing && this.cfg.behavior !== 'turret' && !specialPathing) {
       if (dist > 5) body.setVelocity(Math.cos(ang) * spd, Math.sin(ang) * spd);
       else body.setVelocity(0, 0);
       return;
@@ -351,6 +383,130 @@ export class SweepEnemy extends Phaser.Physics.Arcade.Sprite {
         } else if (now >= this.fireAt && dist < 260) {
           this.charging = true;
           this.chargeEndAt = now + this.cfg.telegraphMs;
+        }
+        break;
+      }
+
+      case 'cipher': {
+        const pref = this.cfg.keepRange || 205;
+        const s = dist > pref + 30 ? spd : dist < pref - 26 ? -spd : 0;
+        const strafe = Math.sin(now * 0.0035 + this.wobPhase) * spd * 0.5;
+        const perp = ang + Math.PI / 2;
+        if (this.charging) {
+          body.setVelocity(0, 0);
+          this.setTint(Math.floor(now / 90) % 2 ? P.warning : P.danger);
+          if (now >= this.chargeEndAt) {
+            this.charging = false;
+            this.clearTint();
+            this.fireAt = now + this.cfg.fireMs / aggro;
+            this.setData('cipherMarkerRequest', {
+              x: px + Math.cos(ang) * 24,
+              y: py + Math.sin(ang) * 24,
+              radius: 56,
+              lockMs: 360,
+              explodeMs: 930,
+            });
+          }
+        } else {
+          body.setVelocity(Math.cos(ang) * s + Math.cos(perp) * strafe, Math.sin(ang) * s + Math.sin(perp) * strafe);
+          if (now >= this.fireAt && dist < this.cfg.lockRange) {
+            this.charging = true;
+            this.chargeEndAt = now + this.cfg.telegraphMs;
+          }
+        }
+        break;
+      }
+
+      case 'graviton': {
+        const activeUntil = Number(this.getData('gravitonActiveUntil')) || 0;
+        if (now < activeUntil) {
+          body.setVelocity(0, 0);
+          this.setTint(Math.floor(now / 100) % 2 ? P.neonCyan : P.white);
+          break;
+        }
+        if (this.charging) {
+          body.setVelocity(0, 0);
+          this.setTint(Math.floor(now / 90) % 2 ? P.neonCyan : P.warning);
+          if (now >= this.chargeEndAt) {
+            this.charging = false;
+            this.clearTint();
+            this.fireAt = now + this.cfg.fireMs / aggro;
+            this.setData('gravitonActiveUntil', now + 1750);
+            this.setData('gravitonPulseAt', now);
+          }
+        } else {
+          const pref = this.cfg.keepRange || 155;
+          const s = dist > pref + 28 ? spd : dist < pref - 20 ? -spd : 0;
+          body.setVelocity(Math.cos(ang) * s, Math.sin(ang) * s);
+          if (now >= this.fireAt && dist < this.cfg.lockRange) {
+            this.charging = true;
+            this.chargeEndAt = now + this.cfg.telegraphMs;
+          }
+        }
+        break;
+      }
+
+      case 'undertow': {
+        if (this.undertowState === 'burrowed') {
+          this.setAlpha(0.48);
+          this.setTint(P.warning);
+          const lead = 0.28;
+          const tx = px + Math.cos(ang) * dist * lead;
+          const ty = py + Math.sin(ang) * dist * lead;
+          const chase = Math.atan2(ty - this.y, tx - this.x);
+          body.setVelocity(Math.cos(chase) * this.cfg.diveSpeed, Math.sin(chase) * this.cfg.diveSpeed);
+          if (now >= this.undertowAt && dist < this.cfg.lockRange) {
+            this.undertowState = 'locking';
+            this.undertowAt = now + this.cfg.telegraphMs;
+            this.undertowTargetX = px + Math.cos(ang) * 28;
+            this.undertowTargetY = py + Math.sin(ang) * 28;
+            this.setData('undertowLockRequest', { x: this.undertowTargetX, y: this.undertowTargetY, radius: 46, eruptAt: this.undertowAt });
+          }
+        } else if (this.undertowState === 'locking') {
+          body.setVelocity(0, 0);
+          this.setAlpha(0.66).setTint(Math.floor(now / 100) % 2 ? P.warning : P.danger);
+          if (now >= this.undertowAt) {
+            this.undertowState = 'surfaced';
+            this.undertowAt = now + 1150;
+            this.setAlpha(1).clearTint();
+            this.setPosition(this.undertowTargetX, this.undertowTargetY);
+            this.setData('undertowEruptRequest', { x: this.x, y: this.y, radius: 46 });
+          }
+        } else {
+          body.setVelocity(Math.cos(ang) * spd * 0.55, Math.sin(ang) * spd * 0.55);
+          if (now >= this.undertowAt) {
+            this.undertowState = 'burrowed';
+            this.undertowAt = now + this.cfg.fireMs;
+          }
+        }
+        break;
+      }
+
+      case 'decoy':
+      case 'dormant': {
+        const wakeDist = this.cfg.lockRange || 72;
+        if (this.ambushState === 'hidden') {
+          body.setVelocity(0, 0);
+          if (dist < wakeDist || this.hp < this.maxHp) {
+            this.ambushState = 'waking';
+            this.ambushAt = now + this.cfg.telegraphMs;
+            this.setAlpha(1);
+            this.setTint(this.cfg.behavior === 'decoy' ? P.warning : P.danger);
+          }
+        } else if (this.ambushState === 'waking') {
+          body.setVelocity(0, 0);
+          this.setTint(Math.floor(now / 80) % 2 ? P.warning : P.danger);
+          if (now >= this.ambushAt) {
+            this.ambushState = 'active';
+            this.ambushAt = now + 460;
+            body.setImmovable(false);
+            this.clearTint();
+            body.setVelocity(Math.cos(ang) * this.cfg.diveSpeed, Math.sin(ang) * this.cfg.diveSpeed);
+            this.setData('ambushBurstRequest', { x: this.x, y: this.y, radius: this.cfg.behavior === 'dormant' ? 50 : 42 });
+          }
+        } else {
+          const burst = now < this.ambushAt;
+          body.setVelocity(Math.cos(ang) * (burst ? this.cfg.diveSpeed : spd), Math.sin(ang) * (burst ? this.cfg.diveSpeed : spd));
         }
         break;
       }

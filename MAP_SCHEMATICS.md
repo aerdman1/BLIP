@@ -21,10 +21,10 @@ These schematics are planning artifacts for map redesign prompts. They show the 
 
 - Arena id: `surface-z1`
 - Grid: `86x52` tiles
-- Spawn: `10,41`
+- Spawn: `11,27`
 - Objective: `39,26`
 - Exit: `76,21`
-- Enemies: 3 drifter, 4 tagger, 2 diver, 1 weaver
+- Enemies: 3 drifter, 4 tagger, 2 diver, 1 decoy
 - Caches: `8,11`, `35,25`, `64,9`, `49,45`, `76,42`
 - Field events: `OLD MILL LOG@12,12:scan:shards`, `POWER SWITCH@64,10:enter:boon`, `SCOUT SHELTER@76,42:scan:weapon`, `BEND SIGNAL@67,37:enter:health`
 - Weapon pickups: `disc@34,38`, `arc@64,30`
@@ -53,11 +53,11 @@ Key locations:
 
 - Arena id: `circuit-z2`
 - Grid: `86x52` tiles
-- Spawn: `10,44`
+- Spawn: `36,45`
 - Objective: `51,34`
 - Exit: `75,11`
-- Enemies: 3 drifter, 3 tagger, 2 diver, 2 warden, 1 turret, 1 sniper, 1 weaver
-- Caches: `10,18`, `25,14`, `59,15`, `74,38`, `79,9`
+- Enemies: 2 decoy, 4 sniper, 3 warden, 3 turret, 1 graviton
+- Caches: `8,44`, `10,18`, `25,14`, `59,15`, `74,38`, `74,46`, `79,9`
 - Field events: `SAFE BATTERY@16,35:enter:health`, `MAINTENANCE CACHE@10,18:scan:boon`, `ROOM ROW STASH@25,14:scan:shards`, `POOL CROSSING@45,23:enter:overdrive`, `SERVICE LOCKER@74,38:scan:weapon`, `SIGN LEDGE@59,15:scan:health`
 - Weapon pickups: `arc@31,35`, `disc@59,15`
 - Boost gaps: none
@@ -84,10 +84,10 @@ Key locations:
 
 - Arena id: `town-z3`
 - Grid: `92x56` tiles
-- Spawn: `10,43`
+- Spawn: `72,13`
 - Objective: `51,35`
 - Exit: `83,49`
-- Enemies: 2 tagger, 2 drifter, 2 sniper, 1 turret, 1 weaver, 2 warden, 2 diver, 1 splitter
+- Enemies: 3 tagger, 3 weaver, 2 sniper, 2 cipher, 2 dormant, 1 warden
 - Caches: `13,17`, `75,13`, `45,48`, `84,51`, `39,15`
 - Field events: `NEIGHBORHOOD CACHE@13,17:scan:boon`, `MARKET ALLEY@39,15:enter:shards`, `BRIDGE CACHE@75,13:scan:weapon`, `RIVER WALK@45,48:scan:health`, `ORCHARD GATE@84,51:enter:overdrive`
 - Weapon pickups: `disc@45,48`, `arc@59,50`
@@ -114,10 +114,10 @@ Key locations:
 
 - Arena id: `maze-z4`
 - Grid: `92x58` tiles
-- Spawn: `10,51`
+- Spawn: `80,47`
 - Objective: `50,27`
 - Exit: `80,11`
-- Enemies: 3 sniper, 3 weaver, 3 splitter, 3 tagger, 1 turret, 2 warden, 2 diver
+- Enemies: 3 diver, 4 drifter, 4 splitter, 3 undertow, 1 cipher, 2 dormant
 - Caches: `9,28`, `76,47`, `82,10`, `11,53`, `30,49`, `52,10`, `27,16`
 - Field events: `LOWER CREEK@27,16:scan:shards`, `RECALL ROW@9,28:scan:weapon`, `RIDGE CACHE@52,10:enter:boon`, `SCOUT SHELTER@76,47:scan:health`, `STORM FENCE@82,10:scan:overdrive`
 - Weapon pickups: `pulse@12,50`, `disc@12,29`, `arc@50,10`, `disc@72,47`, `arc@31,49`
@@ -145,7 +145,7 @@ Key locations:
 
 - Arena id: `anomaly-01`
 - Grid: `82x54` tiles
-- Spawn: `41,47`
+- Spawn: `34,11`
 - Objective: `41,29`
 - Exit: `none / waves finale`
 - Enemies: none

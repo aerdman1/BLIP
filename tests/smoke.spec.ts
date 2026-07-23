@@ -174,15 +174,15 @@ test('elevation zones add camera depth without changing region architecture', as
   await page.waitForTimeout(850);
   const ridge = await api(page, 'api.getSweepRuntimeState()');
   expect(ridge.elevationLabel).toContain('RAISED RIDGE');
-  expect(ridge.cameraElevationOffsetY).toBeLessThan(-8);
-  expect(ridge.cameraElevationZoom).toBeGreaterThan(1);
+  expect(ridge.cameraElevationOffsetY).toBeLessThan(-35);
+  expect(ridge.cameraElevationZoom).toBeLessThan(0.9);
 
   await api(page, `api.setPlayerWorldPosition(${25 * 32}, ${50 * 32})`);
   await page.waitForTimeout(850);
   const creek = await api(page, 'api.getSweepRuntimeState()');
   expect(creek.elevationLabel).toContain('LOWER CREEK');
-  expect(creek.cameraElevationOffsetY).toBeGreaterThan(8);
-  expect(creek.cameraElevationZoom).toBeLessThan(1);
+  expect(creek.cameraElevationOffsetY).toBeGreaterThan(20);
+  expect(creek.cameraElevationZoom).toBeLessThan(0.95);
 });
 
 test('screen filter setting applies to the top-down world camera', async ({ page }) => {

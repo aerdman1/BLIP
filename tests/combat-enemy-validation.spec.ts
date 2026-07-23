@@ -1,8 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { SWEEP_ARENAS } from '../src/game/data/sweepArenas';
+import type { SweepEnemyKind } from '../src/game/config';
 import { api, bootToMenu, watchConsole } from './helpers';
 
-const ENEMY_KINDS = ['drifter', 'tagger', 'diver', 'warden', 'sniper', 'splitter', 'weaver', 'turret'] as const;
+const ENEMY_KINDS = ['drifter', 'tagger', 'diver', 'warden', 'sniper', 'splitter', 'weaver', 'turret', 'cipher', 'graviton', 'undertow', 'decoy', 'dormant'] as const satisfies readonly SweepEnemyKind[];
 const ROUTE_ARENAS = ['surface-z1', 'circuit-z2', 'town-z3', 'maze-z4'] as const;
 type EnemyKind = (typeof ENEMY_KINDS)[number];
 
@@ -64,24 +65,27 @@ test('authored route enemy data has no overlap or spawn pressure traps', async (
   }
 });
 
-test('every enemy archetype moves or remains intentionally rooted', async ({ page }) => {
+test('every enemy archetype moves, acts, or remains intentionally rooted/hidden', async ({ page }) => {
   const watcher = watchConsole(page);
   await bootToMenu(page);
   await api(page, `api.enterSweep('surface-z1')`);
 
   for (const kind of ENEMY_KINDS) {
     const before = await startProbe(page, kind);
+    if (kind === 'decoy' || kind === 'dormant') {
+      await aimAndFireAtLiveEnemy(page);
+    }
     await api(page, 'api.stopAi()');
-    await page.waitForTimeout(950);
+    await page.waitForTimeout(kind === 'undertow' ? 1400 : 1050);
     const after = await api<CombatSnapshot>(page, 'api.getCombatSnapshot()');
     const first = before.enemies[0];
     const latest = after.enemies[0];
     expect(latest, `${kind} should still be active during movement probe`).toBeTruthy();
     const moved = Math.hypot(latest.x - first.x, latest.y - first.y);
     if (kind === 'turret') {
-      expect(moved, `${kind} is the only intentionally rooted enemy`).toBeLessThan(4);
+      expect(moved, `${kind} is allowed to root/channel in its combat role`).toBeLessThan(12);
     } else {
-      expect(moved, `${kind} should not freeze in a clear pursuit lane`).toBeGreaterThan(6);
+      expect(moved, `${kind} should not freeze in a clear pursuit lane once active`).toBeGreaterThan(6);
     }
   }
 

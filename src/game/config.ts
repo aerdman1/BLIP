@@ -700,8 +700,8 @@ export const FREQSWAP = {
 // Regions share one scene, one physics setup, and one Signal Shard economy.
 export const SWEEP = {
   tile: 32, // top-down map grid tile size (rooms/corridors authored in tiles)
-  cameraZoom: 0.82, // pulled-back top-down view: see more arena, still readable
-  touchCameraZoom: 0.72, // phones/tablets need more tactical context around controls
+  cameraZoom: 0.7, // wider top-down view: expanded rooms, slopes and encounters need more context
+  touchCameraZoom: 0.62, // phones/tablets need more tactical context around controls
   maxHp: 5,
   moveSpeed: 118, // top-down roam speed (clamped; boost exceeds it)
   accel: 1600,
@@ -831,6 +831,16 @@ export const SWEEP_ENEMIES = {
   weaver:   { behavior: 'weaver', hp: 2, speed: 68, points: 3, fireMs: 0,    boltSpeed: 0,   keepRange: 0,   diveSpeed: 0,   lockRange: 0,   weave: 88, telegraphMs: 0,   burst: 0, shielded: false, splitInto: 0 },
   // PYLON — rooted emitter; blinks, then fires a radial bolt-ring. Rush it and kill it between volleys.
   turret:   { behavior: 'turret', hp: 4, speed: 0,  points: 3, fireMs: 2200, boltSpeed: 118, keepRange: 0,   diveSpeed: 0,   lockRange: 0,   weave: 0,  telegraphMs: 520, burst: 8, shielded: false, splitInto: 0 },
+  // CIPHER — ranged caster; paints a delayed danger zone that can hurt both CONTACT-47 and nearby drones.
+  cipher:   { behavior: 'cipher', hp: 3, speed: 34, points: 4, fireMs: 3100, boltSpeed: 0, keepRange: 205, diveSpeed: 0, lockRange: 280, weave: 0, telegraphMs: 760, burst: 0, shielded: false, splitInto: 0 },
+  // GRAVITON — field generator; slows down to pull CONTACT-47 while its core is exposed.
+  graviton: { behavior: 'graviton', hp: 5, speed: 28, points: 5, fireMs: 4300, boltSpeed: 0, keepRange: 155, diveSpeed: 0, lockRange: 240, weave: 0, telegraphMs: 720, burst: 0, shielded: false, splitInto: 0 },
+  // UNDERTOW — burrows, marks an eruption, then surfaces for a punishment window.
+  undertow: { behavior: 'undertow', hp: 4, speed: 42, points: 5, fireMs: 2600, boltSpeed: 0, keepRange: 0, diveSpeed: 155, lockRange: 230, weave: 0, telegraphMs: 680, burst: 0, shielded: false, splitInto: 0 },
+  // DECOY — folded fake pickup/prop; wakes on approach or damage, then ambushes.
+  decoy:    { behavior: 'decoy', hp: 3, speed: 44, points: 4, fireMs: 0, boltSpeed: 0, keepRange: 0, diveSpeed: 210, lockRange: 70, weave: 0, telegraphMs: 520, burst: 0, shielded: false, splitInto: 0 },
+  // DORMANT — dead-looking wreckage that wakes into a short violent burst.
+  dormant:  { behavior: 'dormant', hp: 3, speed: 38, points: 4, fireMs: 0, boltSpeed: 0, keepRange: 0, diveSpeed: 230, lockRange: 78, weave: 0, telegraphMs: 620, burst: 0, shielded: false, splitInto: 0 },
 } as const;
 export type SweepEnemyKind = keyof typeof SWEEP_ENEMIES;
 
@@ -1030,6 +1040,11 @@ export const TEX = {
   sweepSplitter: 'sweep-splitter', // REPLICATOR — clustered shards
   sweepWeaver: 'sweep-weaver', // JITTER — fast zig-zag interceptor
   sweepTurret: 'sweep-turret', // PYLON — rooted radial emitter
+  sweepCipher: 'sweep-cipher', // CIPHER — delayed danger-zone caster
+  sweepGraviton: 'sweep-graviton', // GRAVITON — tractor-field generator
+  sweepUndertow: 'sweep-undertow', // UNDERTOW — burrowing eruption machine
+  sweepDecoy: 'sweep-decoy', // DECOY — fake pickup ambusher
+  sweepDormant: 'sweep-dormant', // DORMANT — wreckage ambusher
   sweepShotP: 'sweep-shot-p', // player pulse
   sweepShotE: 'sweep-shot-e', // enemy label bolt
   sweepReticle: 'sweep-reticle', // mouse aim crosshair
@@ -1202,6 +1217,11 @@ export const TD_ENEMY_TEX: Record<SweepEnemyKind, { body: string; emis: string }
   splitter: { body: TEX.tdSplitter, emis: TEX.tdSplitterEmis },
   weaver: { body: TEX.tdWeaver, emis: TEX.tdWeaverEmis },
   turret: { body: TEX.tdTurret, emis: TEX.tdTurretEmis },
+  cipher: { body: TEX.sweepCipher, emis: TEX.sweepCipher },
+  graviton: { body: TEX.sweepGraviton, emis: TEX.sweepGraviton },
+  undertow: { body: TEX.sweepUndertow, emis: TEX.sweepUndertow },
+  decoy: { body: TEX.sweepDecoy, emis: TEX.sweepDecoy },
+  dormant: { body: TEX.sweepDormant, emis: TEX.sweepDormant },
 };
 
 /* ------------------------ top-down HD visual treatment ---------------------- */

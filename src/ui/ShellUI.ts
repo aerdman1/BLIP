@@ -742,11 +742,16 @@ export class ShellUI {
     }, { passive: true });
   }
 
-  /** Build the crisp radar hero once, reusing the game's own probe texture. */
+  /** Build the crisp radar hero once, preferring the active Tripo CONTACT-47 art. */
   private buildHero(): void {
     if (this.heroBuilt) return;
     const textures = this.game.textures;
-    const robotSrc = textures.exists(TEX.player) ? textures.getBase64(TEX.player) : '';
+    const heroKey = textures.exists(TEX.tripoContact47South)
+      ? TEX.tripoContact47South
+      : textures.exists(TEX.tdBlip)
+        ? TEX.tdBlip
+        : TEX.player;
+    const robotSrc = textures.exists(heroKey) ? textures.getBase64(heroKey) : '';
     $('menu-hero').innerHTML = heroEmblemHtml(robotSrc);
     this.heroBuilt = true;
   }
@@ -961,6 +966,10 @@ export class ShellUI {
           <div class="toggle" id="setting-shake" role="switch" tabindex="0"><i></i></div>
         </div>
         <div class="settings-row">
+          <div class="row-label">CONTACT LIGHT<span class="row-sub">soft aura around CONTACT-47</span></div>
+          <div class="toggle" id="setting-player-aura" role="switch" tabindex="0"><i></i></div>
+        </div>
+        <div class="settings-row">
           <div class="row-label">ON-SCREEN CONTROLS<span class="row-sub">touch D-pad + buttons for tablets</span></div>
           <select class="filter-select" id="setting-touch">
             <option value="auto">AUTO (touch devices)</option>
@@ -1034,7 +1043,7 @@ export class ShellUI {
       syncMusicVol();
     });
 
-    const wireToggle = (id: string, key: 'muted' | 'music' | 'crt' | 'shake', invert = false) => {
+    const wireToggle = (id: string, key: 'muted' | 'music' | 'crt' | 'shake' | 'playerAura', invert = false) => {
       const el = $(id);
       const sync = () => el.classList.toggle('on', invert ? !settings.get(key) : settings.get(key));
       const flip = () => {
@@ -1056,6 +1065,7 @@ export class ShellUI {
     wireToggle('setting-music', 'music');
     wireToggle('setting-crt', 'crt');
     wireToggle('setting-shake', 'shake');
+    wireToggle('setting-player-aura', 'playerAura');
 
     // screen-filter dropdown (post-fx on menu/gameplay cameras; extend FILTERS to add more)
     const filterSel = $('setting-filter') as unknown as HTMLSelectElement;

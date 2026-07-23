@@ -68,7 +68,7 @@
 <rect x="429" y="560" width="165" height="66" fill="#2f564b" opacity="0.92" rx="2" />
 <rect x="627" y="582" width="99" height="55" fill="#2f564b" opacity="0.92" rx="2" />
 <rect x="770" y="593" width="99" height="44" fill="#2f564b" opacity="0.92" rx="2" />
-  <circle cx="137.5" cy="532.5" r="5" fill="#ffffff" /><text x="144.5" y="525.5" font-size="10" fill="#e8f5de" font-family="monospace">SPAWN</text>
+  <circle cx="819.5" cy="202.5" r="5" fill="#ffffff" /><text x="826.5" y="195.5" font-size="10" fill="#e8f5de" font-family="monospace">SPAWN</text>
 <rect x="583.5" y="439.5" width="10" height="10" fill="#9dff57" transform="rotate(45 588.5 444.5)" /><text x="595.5" y="437.5" font-size="10" fill="#e8f5de" font-family="monospace">OBJECTIVE</text>
 <rect x="935.5" y="593.5" width="10" height="10" fill="#67d8ff" transform="rotate(45 940.5 598.5)" /><text x="947.5" y="591.5" font-size="10" fill="#e8f5de" font-family="monospace">EXIT</text>
 <rect x="594.5" y="428.5" width="10" height="10" fill="#ff9f1c" transform="rotate(45 599.5 433.5)" /><text x="606.5" y="426.5" font-size="10" fill="#e8f5de" font-family="monospace">ELITE</text>
@@ -84,24 +84,25 @@
 <rect x="946.5" y="615.5" width="10" height="10" fill="#ffb84d" transform="rotate(45 951.5 620.5)" /><text x="958.5" y="613.5" font-size="10" fill="#e8f5de" font-family="monospace">ORCHARD GATE OVERDRIVE</text>
 <circle cx="522.5" cy="587.5" r="5" fill="#b86dff" /><text x="529.5" y="580.5" font-size="10" fill="#e8f5de" font-family="monospace">WPN DISC</text>
 <circle cx="676.5" cy="609.5" r="5" fill="#b86dff" /><text x="683.5" y="602.5" font-size="10" fill="#e8f5de" font-family="monospace">WPN ARC</text>
-<circle cx="302.5" cy="521.5" r="5" fill="#bcff72" /><text x="309.5" y="514.5" font-size="10" fill="#e8f5de" font-family="monospace">MAIN STREET</text>
+<circle cx="797.5" cy="213.5" r="5" fill="#bcff72" /><text x="804.5" y="206.5" font-size="10" fill="#e8f5de" font-family="monospace">BRIDGE OVERLOOK</text>
 <circle cx="467.5" cy="246.5" r="5" fill="#bcff72" /><text x="474.5" y="239.5" font-size="10" fill="#e8f5de" font-family="monospace">MARKET ALLEY</text>
+<circle cx="720.5" cy="345.5" r="5" fill="#bcff72" /><text x="727.5" y="338.5" font-size="10" fill="#e8f5de" font-family="monospace">RIVER ROAD TOWER</text>
 <circle cx="588.5" cy="444.5" r="5" fill="#bcff72" /><text x="595.5" y="437.5" font-size="10" fill="#e8f5de" font-family="monospace">TOWER LINE</text>
 <circle cx="764.5" cy="510.5" r="5" fill="#67d8ff" /><text x="771.5" y="503.5" font-size="10" fill="#e8f5de" font-family="monospace">STADIUM ROAD</text>
 <circle cx="885.5" cy="554.5" r="5" fill="#67d8ff" /><text x="892.5" y="547.5" font-size="10" fill="#e8f5de" font-family="monospace">COUNTY TRAIL</text>
 <circle cx="940.5" cy="598.5" r="5" fill="#67d8ff" /><text x="947.5" y="591.5" font-size="10" fill="#e8f5de" font-family="monospace">ORCHARD GATE</text>
 <circle cx="225.5" cy="532.5" r="5" fill="#ff5d73" /><text x="232.5" y="525.5" font-size="10" fill="#e8f5de" font-family="monospace">TAGGER</text>
-<circle cx="368.5" cy="521.5" r="5" fill="#ff5d73" /><text x="375.5" y="514.5" font-size="10" fill="#e8f5de" font-family="monospace">DRIFTER</text>
+<circle cx="368.5" cy="521.5" r="5" fill="#ff5d73" /><text x="375.5" y="514.5" font-size="10" fill="#e8f5de" font-family="monospace">WEAVER</text>
 <circle cx="467.5" cy="246.5" r="5" fill="#ff5d73" /><text x="474.5" y="239.5" font-size="10" fill="#e8f5de" font-family="monospace">SNIPER</text>
-<circle cx="643.5" cy="444.5" r="5" fill="#ff5d73" /><text x="650.5" y="437.5" font-size="10" fill="#e8f5de" font-family="monospace">TURRET</text>
-<circle cx="786.5" cy="213.5" r="5" fill="#ff5d73" /><text x="793.5" y="206.5" font-size="10" fill="#e8f5de" font-family="monospace">WEAVER</text>
-<circle cx="731.5" cy="345.5" r="5" fill="#ff5d73" /><text x="738.5" y="338.5" font-size="10" fill="#e8f5de" font-family="monospace">WARDEN</text>
-<circle cx="885.5" cy="521.5" r="5" fill="#ff5d73" /><text x="892.5" y="514.5" font-size="10" fill="#e8f5de" font-family="monospace">DIVER</text>
-<circle cx="544.5" cy="477.5" r="5" fill="#ff5d73" /><text x="551.5" y="470.5" font-size="10" fill="#e8f5de" font-family="monospace">SPLITTER</text>
+<circle cx="643.5" cy="444.5" r="5" fill="#ff5d73" /><text x="650.5" y="437.5" font-size="10" fill="#e8f5de" font-family="monospace">CIPHER</text>
+<circle cx="720.5" cy="257.5" r="5" fill="#ff5d73" /><text x="727.5" y="250.5" font-size="10" fill="#e8f5de" font-family="monospace">WEAVER</text>
+<circle cx="731.5" cy="345.5" r="5" fill="#ff5d73" /><text x="738.5" y="338.5" font-size="10" fill="#e8f5de" font-family="monospace">DORMANT</text>
+<circle cx="885.5" cy="521.5" r="5" fill="#ff5d73" /><text x="892.5" y="514.5" font-size="10" fill="#e8f5de" font-family="monospace">CIPHER</text>
+<circle cx="544.5" cy="477.5" r="5" fill="#ff5d73" /><text x="551.5" y="470.5" font-size="10" fill="#e8f5de" font-family="monospace">TAGGER</text>
 <circle cx="236.5" cy="257.5" r="5" fill="#ff5d73" /><text x="243.5" y="250.5" font-size="10" fill="#e8f5de" font-family="monospace">TAGGER</text>
-<circle cx="522.5" cy="598.5" r="5" fill="#ff5d73" /><text x="529.5" y="591.5" font-size="10" fill="#e8f5de" font-family="monospace">DRIFTER</text>
+<circle cx="522.5" cy="598.5" r="5" fill="#ff5d73" /><text x="529.5" y="591.5" font-size="10" fill="#e8f5de" font-family="monospace">DORMANT</text>
 <circle cx="841.5" cy="488.5" r="5" fill="#ff5d73" /><text x="848.5" y="481.5" font-size="10" fill="#e8f5de" font-family="monospace">WARDEN</text>
-<circle cx="940.5" cy="609.5" r="5" fill="#ff5d73" /><text x="947.5" y="602.5" font-size="10" fill="#e8f5de" font-family="monospace">DIVER</text>
+<circle cx="940.5" cy="609.5" r="5" fill="#ff5d73" /><text x="947.5" y="602.5" font-size="10" fill="#e8f5de" font-family="monospace">WEAVER</text>
 <circle cx="797.5" cy="609.5" r="5" fill="#ff5d73" /><text x="804.5" y="602.5" font-size="10" fill="#e8f5de" font-family="monospace">SNIPER</text>
   <text x="1062" y="26" font-size="14" fill="#9dff57" font-family="monospace" font-weight="700">Schematic Notes</text>
   <text x="1062" y="47" font-size="10" fill="#f5efe0" font-family="monospace">Town is now a street/cover connector with Main Street, neighborhood/market upper approach, bridge overlook, river-walk shortcut, stadium back alley and Orchard Gate.</text>

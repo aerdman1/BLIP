@@ -7,6 +7,7 @@ import Phaser from 'phaser';
 import { EVT, FLY_SPEED, PALETTE as P, SWEEP, TEX } from '../../config';
 import { audio } from '../../systems/AudioSystem';
 import { bus } from '../../systems/EventBus';
+import { settings } from '../../systems/Settings';
 import { activeSkin } from '../../systems/SkinState';
 import { devState } from '../../systems/DevState';
 import type { EffectsSystem } from '../../systems/EffectsSystem';
@@ -53,8 +54,9 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
       .setDepth(19)
       .setBlendMode(Phaser.BlendModes.ADD)
       .setTint(activeSkin().color) // the equipped skin's identity color
-      .setAlpha(0.6)
+      .setAlpha(0.34)
       .setScale(1.4);
+    this.glow.setVisible(settings.get('playerAura'));
     // a stubby gun barrel that points where you're aiming
     this.barrel = scene.add.rectangle(x, y, 11, 4, activeSkin().color, 1).setOrigin(0, 0.5).setDepth(21);
     this.hp = this.maxHp; // ANCHOR +1 hull / ROCKET −1 hull etc. apply here
@@ -65,6 +67,12 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
     const onFly = (p: unknown) => this.setFly((p as { on: boolean }).on);
     bus.on(EVT.flyMode, onFly);
     this.once('destroy', () => bus.off(EVT.flyMode, onFly));
+    const onSettings = (p: unknown) => {
+      const key = (p as { key?: string }).key;
+      if (!key || key === 'playerAura') this.glow.setVisible(settings.get('playerAura') && this.visible);
+    };
+    bus.on(EVT.settingsChanged, onSettings);
+    this.once('destroy', () => bus.off(EVT.settingsChanged, onSettings));
 
     // G toggles god mode.
     // Live whenever dev tools are on OR god mode is already enabled via the console.
@@ -134,6 +142,7 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
       this.setFlipX(Math.cos(this.aimAngle) < 0);
       this.shadow.setPosition(this.x, this.y + 10);
       this.glow.setPosition(this.x, this.y + 7);
+      this.glow.setVisible(settings.get('playerAura'));
       this.barrel.setPosition(this.x, this.y + BlipCraft.GUN_OFFSET_Y).setRotation(this.aimAngle);
       this.setAlpha(1);
       return;
@@ -193,6 +202,7 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
     this.setFlipX(Math.cos(this.aimAngle) < 0);
     this.shadow.setPosition(this.x, this.y + 10);
     this.glow.setPosition(this.x, this.y + 7);
+    this.glow.setVisible(settings.get('playerAura'));
     this.barrel.setPosition(this.x, this.y + BlipCraft.GUN_OFFSET_Y).setRotation(this.aimAngle);
     this.setAlpha(!this.invulnerable ? 1 : Math.sin(now * 0.04) > 0 ? 0.4 : 0.9);
   }
@@ -238,7 +248,7 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
   }
 
   setVisible(value: boolean): this {
-    this.glow?.setVisible(value);
+    this.glow?.setVisible(value && settings.get('playerAura'));
     this.barrel?.setVisible(value);
     this.shadow?.setVisible(value);
     return super.setVisible(value);

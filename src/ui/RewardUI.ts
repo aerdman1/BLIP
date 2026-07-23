@@ -80,6 +80,7 @@ export class RewardUI {
   private bannerActive = false;
   private bannerModalOpen = false;
   private bannerTimers: number[] = [];
+  private bannerPumpTimer: number | null = null;
 
   // archive state
   private activeTab = 'caches';
@@ -151,7 +152,15 @@ export class RewardUI {
     const suppressUntil = Number((window as unknown as { __BLIP_SUPPRESS_REWARD_MODALS_UNTIL?: number }).__BLIP_SUPPRESS_REWARD_MODALS_UNTIL ?? 0);
     if (suppressUntil > performance.now()) return;
     this.bannerQueue.push(p);
-    this.pumpBanner();
+    if (this.bannerActive || this.cacheOpen || this.archiveOpen) {
+      this.pumpBanner();
+      return;
+    }
+    if (this.bannerPumpTimer !== null) window.clearTimeout(this.bannerPumpTimer);
+    this.bannerPumpTimer = window.setTimeout(() => {
+      this.bannerPumpTimer = null;
+      this.pumpBanner();
+    }, 120);
   }
 
   /**
@@ -163,25 +172,32 @@ export class RewardUI {
     // hold everything back while the cache-opening screen owns the spotlight
     if (this.bannerActive || this.cacheOpen || this.archiveOpen || this.bannerQueue.length === 0) return;
     const p = this.bannerQueue.shift() as BannerPayload;
+    const grouped = [p, ...this.bannerQueue.splice(0, 5)];
+    const primary = grouped[0];
+    const extras = grouped.slice(1);
     this.bannerActive = true;
 
-    const color = p.color || '#a8ff3e';
+    const color = primary.color || '#a8ff3e';
     const remaining = this.bannerQueue.length;
     const el = document.createElement('div');
-    el.className = `rw-banner rw-reward-modal${p.big ? ' big' : ''}`;
+    el.className = `rw-banner rw-reward-modal${primary.big || grouped.length > 1 ? ' big' : ''}`;
     el.style.setProperty('--c', color);
     el.style.setProperty('--rw-enter', `${REWARD_BANNER.enterMs}ms`);
     el.style.setProperty('--rw-exit', `${REWARD_BANNER.exitMs}ms`);
-    const descHtml = p.desc ? `<div class="rw-b-desc">${esc(p.desc)}</div>` : '';
-    // a small "+N more" chip tells the player extra rewards are still queued
-    const moreHtml = remaining > 0 ? `<div class="rw-b-more">+${remaining}</div>` : '';
+    const extraHtml = extras.length
+      ? `<div class="rw-b-desc rw-b-group">${extras.map((item) => `<span>${esc(item.sub)}</span>`).join('')}</div>`
+      : '';
+    const descHtml = primary.desc ? `<div class="rw-b-desc">${esc(primary.desc)}</div>` : '';
+    // a small "+N more" chip tells the player extra rewards are still queued behind this grouped results card
+    const moreHtml = remaining > 0 ? `<div class="rw-b-more">+${remaining}</div>` : extras.length ? `<div class="rw-b-more">+${extras.length}</div>` : '';
     el.innerHTML =
       `<div class="rw-b-shine"></div>` +
-      `<div class="rw-b-icon">${iconSvg(p.icon, color)}</div>` +
+      `<div class="rw-b-icon">${iconSvg(primary.icon, color)}</div>` +
       `<div class="rw-b-text">` +
-      `<div class="rw-b-title">${esc(p.title)}</div>` +
-      `<div class="rw-b-sub">${esc(p.sub)}</div>` +
+      `<div class="rw-b-title">${esc(grouped.length > 1 ? 'REWARDS EARNED' : primary.title)}</div>` +
+      `<div class="rw-b-sub">${esc(primary.sub)}</div>` +
       descHtml +
+      extraHtml +
       `</div>` +
       moreHtml +
       `<button class="rw-b-continue" data-continue>CONTINUE</button>`;

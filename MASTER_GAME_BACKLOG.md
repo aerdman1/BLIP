@@ -32,7 +32,7 @@ rewrite.
 
 The playable foundation is real: single save, Continue/New Game, pause Quit to
 Menu, shared player state across handoffs, three weapons, fast switching, Boost,
-an explicit BOOST meter, restrained trailing boost echoes, a capped fading cyan hover-fire ground trail, named region goals, hardened charge-plus-action route objectives, enemy
+an explicit BOOST meter, restrained trailing boost echoes, a capped fading cyan hover-fire ground trail, named region goals, hardened charge-plus-action route objectives, centralized Pulse/Arc/Kinetic/Blast damage affinities, tactical enemy
 roles, enemy pursuit/stuck-recovery hardening, HD visual scale decoupled from
 world-space hitboxes, safe marker resolution for authored spawns/exits, a first
 Gravity Well beat, schematic-first expanded layouts across all five route
@@ -42,17 +42,17 @@ weapon prototypes, optional ambush hooks, a first subtle discovered-area lightin
 read, a tightened pickup-label/equip-message path, a weapon feel pass across
 Pulse/Arc/Recall, Orchard Crop Circle gating through the
 Gravity Well/raised-ridge step, two first-pass Miller Boost washout crossings,
-settings screen filters that apply to the active top-down world camera, additive
+CRT scanlines defaulting off, CONTACT-47 aura defaulting off with a Settings toggle, settings screen filters that apply to the active top-down world camera, additive
 environment-depth dressing with biome-specific ground wear, layered silhouettes,
 foreground framing, built-roof service details, named-area identity dressing and
-data-driven elevation zones with subtle follow-camera offset/zoom, staged Signal Storm phase labels, generated map
-schematics, AI Lab smoke harness and focused campaign evidence, HD top-down renderer, and the Tripo
-CONTACT-47 eight-facing sprite fallback pipeline.
+data-driven elevation zones with stronger follow-camera offset/zoom, staged Signal Storm phase labels, generated map
+schematics, AI Lab smoke harness and focused campaign evidence, HD top-down renderer, the Tripo
+CONTACT-47 eight-facing sprite fallback pipeline, and a main-menu radar hero that uses the Tripo CONTACT-47 render.
 
 The game is not yet a strong vertical slice. The biggest current gaps are:
 manual feel review on the newly expanded purposeful layouts, objective/route
 completion on short AI region runs, region variety still needing live encounter polish, incomplete
-notification/reward consolidation, shallow loot presentation, progression
+notification/reward consolidation, shallow loot presentation despite larger cache-like pickup art and stronger first-pass projectile/Arc VFX, progression
 mutations that need testing/polish, weak full-route AI completion evidence, and
 a finale that still needs a more authored climax. The latest automated sweep
 added stricter `qa:maps` structural checks plus `qa:route` runtime checks for HD
@@ -88,8 +88,8 @@ Audited backlog records in this file:
 
 | Status | Count |
 |---|---:|
-| COMPLETE | 31 |
-| PARTIAL | 57 |
+| COMPLETE | 36 |
+| PARTIAL | 58 |
 | PLANNED | 17 |
 | MISSING | 7 |
 | DEFERRED | 13 |
@@ -191,7 +191,7 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 | Item | Status | Evidence | Works | Missing / Risk | Priority | Acceptance / Tests |
 |---|---|---|---|---|---|---|
 | Multiple routes | PARTIAL | arena rooms/halls, discovered-room washes | Some route alternatives exist and unvisited HD rooms start subtly dimmer until entered | Not always readable as choice; needs live feel review | P2 | At least Town has two legible approaches |
-| Bridges/hills/ridges/overlooks | PARTIAL | town bridge concept, Orchard ridge, `SweepElevationZone`, `tests/smoke.spec.ts` | All five route regions now have data-driven rise/drop/roofline/creek/rift zones with visible ground cues and subtle follow-camera offset/zoom; Orchard ridge beat exists | Manual feel review still needed; full 3D elevation/collision states remain deferred | P1 | Controlled 2.5D elevation with safe collision and no route rewrites |
+| Bridges/hills/ridges/overlooks | PARTIAL | town bridge concept, Orchard ridge, `SweepElevationZone`, `tests/smoke.spec.ts` | All five route regions now have data-driven rise/drop/roofline/creek/rift zones with visible ground cues and stronger follow-camera offset/zoom; Orchard ridge beat exists | Manual feel review still needed; full 3D elevation/collision states remain deferred | P1 | Controlled 2.5D elevation with safe collision and no route rewrites |
 | Lower paths/ravines/underground | PLANNED | design docs | None required now | Not implemented | P3 | Add only when route needs depth |
 | Hidden Scout shelters | PLANNED | Scouts/rewards/docs | Scout lore exists | No authored shelters | P2 | One optional shelter later in slice if useful |
 | Purposeful structures / landmarks | PARTIAL | `TdTerrain.placeLandmarks()`, authored field events | Random flat walk-through landmarks no longer spawn in central route spaces; decorative landmarks are edge-biased, while important objects should be authored | Existing authored set pieces still need manual readability/collision review | P1 | Every visible central structure is clearly decorative, interactive, blocked, or tied to a reward/objective |
@@ -226,7 +226,7 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 | Item | Status | Evidence | Works | Missing / Risk | Priority | Acceptance / Tests |
 |---|---|---|---|---|---|---|
 | Basic resources/caches | COMPLETE | `RewardSystem`, `rewards.ts` | Caches, shards, archive, trophies exist | Some charm rewards may still feel toy-like | P2 | Reward archive remains functional |
-| Major reward cards | PARTIAL | toasts/modals, region goals, `RewardUI`, pickup labels | Name/type/description appears, major reward modals pause gameplay and queue one at a time, weapon pickups/equip messages resolve from the actual weapon id, and health drops no longer have stale weapon ids | Not yet a single polished acquire/equip flow | P0 | Major reward card is unmistakable and non-overlapping |
+| Major reward cards | PARTIAL | toasts/modals, region goals, `RewardUI`, pickup labels, `sweepTextures.ts` | Name/type/description appears, major reward modals pause gameplay, completion bursts batch into one grouped card where possible, weapon pickups/equip messages resolve from the actual weapon id, health drops no longer have stale weapon ids, and pickup art is larger/cache-like | Not yet a single polished acquire/equip flow; final high-res loot art still needed | P0 | Major reward card is unmistakable and non-overlapping |
 | Comparison/equip | PARTIAL | `RewardUI`, `rewards.equip()` | Cosmetic equip exists | Gameplay reward compare/equip shallow | P1 | Simple acquire/activate/equip flow |
 | Store/salvage | DEFERRED | docs | Duplicate dust exists | Full inventory not needed now | P3 | Decide later |
 | AI ignored reward tracking | PARTIAL | AI JSON loot fields | Loot seen/ignored counted | Current evidence is short and route-biased | P1 | Overnight report ranks ignored rewards |
@@ -257,10 +257,10 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 
 | Item | Status | Evidence | Works | Missing / Risk | Priority | Acceptance / Tests |
 |---|---|---|---|---|---|---|
-| Distinct enemy roles | COMPLETE | `SWEEP_ENEMIES`, `SweepEnemy` | Drifter, tagger, diver, warden, sniper, splitter, weaver, turret | Needs encounter tuning | P1 | Roles are readable and counterable |
+| Distinct enemy roles | COMPLETE | `SWEEP_ENEMIES`, `SweepEnemy`, `DamageAffinity.ts`, `bestiaryData.ts` | Core enemies plus CIPHER, GRAVITON, UNDERTOW, DECOY and DORMANT are live with centralized affinities, state-specific weaknesses/resistances, readable telegraphs and per-level roster intent | Needs encounter tuning and final custom enemy art for the five new tactical roles | P1 | Roles are readable and counterable |
 | Enemy pursuit reliability | COMPLETE | `SweepScene.buildEnemyPathField()`, `enemyDriveTarget()`, `SweepEnemy.updateStuckRecovery()`, `tests/combat-enemy-validation.spec.ts` | Drones use a walkable-tile distance field when line-of-sight is blocked; ranged enemies keep movement while firing; stuck bodies recover or snap to a safe path target after repeated failures | Longer AI campaign still needed for tuning confidence | P0 | Enemies do not freeze against walls or become unreachable blockers |
-| Enemy killability / hitbox truth | COMPLETE | `ActorRig.collisionPx`, `tests/combat-enemy-validation.spec.ts` | HD sprite scaling no longer shrinks physics bodies; every enemy archetype is proven killable by real player projectiles | Continue tuning combat feel and shield readability | P0 | Combat validation remains green |
-| Shield/charger/support/mine roles | PARTIAL | warden/diver/turret cover some roles | Some tactical variety exists | No support/mine-layer/scanner enemy | P2 | Add only if region needs it |
+| Enemy killability / hitbox truth | COMPLETE | `ActorRig.collisionPx`, `tests/combat-enemy-validation.spec.ts` | HD sprite scaling no longer shrinks physics bodies; isolated combat probes no longer trigger route reward modals; every enemy archetype, including split children and new tactical enemies, is proven killable by real player projectiles | Continue tuning combat feel and shield readability | P0 | Combat validation remains green |
+| Shield/charger/support/mine roles | PARTIAL | warden/diver/turret plus new tactical enemies | Some tactical variety exists: CIPHER delayed zones, GRAVITON displacement field, UNDERTOW burrow/eruption, DECOY pickup ambush and DORMANT wreck ambush | No support/mine-layer enemy; final balance/art pass pending | P2 | Add only if region needs it |
 | Environmental hazards | PARTIAL | scanners, turrets, elite beams | Motel scanners/turrets/Classifier exist | Minefields, laser barriers, destructibles shallow | P2 | Each hazard has readable counterplay |
 | Player deployables | PLANNED | decoy assets/comments exist | Echo Blink decoy concept | No land mines/traps/drones system | P3 | Only add when tactical need is proven |
 | Filler stat-only enemies | CUT / NO LONGER APPLICABLE | guardrails | Avoided | Do not add | CUT | New enemies require role/counterplay |
@@ -326,7 +326,7 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 | Main/pause menu cleanup | COMPLETE | menu has Continue/New Game; pause Quit | Reset Save removed from in-game menu | None known | P0 | Smoke test |
 | Region labels | COMPLETE | `UIScene` | Area name at top HUD | None known | P0 | Region names match routes |
 | Phase cooldown/mutation HUD | PARTIAL | core HUD exists | Weapon visible | Mutation/cooldown clarity weak | P1 | Cooldowns/upgrades visible enough |
-| Screen filters | COMPLETE | `Settings.ts`, `ScreenFilter.ts`, `ShellUI.ts`, `SweepScene.ts`, `tests/smoke.spec.ts` | Filter dropdown now affects the title and active top-down world camera; saved 0-100 intensity slider updates live; gameplay strength is capped for readability; None clears the pipeline | Canvas renderer fallback no-ops shader filters by design | P1 | Smoke verifies filter pipeline and intensity changes in SweepScene |
+| Screen filters / player light | COMPLETE | `Settings.ts`, `ScreenFilter.ts`, `ShellUI.ts`, `SweepScene.ts`, `BlipCraft.ts`, `tests/smoke.spec.ts` | CRT scanlines default off, CONTACT-47 personal aura defaults off with a Settings toggle, filter dropdown affects the title and active top-down world camera, saved 0-100 intensity slider updates live, gameplay strength is capped for readability, and None clears the pipeline | Canvas renderer fallback no-ops shader filters by design | P1 | Smoke verifies filter pipeline and intensity changes in SweepScene |
 | Accessibility settings | PARTIAL | audio/shake/settings exist | Core settings work | Blood toggle N/A; aim assist/readability sparse | P2 | Add only when feature exists |
 | Production test warps | NEEDS DECISION | hidden by current dev gate | Default hidden is correct | Tester-mode option undecided | P2 | Decide if a production QA URL should expose warps |
 
@@ -336,6 +336,7 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 |---|---|---|---|---|---|---|
 | Tripo GLB import | COMPLETE | `public/assets/characters/contact47-tripo.glb` | Source model in repo | GLB not animated | P1 | Asset loads/fallback works |
 | Eight facings rendered | COMPLETE | eight PNGs plus sheet | Directional aiming works | Needs visual QA per angle | P1 | Sprite faces aimer cleanly |
+| Main menu CONTACT-47 hero | COMPLETE | `ShellUI.buildHero()`, `src/style.css` | Main menu radar hero uses the Tripo CONTACT-47 render when loaded, with old art fallback | Needs visual QA across screen sizes | P1 | Home screen no longer shows the old tiny procedural CONTACT-47 as the primary hero |
 | Hover thrusters | PARTIAL | `TdActors.ts` | Low-hover read exists | Needs final polish against all directions | P2 | Thrusters align and do not overlap body badly |
 | Collision separate from visual | COMPLETE | `ActorRig.collisionPx`, combat validation tests | Gameplay hitboxes stay world-space honest even when HD sprites are scaled | Continue tuning feel only | P0 | No visual/collision mismatch complaints |
 | Full skeletal animation | DEFERRED | no clips | Not current blocker | Retargeting would be expensive | P3 | Revisit only with clean clips |
@@ -346,8 +347,8 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 |---|---|---|---|---|---|---|
 | HD top-down region assets | PARTIAL | `public/assets/topdown` | z1/z2/z4 packs exist, town uses hard-edge HD vocabulary | Dedicated town pack missing | P1 | No pixelated fallback maps in route |
 | Dedicated Chagrin Falls pack | PLANNED | docs | Need recognized town identity | Not built | P2 | Town landmarks/streets read immediately |
-| Environment-depth dressing | PARTIAL | `src/game/topdown/TdTerrain.ts`, `src/game/scenes/SweepScene.ts`, `src/game/topdown/TdBiomes.ts`, `src/game/data/sweepArenas.ts` | Shared HD renderer adds region-specific ground wear, medium/tall edge silhouettes, foreground framing, roof/parapet/service-equipment details, local dressing around route-beacon names and camera-reactive elevation zones so signs better match their areas; unclear car landmark removed from auto-placement | Manual camera-distance review still needed; future art pack should replace procedural dressing where it matters | P1 | Every named area has visible local identity without blocking gameplay readability |
-| Enemy/boss/hazard assets | PARTIAL | procedural/bestiary data | Current enemies render | Replacement art roadmap not complete | P2 | Important enemies not placeholder-looking |
+| Environment-depth dressing | PARTIAL | `src/game/topdown/TdTerrain.ts`, `src/game/scenes/SweepScene.ts`, `src/game/topdown/TdBiomes.ts`, `src/game/data/sweepArenas.ts` | Shared HD renderer adds region-specific ground wear, medium/tall edge silhouettes, foreground framing, roof/parapet/service-equipment details, local dressing around route-beacon names and camera-reactive elevation zones so signs better match their areas; unclear car landmark removed from auto-placement; default camera is pulled back for more readable scale | Manual camera-distance review still needed; future art pack should replace procedural dressing where it matters | P1 | Every named area has visible local identity without blocking gameplay readability |
+| Enemy/boss/hazard assets | PARTIAL | procedural/bestiary data | Current enemies render and the five new tactical roles have non-pixelated procedural fallback sprites | CIPHER, GRAVITON, UNDERTOW, DECOY and DORMANT need final custom HD replacement art; boss/finale asset polish still pending | P2 | Important enemies not placeholder-looking |
 | Traversal device assets | PLANNED | Gravity Well procedural | Well exists | Tubes/doors/rails/contraptions missing | P3 | Add with mechanics |
 | Transparent PNG pipeline | COMPLETE | character PNG assets | Tripo output is transparent | Maintain asset checks | P1 | No checkerboard backgrounds |
 
@@ -355,8 +356,8 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 
 | Item | Status | Evidence | Works | Missing / Risk | Priority | Acceptance / Tests |
 |---|---|---|---|---|---|---|
-| Pulse polish | PARTIAL | pulse bolts/charged fifth shot | Faster fire, bigger charged-shot feedback and stronger muzzle response | Needs held charge/recoil/audio identity | P2 | Pulse feels distinct and forceful |
-| Arc polish | PARTIAL | graphics arc/parry text | Wider arc, stronger knockback and always-on parry shockwave are live | Needs combo/dash-slash depth and distinct audio | P2 | Arc feels like melee, not a line effect |
+| Pulse polish | PARTIAL | pulse bolts/charged fifth shot/projectile trail | Faster fire, bigger charged-shot feedback, stronger muzzle response and brighter laser-slug trail are live | Needs held charge/recoil/audio identity | P2 | Pulse feels distinct and forceful |
+| Arc polish | PARTIAL | graphics arc/parry text/slash wedge | Wider arc, stronger knockback, always-on parry shockwave and a heavier slash wedge are live | Needs combo/dash-slash depth and distinct audio | P2 | Arc feels like melee, not a line effect |
 | Recall polish | PARTIAL | disc projectile/return | Faster disc and consistent return trail are live | Needs stronger physical disc/catch presentation and switch interactions | P2 | Return path readable and satisfying |
 | Hit pause/knockback/camera | PARTIAL | impact FX, damage-only shake | Routine camera shake removed; only CONTACT-47 damage triggers a restrained camera shake | Needs non-shake impact polish through animation/sound/VFX | P2 | Shooting/impacts/kills do not shake camera; player damage shake is readable but not intense |
 

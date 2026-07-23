@@ -581,15 +581,94 @@ export function buildSweepTextures(scene: Phaser.Scene): void {
     g.generateTexture(TEX.sweepTurret, w, w);
     g.destroy();
   }
-
-  /* ============================== VFX / MISC ============================== */
-  // player bolt — bright core + tapered tail
+  // CIPHER — transmitter/caster with a projected targeting array.
   {
     const g = gfx(scene);
-    g.fillStyle(P.signalDim, 1).fillRect(0, 2, 4, 1);
-    g.fillStyle(P.signal, 1).fillRect(3, 1, 4, 3);
-    g.fillStyle(P.white, 1).fillRect(5, 1, 2, 3);
-    g.generateTexture(TEX.sweepShotP, 8, 5);
+    const w = 22;
+    const c = w / 2;
+    g.fillStyle(P.black, 0.32).fillEllipse(c, w - 2, w - 4, 5);
+    g.fillStyle(P.slateDark, 1).fillRoundedRect(3, 5, w - 6, w - 9, 4);
+    g.fillStyle(P.slate, 1).fillRoundedRect(4, 4, w - 8, 5, 3);
+    g.lineStyle(1, P.warning, 0.9).strokeCircle(c, c, 6);
+    g.lineStyle(1, P.danger, 0.8).lineBetween(c - 7, c, c + 7, c).lineBetween(c, c - 7, c, c + 7);
+    g.fillStyle(P.dangerDark, 1).fillCircle(c, c, 3.4);
+    g.fillStyle(P.danger, 1).fillCircle(c, c, 2.2);
+    g.fillStyle(P.warning, 1).fillCircle(c - 0.8, c - 0.8, 0.9);
+    g.fillStyle(P.slate, 1).fillRect(2, 8, 3, 7).fillRect(w - 5, 8, 3, 7);
+    g.lineStyle(1, P.black, 0.5).strokeRoundedRect(3, 4, w - 6, w - 7, 4);
+    g.generateTexture(TEX.sweepCipher, w, w);
+    g.destroy();
+  }
+  // GRAVITON — field generator with tractor arms and central lens.
+  {
+    const g = gfx(scene);
+    const w = 24;
+    const c = w / 2;
+    g.fillStyle(P.black, 0.34).fillEllipse(c, w - 2, w - 3, 6);
+    g.fillStyle(P.fuseSteelDark, 1).fillRoundedRect(5, 5, w - 10, w - 9, 5);
+    g.fillStyle(P.slate, 1).fillRoundedRect(6, 4, w - 12, 5, 4);
+    g.fillStyle(P.bluestone, 1).fillRoundedRect(1, 8, 5, 8, 2).fillRoundedRect(w - 6, 8, 5, 8, 2);
+    g.lineStyle(1, P.neonCyan, 0.85).strokeCircle(c, c, 7);
+    g.fillStyle(P.neonCyan, 0.95).fillCircle(c, c, 3.5);
+    g.fillStyle(P.white, 0.8).fillCircle(c - 1, c - 1, 1);
+    g.lineStyle(1, P.black, 0.55).strokeRoundedRect(5, 4, w - 10, w - 7, 5);
+    g.generateTexture(TEX.sweepGraviton, w, w);
+    g.destroy();
+  }
+  // UNDERTOW — tunneling machine with drill nose and segmented body.
+  {
+    const g = gfx(scene);
+    const w = 23;
+    const c = w / 2;
+    g.fillStyle(P.black, 0.3).fillEllipse(c, w - 2, w - 3, 5);
+    g.fillStyle(P.dirtDark, 1).fillTriangle(c, 2, c - 7, 9, c + 7, 9);
+    g.fillStyle(P.warning, 1).fillTriangle(c, 3, c - 4, 8, c + 4, 8);
+    g.fillStyle(P.slateDark, 1).fillRoundedRect(4, 8, w - 8, 10, 5);
+    g.fillStyle(P.slate, 1).fillRoundedRect(5, 8, w - 10, 4, 4);
+    for (let i = 0; i < 3; i++) g.fillStyle(P.dirt, 0.8).fillRect(6 + i * 4, 15, 2, 2);
+    g.fillStyle(P.danger, 1).fillCircle(c, 12, 2);
+    g.lineStyle(1, P.black, 0.55).strokeRoundedRect(4, 8, w - 8, 10, 5);
+    g.generateTexture(TEX.sweepUndertow, w, w);
+    g.destroy();
+  }
+  // DECOY — folded fake signal pickup with visible seams.
+  {
+    const g = gfx(scene);
+    const w = 20;
+    const c = w / 2;
+    g.fillStyle(P.black, 0.26).fillEllipse(c, w - 2, w - 5, 4);
+    g.fillStyle(P.signalDim, 0.9).fillPoints(V([[c, 2], [w - 3, c], [c, w - 3], [3, c]]), true);
+    g.fillStyle(P.slateDark, 0.95).fillPoints(V([[c, 5], [w - 6, c], [c, w - 6], [6, c]]), true);
+    g.lineStyle(1, P.neonCyan, 0.7).strokePoints(V([[c, 2], [w - 3, c], [c, w - 3], [3, c]]), true);
+    g.fillStyle(P.danger, 0.9).fillCircle(c, c, 2);
+    g.generateTexture(TEX.sweepDecoy, w, w);
+    g.destroy();
+  }
+  // DORMANT — damaged asymmetrical wreck with hidden moving parts.
+  {
+    const g = gfx(scene);
+    const w = 24;
+    const c = w / 2;
+    g.fillStyle(P.black, 0.32).fillEllipse(c, w - 3, w - 4, 5);
+    g.fillStyle(P.slateDark, 1).fillPoints(V([[4, 8], [11, 4], [20, 7], [18, 17], [8, 19], [3, 14]]), true);
+    g.fillStyle(P.slate, 0.8).fillPoints(V([[7, 8], [12, 6], [17, 8], [13, 11]]), true);
+    g.fillStyle(P.dangerDark, 1).fillCircle(15, 13, 3);
+    g.fillStyle(P.danger, 0.75).fillCircle(15, 13, 1.6);
+    g.lineStyle(1, P.warning, 0.55).lineBetween(5, 15, 11, 11).lineBetween(11, 11, 17, 17);
+    g.lineStyle(1, P.black, 0.6).strokePoints(V([[4, 8], [11, 4], [20, 7], [18, 17], [8, 19], [3, 14]]), true);
+    g.generateTexture(TEX.sweepDormant, w, w);
+    g.destroy();
+  }
+
+  /* ============================== VFX / MISC ============================== */
+  // player bolt — brighter laser slug with a white-hot core and tapered signal tail
+  {
+    const g = gfx(scene);
+    g.fillStyle(P.signalDim, 0.6).fillRoundedRect(0, 4, 16, 3, 2);
+    g.fillStyle(P.signal, 0.96).fillRoundedRect(5, 2, 17, 7, 4);
+    g.fillStyle(P.white, 1).fillRoundedRect(12, 3, 10, 5, 3);
+    g.fillStyle(P.neonCyan, 0.5).fillRoundedRect(2, 5, 11, 1, 1);
+    g.generateTexture(TEX.sweepShotP, 24, 11);
     g.destroy();
   }
   // enemy bolt — red core + tail
@@ -636,14 +715,21 @@ export function buildSweepTextures(scene: Phaser.Scene): void {
     g.generateTexture(TEX.sweepReticle, 16, 16);
     g.destroy();
   }
-  // pickup diamond — faceted + glow
+  // major pickup — readable cache/hologram silhouette with black ink outline
   {
     const g = gfx(scene);
-    g.fillStyle(0xffffff, 0.15).fillCircle(6, 6, 6);
-    g.fillStyle(P.white, 1).fillPoints(V([[6, 0], [12, 6], [6, 12], [0, 6]]), true);
-    g.fillStyle(P.black, 0.25).fillPoints(V([[6, 6], [12, 6], [6, 12]]), true);
-    g.fillStyle(0xffffff, 0.6).fillPoints(V([[6, 1], [9, 5], [6, 6], [3, 5]]), true);
-    g.generateTexture(TEX.sweepPickup, 12, 12);
+    g.fillStyle(0x000000, 0.28).fillEllipse(16, 24, 26, 7);
+    g.fillStyle(P.black, 0.92).fillRoundedRect(3, 8, 26, 14, 4);
+    g.fillStyle(P.white, 1).fillRoundedRect(5, 7, 22, 13, 4);
+    g.fillStyle(0xc9d0d8, 1).fillRoundedRect(5, 14, 22, 7, 3);
+    g.fillStyle(P.black, 0.72).fillRect(4, 13, 24, 2);
+    g.fillStyle(P.black, 0.62).fillRoundedRect(12, 10, 8, 10, 2);
+    g.fillStyle(P.signal, 1).fillRoundedRect(14, 11, 4, 5, 1);
+    g.fillStyle(P.white, 0.75).fillRect(7, 9, 9, 2);
+    g.lineStyle(2, P.black, 1).strokeRoundedRect(4, 7, 24, 14, 4);
+    g.lineStyle(1, P.signal, 0.7).strokeRoundedRect(8, 4, 16, 5, 3);
+    g.fillStyle(P.signal, 0.18).fillCircle(16, 13, 15);
+    g.generateTexture(TEX.sweepPickup, 32, 28);
     g.destroy();
   }
 }

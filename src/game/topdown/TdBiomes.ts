@@ -381,6 +381,56 @@ const ORCHARD: TdBiomeDef = {
   },
 };
 
+/* --------------------------------------------------------------------------
+ * STORM — Signal Storm rift finale.
+ *
+ * Dedicated storm-layout art is still future work, but this descriptor keeps
+ * the finale from borrowing Miller's rural palette. It reuses the proven HD
+ * forest atlas as a material base, then pushes it into purple/cyan corruption,
+ * removes leafy canopy, and lets TdTerrain's anomaly-specific storm dressing
+ * do the heavy lifting.
+ * -------------------------------------------------------------------------- */
+const STORM: TdBiomeDef = {
+  ...MILLER,
+  id: 'storm',
+  wallStyle: 'rock',
+  skirt: [TEX.tdRock, TEX.tdDebris, TEX.tdScrap, TEX.tdFern],
+  scatter: [TEX.tdRock, TEX.tdDebris, TEX.tdScrap, TEX.tdLmRelay, TEX.tdLmPod],
+  bank: [TEX.tdRock, TEX.tdScrap],
+  canopy: null,
+  landmarks: [
+    [TEX.tdLmRelay, TEX.tdLmRelayEmis, 0.44],
+    [TEX.tdLmPod, TEX.tdLmPodEmis, 0.38],
+    [TEX.tdLmPool, TEX.tdLmPoolEmis, 0.46],
+  ],
+  flatLandmark: TEX.tdLmPool,
+  accents: {
+    warm: 0xff4b5c,
+    coolA: 0x43dff2,
+    coolB: 0xb06bff,
+    warmChance: 0.24,
+    count: 22,
+  },
+  tints: {
+    ground: 0x7770a5,
+    path: 0x6c668f,
+    wallTop: 0x8278b0,
+    skirt: 0xb8b0d8,
+    propNear: 0xded9ff,
+    propFar: 0xaaa0cf,
+    wallFace: 0x8076aa,
+    cloudLit: 0x8aefff,
+    cloudDark: 0x170b30,
+    canopy: 0xffffff,
+  },
+  light: {
+    darkness: 0.28,
+    darknessLow: 0.16,
+    ambientFloor: 0.42,
+    vignette: 0.58,
+  },
+};
+
 /**
  * Registry. A biome absent from here simply never gets the HD treatment and
  * renders with the existing procedural pixel art — which is the correct,
@@ -391,6 +441,7 @@ export const TD_BIOMES: Partial<Record<SweepBiome, TdBiomeDef>> = {
   motel: MOTEL,
   stadium: STADIUM,
   orchard: ORCHARD,
+  storm: STORM,
 };
 
 /** The HD descriptor for an arena, or null if that arena stays procedural. */

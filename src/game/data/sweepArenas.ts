@@ -8,7 +8,7 @@
  */
 import type { SweepEnemyKind } from '../config';
 
-export type SweepBiome = 'miller' | 'motel' | 'stadium' | 'orchard';
+export type SweepBiome = 'miller' | 'motel' | 'stadium' | 'orchard' | 'storm';
 
 /** rectangle in TILE units (carves floor) */
 export interface SweepRect {
@@ -165,7 +165,7 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     ],
     node: { tx: 39, ty: 26 },
     breach: { tx: 76, ty: 21 },
-    spawn: { tx: 10, ty: 41 },
+    spawn: { tx: 11, ty: 27 },
     chargeTarget: 50,
     minObjectiveActions: 2,
     weaponSpawns: [
@@ -177,17 +177,16 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
       { id: 'old-mill-crack', label: 'OLD MILL CRACK', x: 10, y: 18, w: 5, h: 3, orientation: 'horizontal' },
     ],
     elevationZones: [
-      { id: 'substation-overlook-rise', label: 'SUBSTATION OVERLOOK', x: 53, y: 5, w: 18, h: 10, kind: 'rise', cameraOffsetY: -20, cameraZoom: 1.025 },
-      { id: 'lower-field-dip', label: 'LOWER FIELD', x: 36, y: 42, w: 25, h: 7, kind: 'drop', cameraOffsetY: 18, cameraZoom: 0.985 },
-      { id: 'old-mill-bank', label: 'OLD MILL BANK', x: 5, y: 8, w: 17, h: 11, kind: 'rise', cameraOffsetY: -14, cameraZoom: 1.015 },
+      { id: 'substation-overlook-rise', label: 'SUBSTATION OVERLOOK', x: 51, y: 4, w: 23, h: 13, kind: 'rise', cameraOffsetY: -88, cameraZoom: 0.68 },
+      { id: 'lower-field-dip', label: 'LOWER FIELD', x: 35, y: 41, w: 28, h: 9, kind: 'drop', cameraOffsetY: 44, cameraZoom: 0.82 },
+      { id: 'old-mill-bank', label: 'OLD MILL BANK', x: 4, y: 7, w: 21, h: 13, kind: 'rise', cameraOffsetY: -64, cameraZoom: 0.76 },
     ],
-    // ROSTER — "the open field": the fundamentals (drifter/tagger/diver) plus a first
-    // taste of the JITTER weaver so Zone 1 teaches the verbs before later zones twist them.
+    // ROSTER — "the open field": introductory pursuit/charge pressure plus one first deception beat.
     enemies: [
-      { tx: 20, ty: 41, type: 'drifter' }, { tx: 35, ty: 38, type: 'tagger' }, { tx: 14, ty: 27, type: 'drifter' },
+      { tx: 20, ty: 41, type: 'drifter' }, { tx: 35, ty: 38, type: 'tagger' }, { tx: 19, ty: 27, type: 'drifter' },
       { tx: 39, ty: 25, type: 'tagger' }, { tx: 56, ty: 25, type: 'diver' }, { tx: 68, ty: 20, type: 'tagger' },
       { tx: 73, ty: 24, type: 'diver' }, { tx: 58, ty: 10, type: 'drifter' }, { tx: 12, ty: 12, type: 'tagger' },
-      { tx: 66, ty: 30, type: 'weaver' },
+      { tx: 66, ty: 30, type: 'decoy' },
     ],
     caches: [{ tx: 8, ty: 11 }, { tx: 35, ty: 25 }, { tx: 64, ty: 9 }, { tx: 49, ty: 45 }, { tx: 76, ty: 42 }],
     fieldEvents: [
@@ -214,7 +213,7 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
         scout: 'chip',
         charge: 12,
         message: 'SPARK BOOST — Substation rerouted into the Carbine.',
-        spawns: [{ tx: 61, ty: 13, type: 'weaver' }],
+        spawns: [{ tx: 61, ty: 13, type: 'warden' }],
       },
       {
         id: 'shelter-stash',
@@ -291,7 +290,7 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     ],
     node: { tx: 51, ty: 34 },
     breach: { tx: 75, ty: 11 },
-    spawn: { tx: 10, ty: 44 },
+    spawn: { tx: 36, ty: 45 },
     elite: { tx: 52, ty: 33 },
     chargeTarget: 62,
     minObjectiveActions: 2,
@@ -300,20 +299,19 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
       { tx: 59, ty: 15, wid: 'disc' }, // Motel Sign Ledge — rewards stealth/overlook exploration
     ],
     elevationZones: [
-      { id: 'room-row-overhang', label: 'ROOM ROW ROOF EDGE', x: 18, y: 22, w: 16, h: 11, kind: 'roofline', cameraOffsetY: -12, cameraZoom: 1.018 },
-      { id: 'pool-courtyard-low', label: 'POOL COURTYARD', x: 39, y: 18, w: 16, h: 11, kind: 'drop', cameraOffsetY: 16, cameraZoom: 0.988 },
-      { id: 'river-ramp-rise', label: 'RIVER RAMP', x: 68, y: 17, w: 10, h: 10, kind: 'rise', cameraOffsetY: -18, cameraZoom: 1.022 },
+      { id: 'room-row-overhang', label: 'ROOM ROW ROOF EDGE', x: 17, y: 21, w: 19, h: 13, kind: 'roofline', cameraOffsetY: -62, cameraZoom: 0.74 },
+      { id: 'pool-courtyard-low', label: 'POOL COURTYARD', x: 38, y: 17, w: 18, h: 13, kind: 'drop', cameraOffsetY: 40, cameraZoom: 0.82 },
+      { id: 'river-ramp-rise', label: 'RIVER RAMP', x: 67, y: 16, w: 12, h: 12, kind: 'rise', cameraOffsetY: -78, cameraZoom: 0.68 },
     ],
-    // ROSTER — "the firewall circuit": tight corridors reward flanking, so FIREWALL wardens
-    // clog the halls (dash through / hit their backs) and a rooted PYLON turret guards the node.
+    // ROSTER — "the firewall circuit": machinery, scanners, PYLON lanes, wardens and a first GRAVITON.
     enemies: [
-      { tx: 18, ty: 35, type: 'drifter' }, { tx: 32, ty: 35, type: 'tagger' }, { tx: 24, ty: 15, type: 'diver' },
-      { tx: 34, ty: 17, type: 'warden' }, { tx: 51, ty: 35, type: 'turret' }, { tx: 45, ty: 23, type: 'diver' },
-      { tx: 63, ty: 15, type: 'tagger' }, { tx: 56, ty: 34, type: 'drifter' }, { tx: 13, ty: 19, type: 'drifter' },
-      { tx: 70, ty: 36, type: 'warden' }, { tx: 72, ty: 11, type: 'sniper' }, { tx: 65, ty: 34, type: 'weaver' },
-      { tx: 36, ty: 45, type: 'tagger' },
+      { tx: 18, ty: 35, type: 'decoy' }, { tx: 32, ty: 35, type: 'sniper' }, { tx: 24, ty: 15, type: 'warden' },
+      { tx: 34, ty: 17, type: 'warden' }, { tx: 51, ty: 35, type: 'turret' }, { tx: 45, ty: 23, type: 'graviton' },
+      { tx: 63, ty: 15, type: 'sniper' }, { tx: 56, ty: 34, type: 'turret' }, { tx: 13, ty: 19, type: 'decoy' },
+      { tx: 70, ty: 36, type: 'warden' }, { tx: 72, ty: 11, type: 'sniper' }, { tx: 65, ty: 34, type: 'turret' },
+      { tx: 44, ty: 45, type: 'sniper' },
     ],
-    caches: [{ tx: 10, ty: 18 }, { tx: 25, ty: 14 }, { tx: 59, ty: 15 }, { tx: 74, ty: 38 }, { tx: 79, ty: 9 }],
+    caches: [{ tx: 8, ty: 44 }, { tx: 10, ty: 18 }, { tx: 25, ty: 14 }, { tx: 59, ty: 15 }, { tx: 74, ty: 38 }, { tx: 74, ty: 46 }, { tx: 79, ty: 9 }],
     fieldEvents: [
       {
         id: 'safe-shadow-battery',
@@ -347,7 +345,7 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
         shards: 20,
         charge: 8,
         message: 'Room Row stash recovered before the cameras could label it.',
-        spawns: [{ tx: 24, ty: 17, type: 'warden' }, { tx: 28, ty: 15, type: 'tagger' }],
+        spawns: [{ tx: 24, ty: 17, type: 'warden' }, { tx: 28, ty: 15, type: 'decoy' }],
       },
       {
         id: 'pool-crossing',
@@ -359,7 +357,7 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
         reward: 'overdrive',
         charge: 10,
         message: 'Pool lights discharge into Overdrive.',
-        spawns: [{ tx: 48, ty: 24, type: 'weaver' }],
+        spawns: [{ tx: 48, ty: 24, type: 'graviton' }],
       },
       {
         id: 'service-lot-locker',
@@ -371,7 +369,7 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
         wid: 'arc',
         charge: 8,
         message: 'Service locker opened — Arc Blade tuned for close quarters.',
-        spawns: [{ tx: 70, ty: 36, type: 'warden' }, { tx: 76, ty: 36, type: 'diver' }],
+        spawns: [{ tx: 70, ty: 36, type: 'warden' }, { tx: 76, ty: 36, type: 'turret' }],
       },
       {
         id: 'sign-ledge-prize',
@@ -434,7 +432,7 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     ],
     node: { tx: 51, ty: 35 },
     breach: { tx: 83, ty: 49 },
-    spawn: { tx: 10, ty: 43 },
+    spawn: { tx: 72, ty: 13 },
     elite: { tx: 52, ty: 34 },
     chargeTarget: 60,
     minObjectiveActions: 3,
@@ -443,15 +441,15 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
       { tx: 59, ty: 50, wid: 'arc' }, // Broken Bridge pocket — close-range tool for Stadium Road
     ],
     elevationZones: [
-      { id: 'market-upper-route', label: 'MARKET ALLEY RISE', x: 34, y: 13, w: 18, h: 11, kind: 'rise', cameraOffsetY: -20, cameraZoom: 1.02 },
-      { id: 'river-walk-low', label: 'RIVER WALK', x: 50, y: 43, w: 23, h: 8, kind: 'creek', cameraOffsetY: 20, cameraZoom: 0.985 },
-      { id: 'stadium-road-crown', label: 'STADIUM ROAD CROWN', x: 62, y: 37, w: 17, h: 10, kind: 'roofline', cameraOffsetY: -10, cameraZoom: 1.012 },
+      { id: 'market-upper-route', label: 'MARKET ALLEY RISE', x: 33, y: 12, w: 21, h: 13, kind: 'rise', cameraOffsetY: -78, cameraZoom: 0.72 },
+      { id: 'river-walk-low', label: 'RIVER WALK', x: 49, y: 42, w: 26, h: 10, kind: 'creek', cameraOffsetY: 50, cameraZoom: 0.82 },
+      { id: 'stadium-road-crown', label: 'STADIUM ROAD CROWN', x: 61, y: 36, w: 20, h: 12, kind: 'roofline', cameraOffsetY: -54, cameraZoom: 0.76 },
     ],
     enemies: [
-      { tx: 18, ty: 43, type: 'tagger' }, { tx: 31, ty: 42, type: 'drifter' }, { tx: 40, ty: 17, type: 'sniper' },
-      { tx: 56, ty: 35, type: 'turret' }, { tx: 69, ty: 14, type: 'weaver' }, { tx: 64, ty: 26, type: 'warden' },
-      { tx: 78, ty: 42, type: 'diver' }, { tx: 47, ty: 38, type: 'splitter' }, { tx: 19, ty: 18, type: 'tagger' },
-      { tx: 45, ty: 49, type: 'drifter' }, { tx: 74, ty: 39, type: 'warden' }, { tx: 83, ty: 50, type: 'diver' },
+      { tx: 18, ty: 43, type: 'tagger' }, { tx: 31, ty: 42, type: 'weaver' }, { tx: 40, ty: 17, type: 'sniper' },
+      { tx: 56, ty: 35, type: 'cipher' }, { tx: 63, ty: 18, type: 'weaver' }, { tx: 64, ty: 26, type: 'dormant' },
+      { tx: 78, ty: 42, type: 'cipher' }, { tx: 47, ty: 38, type: 'tagger' }, { tx: 19, ty: 18, type: 'tagger' },
+      { tx: 45, ty: 49, type: 'dormant' }, { tx: 74, ty: 39, type: 'warden' }, { tx: 83, ty: 50, type: 'weaver' },
       { tx: 70, ty: 50, type: 'sniper' },
     ],
     caches: [{ tx: 13, ty: 17 }, { tx: 75, ty: 13 }, { tx: 45, ty: 48 }, { tx: 84, ty: 51 }, { tx: 39, ty: 15 }],
@@ -512,7 +510,7 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
         reward: 'overdrive',
         charge: 12,
         message: 'Orchard Gate classifier wave incoming.',
-        spawns: [{ tx: 82, ty: 48, type: 'warden' }, { tx: 78, ty: 50, type: 'splitter' }, { tx: 85, ty: 49, type: 'diver' }],
+        spawns: [{ tx: 82, ty: 48, type: 'warden' }, { tx: 78, ty: 50, type: 'cipher' }, { tx: 85, ty: 49, type: 'weaver' }],
       },
     ],
   },
@@ -567,7 +565,7 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     ],
     node: { tx: 50, ty: 27 },
     breach: { tx: 80, ty: 11 },
-    spawn: { tx: 10, ty: 51 },
+    spawn: { tx: 80, ty: 47 },
     chargeTarget: 70,
     minObjectiveActions: 3,
     // ORCHARD FLAGS: loot-rich drops, a bumped clear payout and guaranteed
@@ -584,21 +582,21 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
       { tx: 31, ty: 49, wid: 'arc' }, // B — risky burst option before the boss finale
     ],
     elevationZones: [
-      { id: 'lower-creek-drop', label: 'LOWER CREEK', x: 20, y: 47, w: 18, h: 8, kind: 'creek', cameraOffsetY: 22, cameraZoom: 0.982 },
-      { id: 'raised-ridge', label: 'RAISED RIDGE', x: 42, y: 5, w: 20, h: 12, kind: 'rise', cameraOffsetY: -26, cameraZoom: 1.028 },
-      { id: 'crop-circle-bowl', label: 'CROP CIRCLE BOWL', x: 42, y: 22, w: 18, h: 12, kind: 'drop', cameraOffsetY: 13, cameraZoom: 0.992 },
+      { id: 'lower-creek-drop', label: 'LOWER CREEK', x: 19, y: 46, w: 21, h: 10, kind: 'creek', cameraOffsetY: 54, cameraZoom: 0.82 },
+      { id: 'raised-ridge', label: 'RAISED RIDGE', x: 40, y: 4, w: 24, h: 15, kind: 'rise', cameraOffsetY: -96, cameraZoom: 0.68 },
+      { id: 'crop-circle-bowl', label: 'CROP CIRCLE BOWL', x: 41, y: 21, w: 20, h: 14, kind: 'drop', cameraOffsetY: 42, cameraZoom: 0.82 },
     ],
-    // ROSTER — "the hunting maze": long corn lanes let PINPOINT snipers line up telegraphed
-    // shots (break line-of-sight around a hedge), JITTER weavers dart the rows, REPLICATOR
-    // splitters swarm the clearings, and FIREWALL wardens + a PYLON turret anchor the chokes —
-    // dense pressure without stealing the final-boss role from Signal Storm.
+    // ROSTER — "the hunting maze": open rows teach DIVER/DRIFTER movement pressure,
+    // REPLICATOR splitters swarm clearings, UNDERTOW erupts from the soil, and DORMANT
+    // machinery makes quiet orchard wreckage suspicious. One CIPHER is reserved for the
+    // crop-circle signal beat only.
     enemies: [
-      { tx: 12, ty: 27, type: 'sniper' }, { tx: 14, ty: 32, type: 'weaver' }, { tx: 27, ty: 49, type: 'splitter' },
-      { tx: 35, ty: 47, type: 'splitter' }, { tx: 36, ty: 35, type: 'tagger' }, { tx: 44, ty: 30, type: 'weaver' },
-      { tx: 52, ty: 29, type: 'turret' }, { tx: 45, ty: 10, type: 'sniper' }, { tx: 54, ty: 11, type: 'warden' },
-      { tx: 67, ty: 28, type: 'tagger' }, { tx: 73, ty: 29, type: 'sniper' }, { tx: 73, ty: 47, type: 'splitter' },
-      { tx: 76, ty: 24, type: 'warden' }, { tx: 70, ty: 33, type: 'diver' }, { tx: 48, ty: 48, type: 'weaver' },
-      { tx: 49, ty: 25, type: 'diver' }, { tx: 62, ty: 46, type: 'tagger' },
+      { tx: 12, ty: 27, type: 'diver' }, { tx: 14, ty: 32, type: 'drifter' }, { tx: 27, ty: 49, type: 'splitter' },
+      { tx: 35, ty: 47, type: 'splitter' }, { tx: 36, ty: 35, type: 'undertow' }, { tx: 44, ty: 30, type: 'drifter' },
+      { tx: 52, ty: 29, type: 'cipher' }, { tx: 45, ty: 10, type: 'undertow' }, { tx: 54, ty: 11, type: 'dormant' },
+      { tx: 67, ty: 28, type: 'diver' }, { tx: 73, ty: 29, type: 'drifter' }, { tx: 73, ty: 47, type: 'splitter' },
+      { tx: 76, ty: 24, type: 'dormant' }, { tx: 70, ty: 33, type: 'diver' }, { tx: 48, ty: 48, type: 'splitter' },
+      { tx: 49, ty: 25, type: 'undertow' }, { tx: 62, ty: 46, type: 'drifter' },
     ],
     caches: [
       { tx: 9, ty: 28 }, { tx: 76, ty: 47 }, { tx: 82, ty: 10 }, { tx: 11, ty: 53 },
@@ -615,7 +613,7 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
         shards: 24,
         charge: 12,
         message: 'Lower Creek glyph read — the maze briefly stops lying.',
-        spawns: [{ tx: 24, ty: 17, type: 'weaver' }, { tx: 30, ty: 18, type: 'tagger' }],
+        spawns: [{ tx: 24, ty: 17, type: 'undertow' }, { tx: 30, ty: 18, type: 'drifter' }],
       },
       {
         id: 'west-row-recall-cache',
@@ -639,7 +637,7 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
         scout: 'danny',
         charge: 14,
         message: 'ROCKET BOOST — Ridge launch tuned your fire cycle.',
-        spawns: [{ tx: 47, ty: 11, type: 'sniper' }, { tx: 55, ty: 12, type: 'warden' }],
+        spawns: [{ tx: 47, ty: 11, type: 'undertow' }, { tx: 55, ty: 12, type: 'dormant' }],
       },
       {
         id: 'scout-shelter-loop',
@@ -650,7 +648,7 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
         reward: 'health',
         charge: 10,
         message: 'Scout Shelter safe kit found under the apple crates.',
-        spawns: [{ tx: 73, ty: 47, type: 'splitter' }, { tx: 78, ty: 45, type: 'weaver' }],
+        spawns: [{ tx: 73, ty: 47, type: 'splitter' }, { tx: 78, ty: 45, type: 'dormant' }],
       },
       {
         id: 'storm-fence-prize',
@@ -670,7 +668,7 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
     id: 'anomaly-01',
     label: 'Signal Storm · Area 47',
     mode: 'waves',
-    biome: 'miller',
+    biome: 'storm',
     zoneId: 'skyline-array',
     questId: 'the-sky-listens',
     grid: { w: 82, h: 54 },
@@ -706,12 +704,12 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
       { x: 43, y: 20, w: 4, h: 4 }, // east coil -> classifier core
     ],
     node: { tx: 41, ty: 29 },
-    spawn: { tx: 41, ty: 47 },
+    spawn: { tx: 34, ty: 11 },
     caches: [{ tx: 18, ty: 14 }, { tx: 63, ty: 14 }, { tx: 24, ty: 42 }, { tx: 57, ty: 42 }],
     elevationZones: [
-      { id: 'classifier-core-bowl', label: 'CLASSIFIER CORE BOWL', x: 30, y: 22, w: 22, h: 14, kind: 'rift', cameraOffsetY: 12, cameraZoom: 1.015 },
-      { id: 'north-rift-rise', label: 'NORTH RIFT RISE', x: 28, y: 4, w: 26, h: 14, kind: 'rise', cameraOffsetY: -28, cameraZoom: 1.035 },
-      { id: 'relay-wing-ledges', label: 'RELAY WING LEDGES', x: 11, y: 9, w: 60, h: 10, kind: 'roofline', cameraOffsetY: -16, cameraZoom: 1.018 },
+      { id: 'classifier-core-bowl', label: 'CLASSIFIER CORE BOWL', x: 29, y: 21, w: 24, h: 16, kind: 'rift', cameraOffsetY: 44, cameraZoom: 0.78 },
+      { id: 'north-rift-rise', label: 'NORTH RIFT RISE', x: 27, y: 3, w: 28, h: 16, kind: 'rise', cameraOffsetY: -108, cameraZoom: 0.66 },
+      { id: 'relay-wing-ledges', label: 'RELAY WING LEDGES', x: 10, y: 8, w: 62, h: 12, kind: 'roofline', cameraOffsetY: -72, cameraZoom: 0.74 },
     ],
     fieldEvents: [
       {
@@ -723,7 +721,7 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
         reward: 'boon',
         scout: 'cameron',
         message: 'ECHO RELAY — Arc harmonics stabilized.',
-        spawns: [{ tx: 17, ty: 17, type: 'weaver' }, { tx: 21, ty: 14, type: 'sniper' }],
+        spawns: [{ tx: 17, ty: 17, type: 'graviton' }, { tx: 21, ty: 14, type: 'turret' }],
       },
       {
         id: 'east-relay-cache',
@@ -734,7 +732,7 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
         reward: 'weapon',
         wid: 'pulse',
         message: 'East Relay cache — Carbine pressure restored.',
-        spawns: [{ tx: 60, ty: 15, type: 'warden' }, { tx: 65, ty: 17, type: 'tagger' }],
+        spawns: [{ tx: 60, ty: 15, type: 'warden' }, { tx: 65, ty: 17, type: 'cipher' }],
       },
       {
         id: 'west-recovery-pocket',
@@ -755,7 +753,7 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
         trigger: 'enter',
         reward: 'overdrive',
         message: 'Storm pocket discharged into Overdrive.',
-        spawns: [{ tx: 61, ty: 41, type: 'diver' }],
+        spawns: [{ tx: 61, ty: 41, type: 'weaver' }],
       },
       {
         id: 'north-rift-cache',
@@ -766,16 +764,16 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
         reward: 'shards',
         shards: 35,
         message: 'North Rift memory recovered: CONTACT-47 refused the first label.',
-        spawns: [{ tx: 37, ty: 12, type: 'sniper' }, { tx: 45, ty: 12, type: 'sniper' }, { tx: 41, ty: 15, type: 'splitter' }],
+        spawns: [{ tx: 37, ty: 12, type: 'cipher' }, { tx: 45, ty: 12, type: 'cipher' }, { tx: 41, ty: 15, type: 'graviton' }],
       },
     ],
-    // showcase escalation — introduces each new archetype one wave at a time, then a mixed finale
+    // showcase escalation — advanced battlefield control without dumping every old enemy into the finale
     waves: [
-      { label: 'PHASE 1 · CLASSIFIER CORE', spawns: [{ type: 'drifter', count: 8 }], interval: 0.55, clearDelay: 1.6 },
-      { label: 'PHASE 2 · WEST RELAY WING', spawns: [{ type: 'drifter', count: 6 }, { type: 'weaver', count: 3 }, { type: 'tagger', count: 3 }], interval: 0.5, clearDelay: 1.6 },
-      { label: 'PHASE 2 · EAST RELAY WING', spawns: [{ type: 'warden', count: 3 }, { type: 'tagger', count: 4 }, { type: 'splitter', count: 2 }], interval: 0.48, clearDelay: 1.8 },
-      { label: 'PHASE 3 · NORTH RIFT', spawns: [{ type: 'sniper', count: 3 }, { type: 'weaver', count: 4 }, { type: 'turret', count: 2 }, { type: 'diver', count: 3 }], interval: 0.42, clearDelay: 2.0 },
-      { label: 'FINAL PHASE · REFUSE THE LABEL', spawns: [{ type: 'drifter', count: 8 }, { type: 'warden', count: 3 }, { type: 'splitter', count: 3 }, { type: 'turret', count: 2 }], interval: 0.38, clearDelay: 2.2 },
+      { label: 'PHASE 1 · CLASSIFIER CORE', spawns: [{ type: 'turret', count: 2 }, { type: 'weaver', count: 3 }], interval: 0.55, clearDelay: 1.6 },
+      { label: 'PHASE 2 · WEST RELAY WING', spawns: [{ type: 'graviton', count: 1 }, { type: 'turret', count: 2 }, { type: 'weaver', count: 3 }], interval: 0.5, clearDelay: 1.6 },
+      { label: 'PHASE 2 · EAST RELAY WING', spawns: [{ type: 'cipher', count: 1 }, { type: 'warden', count: 2 }, { type: 'weaver', count: 2 }], interval: 0.48, clearDelay: 1.8 },
+      { label: 'PHASE 3 · NORTH RIFT', spawns: [{ type: 'graviton', count: 1 }, { type: 'cipher', count: 2 }, { type: 'turret', count: 2 }, { type: 'warden', count: 2 }], interval: 0.42, clearDelay: 2.0 },
+      { label: 'FINAL PHASE · REFUSE THE LABEL', spawns: [{ type: 'warden', count: 3 }, { type: 'graviton', count: 1 }, { type: 'cipher', count: 2 }, { type: 'turret', count: 2 }, { type: 'weaver', count: 4 }], interval: 0.38, clearDelay: 2.2 },
     ],
   },
 };
@@ -788,8 +786,8 @@ export const SWEEP_ROUTE_BEACONS: Partial<Record<string, {
 }>> = {
   'surface-z1': {
     toObjective: [
-      { tx: 21, ty: 41, label: 'FIELD TRACK' },
-      { tx: 35, ty: 38, label: 'WILLOW TRAIL' },
+      { tx: 13, ty: 27, label: 'OLD FENCE TRAIL' },
+      { tx: 25, ty: 27, label: 'WILLOW TRAIL' },
       { tx: 39, ty: 26, label: 'CACHE GROVE' },
     ],
     toExit: [
@@ -801,8 +799,7 @@ export const SWEEP_ROUTE_BEACONS: Partial<Record<string, {
   },
   'circuit-z2': {
     toObjective: [
-      { tx: 14, ty: 40, label: 'MOTEL DRIVE' },
-      { tx: 18, ty: 35, label: 'SHADOW PARKING' },
+      { tx: 36, ty: 45, label: 'DUMPSTER CUT' },
       { tx: 31, ty: 35, label: 'CHECK-IN OFFICE' },
       { tx: 45, ty: 23, label: 'POOL COURTYARD' },
       { tx: 51, ty: 34, label: 'SCANNER CORE' },
@@ -816,8 +813,9 @@ export const SWEEP_ROUTE_BEACONS: Partial<Record<string, {
   },
   'town-z3': {
     toObjective: [
-      { tx: 25, ty: 42, label: 'MAIN STREET' },
+      { tx: 70, ty: 14, label: 'BRIDGE OVERLOOK' },
       { tx: 40, ty: 17, label: 'MARKET ALLEY' },
+      { tx: 63, ty: 26, label: 'RIVER ROAD TOWER' },
       { tx: 51, ty: 35, label: 'TOWER LINE' },
     ],
     toExit: [
@@ -828,7 +826,8 @@ export const SWEEP_ROUTE_BEACONS: Partial<Record<string, {
   },
   'maze-z4': {
     toObjective: [
-      { tx: 29, ty: 50, label: 'LOWER ROWS' },
+      { tx: 76, ty: 47, label: 'SCOUT SHELTER' },
+      { tx: 70, ty: 28, label: 'EAST ROWS' },
       { tx: 35, ty: 35, label: 'GRAVITY WELL' },
       { tx: 50, ty: 27, label: 'CROP CIRCLE' },
     ],
@@ -841,6 +840,7 @@ export const SWEEP_ROUTE_BEACONS: Partial<Record<string, {
 };
 
 export const SWEEP_MOTEL_SCANNERS: SweepScannerLine[] = [
+  { aTx: 34.0, aTy: 44.0, bTx: 40.0, bTy: 44.0, label: 'DUMPSTER SCANNER' },
   { aTx: 13.0, aTy: 40.0, bTx: 16.0, bTy: 40.0, label: 'ENTRY SCANNER' },
   { aTx: 22.0, aTy: 23.0, bTx: 22.0, bTy: 30.0, label: 'ROOM ROW SCANNER' },
   { aTx: 41.0, aTy: 21.0, bTx: 51.0, bTy: 21.0, label: 'POOL SCANNER' },

@@ -65,7 +65,7 @@
 <rect x="495" y="252" width="77" height="44" fill="#2f564b" opacity="0.92" rx="2" />
 <rect x="88" y="483" width="110" height="66" fill="#2f564b" opacity="0.92" rx="2" />
 <rect x="748" y="483" width="110" height="66" fill="#2f564b" opacity="0.92" rx="2" />
-  <circle cx="478.5" cy="576.5" r="5" fill="#ffffff" /><text x="485.5" y="569.5" font-size="10" fill="#e8f5de" font-family="monospace">SPAWN</text>
+  <circle cx="401.5" cy="180.5" r="5" fill="#ffffff" /><text x="408.5" y="173.5" font-size="10" fill="#e8f5de" font-family="monospace">SPAWN</text>
 <rect x="473.5" y="373.5" width="10" height="10" fill="#9dff57" transform="rotate(45 478.5 378.5)" /><text x="485.5" y="371.5" font-size="10" fill="#e8f5de" font-family="monospace">OBJECTIVE</text>
 
 <circle cx="225.5" cy="213.5" r="5" fill="#ffd166" /><text x="232.5" y="206.5" font-size="10" fill="#e8f5de" font-family="monospace">CACHE 1</text>

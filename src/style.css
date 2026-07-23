@@ -640,7 +640,7 @@ body.td-hud-active .toast {
 /* radar hero — robot + circle live in THIS crisp layer, stacked directly above
    the wordmark so they can never overlap it. (They used to be drawn in the game
    canvas, which scales independently of this overlay and collided on some
-   window shapes.) The robot img is the game's own probe texture, pixel-scaled. */
+   window shapes.) The robot img is the game's own CONTACT-47 render. */
 #menu-hero { display: flex; justify-content: center; }
 .hero-radar {
   position: relative;
@@ -661,8 +661,8 @@ body.td-hud-active .toast {
 .hero-robot {
   left: 50%;
   top: 50%;
-  width: 40%;
-  image-rendering: pixelated;
+  width: 52%;
+  image-rendering: auto;
   filter: drop-shadow(0 3px 4px rgba(4, 8, 18, 0.7));
   animation: hero-bob 1.7s ease-in-out infinite alternate;
 }

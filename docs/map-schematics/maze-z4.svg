@@ -75,7 +75,7 @@
 <rect x="571.5" y="163.5" width="12" height="12" fill="#8cffd2" transform="rotate(45 577.5 169.5)" />
 <text x="422.5" y="434.5" font-size="10" fill="#8cffd2" font-family="monospace">GRAVITY WELL</text>
 <text x="587.5" y="159.5" font-size="10" fill="#8cffd2" font-family="monospace">RAISED RIDGE</text>
-<circle cx="137.5" cy="620.5" r="5" fill="#ffffff" /><text x="144.5" y="613.5" font-size="10" fill="#e8f5de" font-family="monospace">SPAWN</text>
+<circle cx="907.5" cy="576.5" r="5" fill="#ffffff" /><text x="914.5" y="569.5" font-size="10" fill="#e8f5de" font-family="monospace">SPAWN</text>
 <rect x="572.5" y="351.5" width="10" height="10" fill="#9dff57" transform="rotate(45 577.5 356.5)" /><text x="584.5" y="349.5" font-size="10" fill="#e8f5de" font-family="monospace">OBJECTIVE</text>
 <rect x="902.5" y="175.5" width="10" height="10" fill="#67d8ff" transform="rotate(45 907.5 180.5)" /><text x="914.5" y="173.5" font-size="10" fill="#e8f5de" font-family="monospace">EXIT</text>
 <circle cx="126.5" cy="367.5" r="5" fill="#ffd166" /><text x="133.5" y="360.5" font-size="10" fill="#e8f5de" font-family="monospace">CACHE 1</text>
@@ -95,29 +95,30 @@
 <circle cx="577.5" cy="169.5" r="5" fill="#b86dff" /><text x="584.5" y="162.5" font-size="10" fill="#e8f5de" font-family="monospace">WPN ARC</text>
 <circle cx="819.5" cy="576.5" r="5" fill="#b86dff" /><text x="826.5" y="569.5" font-size="10" fill="#e8f5de" font-family="monospace">WPN DISC</text>
 <circle cx="368.5" cy="598.5" r="5" fill="#b86dff" /><text x="375.5" y="591.5" font-size="10" fill="#e8f5de" font-family="monospace">WPN ARC</text>
-<circle cx="346.5" cy="609.5" r="5" fill="#bcff72" /><text x="353.5" y="602.5" font-size="10" fill="#e8f5de" font-family="monospace">LOWER ROWS</text>
+<circle cx="863.5" cy="576.5" r="5" fill="#bcff72" /><text x="870.5" y="569.5" font-size="10" fill="#e8f5de" font-family="monospace">SCOUT SHELTER</text>
+<circle cx="797.5" cy="367.5" r="5" fill="#bcff72" /><text x="804.5" y="360.5" font-size="10" fill="#e8f5de" font-family="monospace">EAST ROWS</text>
 <circle cx="412.5" cy="444.5" r="5" fill="#bcff72" /><text x="419.5" y="437.5" font-size="10" fill="#e8f5de" font-family="monospace">GRAVITY WELL</text>
 <circle cx="577.5" cy="356.5" r="5" fill="#bcff72" /><text x="584.5" y="349.5" font-size="10" fill="#e8f5de" font-family="monospace">CROP CIRCLE</text>
 <circle cx="577.5" cy="169.5" r="5" fill="#67d8ff" /><text x="584.5" y="162.5" font-size="10" fill="#e8f5de" font-family="monospace">RAISED RIDGE</text>
 <circle cx="797.5" cy="367.5" r="5" fill="#67d8ff" /><text x="804.5" y="360.5" font-size="10" fill="#e8f5de" font-family="monospace">EAST ROWS</text>
 <circle cx="907.5" cy="180.5" r="5" fill="#67d8ff" /><text x="914.5" y="173.5" font-size="10" fill="#e8f5de" font-family="monospace">STORM BREACH</text>
-<circle cx="159.5" cy="356.5" r="5" fill="#ff5d73" /><text x="166.5" y="349.5" font-size="10" fill="#e8f5de" font-family="monospace">SNIPER</text>
-<circle cx="181.5" cy="411.5" r="5" fill="#ff5d73" /><text x="188.5" y="404.5" font-size="10" fill="#e8f5de" font-family="monospace">WEAVER</text>
+<circle cx="159.5" cy="356.5" r="5" fill="#ff5d73" /><text x="166.5" y="349.5" font-size="10" fill="#e8f5de" font-family="monospace">DIVER</text>
+<circle cx="181.5" cy="411.5" r="5" fill="#ff5d73" /><text x="188.5" y="404.5" font-size="10" fill="#e8f5de" font-family="monospace">DRIFTER</text>
 <circle cx="324.5" cy="598.5" r="5" fill="#ff5d73" /><text x="331.5" y="591.5" font-size="10" fill="#e8f5de" font-family="monospace">SPLITTER</text>
 <circle cx="412.5" cy="576.5" r="5" fill="#ff5d73" /><text x="419.5" y="569.5" font-size="10" fill="#e8f5de" font-family="monospace">SPLITTER</text>
-<circle cx="423.5" cy="444.5" r="5" fill="#ff5d73" /><text x="430.5" y="437.5" font-size="10" fill="#e8f5de" font-family="monospace">TAGGER</text>
-<circle cx="511.5" cy="389.5" r="5" fill="#ff5d73" /><text x="518.5" y="382.5" font-size="10" fill="#e8f5de" font-family="monospace">WEAVER</text>
-<circle cx="599.5" cy="378.5" r="5" fill="#ff5d73" /><text x="606.5" y="371.5" font-size="10" fill="#e8f5de" font-family="monospace">TURRET</text>
-<circle cx="522.5" cy="169.5" r="5" fill="#ff5d73" /><text x="529.5" y="162.5" font-size="10" fill="#e8f5de" font-family="monospace">SNIPER</text>
-<circle cx="621.5" cy="180.5" r="5" fill="#ff5d73" /><text x="628.5" y="173.5" font-size="10" fill="#e8f5de" font-family="monospace">WARDEN</text>
-<circle cx="764.5" cy="367.5" r="5" fill="#ff5d73" /><text x="771.5" y="360.5" font-size="10" fill="#e8f5de" font-family="monospace">TAGGER</text>
-<circle cx="830.5" cy="378.5" r="5" fill="#ff5d73" /><text x="837.5" y="371.5" font-size="10" fill="#e8f5de" font-family="monospace">SNIPER</text>
+<circle cx="423.5" cy="444.5" r="5" fill="#ff5d73" /><text x="430.5" y="437.5" font-size="10" fill="#e8f5de" font-family="monospace">UNDERTOW</text>
+<circle cx="511.5" cy="389.5" r="5" fill="#ff5d73" /><text x="518.5" y="382.5" font-size="10" fill="#e8f5de" font-family="monospace">DRIFTER</text>
+<circle cx="599.5" cy="378.5" r="5" fill="#ff5d73" /><text x="606.5" y="371.5" font-size="10" fill="#e8f5de" font-family="monospace">CIPHER</text>
+<circle cx="522.5" cy="169.5" r="5" fill="#ff5d73" /><text x="529.5" y="162.5" font-size="10" fill="#e8f5de" font-family="monospace">UNDERTOW</text>
+<circle cx="621.5" cy="180.5" r="5" fill="#ff5d73" /><text x="628.5" y="173.5" font-size="10" fill="#e8f5de" font-family="monospace">DORMANT</text>
+<circle cx="764.5" cy="367.5" r="5" fill="#ff5d73" /><text x="771.5" y="360.5" font-size="10" fill="#e8f5de" font-family="monospace">DIVER</text>
+<circle cx="830.5" cy="378.5" r="5" fill="#ff5d73" /><text x="837.5" y="371.5" font-size="10" fill="#e8f5de" font-family="monospace">DRIFTER</text>
 <circle cx="830.5" cy="576.5" r="5" fill="#ff5d73" /><text x="837.5" y="569.5" font-size="10" fill="#e8f5de" font-family="monospace">SPLITTER</text>
-<circle cx="863.5" cy="323.5" r="5" fill="#ff5d73" /><text x="870.5" y="316.5" font-size="10" fill="#e8f5de" font-family="monospace">WARDEN</text>
+<circle cx="863.5" cy="323.5" r="5" fill="#ff5d73" /><text x="870.5" y="316.5" font-size="10" fill="#e8f5de" font-family="monospace">DORMANT</text>
 <circle cx="797.5" cy="422.5" r="5" fill="#ff5d73" /><text x="804.5" y="415.5" font-size="10" fill="#e8f5de" font-family="monospace">DIVER</text>
-<circle cx="555.5" cy="587.5" r="5" fill="#ff5d73" /><text x="562.5" y="580.5" font-size="10" fill="#e8f5de" font-family="monospace">WEAVER</text>
-<circle cx="566.5" cy="334.5" r="5" fill="#ff5d73" /><text x="573.5" y="327.5" font-size="10" fill="#e8f5de" font-family="monospace">DIVER</text>
-<circle cx="709.5" cy="565.5" r="5" fill="#ff5d73" /><text x="716.5" y="558.5" font-size="10" fill="#e8f5de" font-family="monospace">TAGGER</text>
+<circle cx="555.5" cy="587.5" r="5" fill="#ff5d73" /><text x="562.5" y="580.5" font-size="10" fill="#e8f5de" font-family="monospace">SPLITTER</text>
+<circle cx="566.5" cy="334.5" r="5" fill="#ff5d73" /><text x="573.5" y="327.5" font-size="10" fill="#e8f5de" font-family="monospace">UNDERTOW</text>
+<circle cx="709.5" cy="565.5" r="5" fill="#ff5d73" /><text x="716.5" y="558.5" font-size="10" fill="#e8f5de" font-family="monospace">DRIFTER</text>
   <text x="1062" y="26" font-size="14" fill="#9dff57" font-family="monospace" font-weight="700">Schematic Notes</text>
   <text x="1062" y="47" font-size="10" fill="#f5efe0" font-family="monospace">Orchard is now a traversal/puzzle graph with Gravity Well gate, raised ridge, lower creek secret, Scout shelter loop, pump-station return and storm-ridge exit.</text>
   <text x="1062" y="75" font-size="11" fill="#f5efe0" font-family="monospace">Legend: white spawn · green objective/sign · cyan exit · yellow cache · red enemy/scanner · purple weapon · red dashed boost gap · teal gravity</text>

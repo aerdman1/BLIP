@@ -22,6 +22,7 @@ import { PlayerInput } from '../systems/InputSystem';
 import { readPad } from '../systems/PadSim';
 import { resetVirtualInput, virtualInput } from '../systems/VirtualInput';
 import { attachScreenFilter } from '../systems/ScreenFilter';
+import { affinityLabel, affinityMultiplier, damageFamilyForWeapon, type DamageFamily } from '../systems/DamageAffinity';
 import { addShards, grantAbility, loadSave, updateSave } from '../systems/SaveSystem';
 import { activeSkin } from '../systems/SkinState';
 import { uiOverlayActive } from '../systems/UIState';
@@ -195,6 +196,7 @@ export class SweepScene extends Phaser.Scene {
     label: Phaser.GameObjects.Text;
   };
   private orchardGateWarnAt = 0;
+  private cipherZones: Array<{ x: number; y: number; radius: number; lockAt: number; explodeAt: number; gfx: Phaser.GameObjects.Graphics; caster?: SweepEnemy }> = [];
 
   /* ---- HD top-down visual treatment (per biome; see TdBiomes) ---- */
   private td = false; // is the HD treatment active for this arena?
@@ -215,6 +217,7 @@ export class SweepScene extends Phaser.Scene {
   private exiting = false;
   private gameOverShown = false;
   private isPaused = false;
+  private debugCombatProbeActive = false;
   private debugEmitAt = 0;
   private entryGraceUntil = 0;
   private unsubs: Array<() => void> = [];
@@ -1248,36 +1251,73 @@ export class SweepScene extends Phaser.Scene {
       const h = zone.h * T;
       const cx = x + w / 2;
       const cy = y + h / 2;
-      const g = this.add.graphics().setDepth(DEPTH.decal + 52).setAlpha(0.72);
+      const g = this.add.graphics().setDepth(DEPTH.decal + 52).setAlpha(0.9);
       const color = zone.kind === 'rise' || zone.kind === 'roofline'
         ? P.warning
         : zone.kind === 'rift'
           ? P.violetGlitch
           : P.neonCyan;
       const shadow = zone.kind === 'rift' ? P.danger : 0x030508;
-      g.fillStyle(shadow, zone.kind === 'rise' || zone.kind === 'roofline' ? 0.055 : 0.085);
-      g.fillRoundedRect(x + 8, y + 8, w - 16, h - 16, 10);
-      g.lineStyle(3, shadow, 0.22);
-      g.lineBetween(x + 12, y + h - 12, x + w - 12, y + h - 16);
-      g.lineStyle(2, color, zone.kind === 'rift' ? 0.22 : 0.14);
-      g.lineBetween(x + 14, y + 10, x + w - 16, y + 14);
-      const hatchCount = Math.max(4, Math.min(16, Math.floor(w / 60)));
+      const raised = zone.kind === 'rise' || zone.kind === 'roofline';
+      const low = zone.kind === 'drop' || zone.kind === 'creek' || zone.kind === 'rift';
+      const innerX = x + 18;
+      const innerY = y + 18;
+      const innerW = w - 36;
+      const innerH = h - 36;
+
+      g.fillStyle(shadow, raised ? 0.2 : 0.13);
+      g.fillRoundedRect(x + 16, y + h - 22, w - 32, 34, 14);
+      g.fillStyle(shadow, low ? 0.18 : 0.08);
+      g.fillRoundedRect(x + 10, y + 10, w - 20, h - 20, 18);
+
+      if (raised) {
+        g.fillStyle(this.arena.biome === 'motel' || this.arena.biome === 'stadium' ? 0x1c2224 : 0x26361f, 0.44);
+        g.fillRoundedRect(innerX, innerY, innerW, innerH, 16);
+        g.fillStyle(0x05070a, 0.42);
+        g.fillRect(innerX, y + h - 34, innerW, 28);
+        g.lineStyle(5, shadow, 0.48);
+        g.lineBetween(innerX, y + h - 34, innerX + innerW, y + h - 30);
+        g.lineStyle(3, color, 0.2);
+        g.lineBetween(innerX + 4, innerY + 4, innerX + innerW - 4, innerY + 10);
+        g.lineStyle(2, 0x9f8150, 0.24);
+        for (let i = 0; i < 9; i++) {
+          const t = i / 8;
+          const rx = Phaser.Math.Linear(innerX + 18, innerX + innerW - 18, t);
+          g.lineBetween(rx - 16, y + h - 28 + Math.sin(i) * 5, rx + 18, y + h - 42 + Math.cos(i) * 4);
+        }
+        const rampW = Math.min(150, innerW * 0.5);
+        g.fillStyle(this.arena.biome === 'motel' || this.arena.biome === 'stadium' ? 0x2c3336 : 0x60432b, 0.5);
+        g.fillTriangle(cx - rampW / 2, y + h - 8, cx + rampW / 2, y + h - 8, cx + rampW * 0.22, cy + innerH * 0.18);
+        g.lineStyle(2, 0xe2c47a, 0.16);
+        g.lineBetween(cx - rampW / 2, y + h - 10, cx + rampW * 0.18, cy + innerH * 0.18);
+        g.lineBetween(cx + rampW / 2, y + h - 10, cx + rampW * 0.18, cy + innerH * 0.18);
+      } else {
+        g.fillStyle(zone.kind === 'rift' ? 0x110616 : zone.kind === 'creek' ? 0x102c2f : 0x171f1c, zone.kind === 'rift' ? 0.38 : 0.32);
+        g.fillRoundedRect(innerX, innerY, innerW, innerH, 18);
+        g.lineStyle(5, shadow, 0.42);
+        g.strokeRoundedRect(innerX + 2, innerY + 2, innerW - 4, innerH - 4, 18);
+        g.lineStyle(2, color, zone.kind === 'rift' ? 0.24 : 0.16);
+        g.lineBetween(innerX + 12, innerY + 12, innerX + innerW - 14, innerY + 20);
+        g.lineBetween(innerX + 10, innerY + innerH - 18, innerX + innerW - 12, innerY + innerH - 26);
+      }
+
+      const hatchCount = Math.max(6, Math.min(18, Math.floor(w / 54)));
       for (let i = 0; i < hatchCount; i++) {
         const t = i / Math.max(1, hatchCount - 1);
-        const hx = Phaser.Math.Linear(x + 18, x + w - 18, t);
-        const hy = cy + Math.sin(t * Math.PI * 2) * h * 0.18;
-        const dir = zone.kind === 'rise' || zone.kind === 'roofline' ? -1 : 1;
-        g.lineStyle(1, color, zone.kind === 'rift' ? 0.18 : 0.1);
-        g.lineBetween(hx - 18, hy + 8 * dir, hx + 18, hy - 8 * dir);
+        const hx = Phaser.Math.Linear(innerX + 14, innerX + innerW - 14, t);
+        const hy = cy + Math.sin(t * Math.PI * 2) * innerH * 0.22;
+        const dir = raised ? -1 : 1;
+        g.lineStyle(1, color, zone.kind === 'rift' ? 0.2 : 0.14);
+        g.lineBetween(hx - 24, hy + 12 * dir, hx + 24, hy - 12 * dir);
       }
       if (zone.kind === 'creek') {
         g.lineStyle(2, P.neonCyan, 0.18);
         for (let i = 0; i < 3; i++) {
-          const yy = y + h * (0.35 + i * 0.12);
+          const yy = innerY + innerH * (0.32 + i * 0.16);
           g.beginPath();
-          g.moveTo(x + 14, yy);
+          g.moveTo(innerX + 14, yy);
           for (let step = 1; step <= 8; step++) {
-            const xx = x + 14 + (w - 28) * (step / 8);
+            const xx = innerX + 14 + (innerW - 28) * (step / 8);
             g.lineTo(xx, yy + Math.sin(step * 1.4 + i) * 7);
           }
           g.strokePath();
@@ -1375,6 +1415,8 @@ export class SweepScene extends Phaser.Scene {
 
   private quietRoutePressure(): void {
     (this.enemyShots.getChildren() as Projectile[]).forEach((b) => b.active && b.kill());
+    this.cipherZones.forEach((zone) => zone.gfx.destroy());
+    this.cipherZones = [];
     ([...(this.enemies.getChildren() as SweepEnemy[])]).forEach((en) => {
       if (!en.active) return;
       this.fx.sparks(en.x, en.y, P.signalGreen, 4);
@@ -1504,7 +1546,7 @@ export class SweepScene extends Phaser.Scene {
       const art = TD_ENEMY_TEX[e.kind];
       const isBoss = e.getData('boss') === true;
       const isElite = e.getData('elite') === true;
-      const hitbox = isBoss ? 34 : isElite ? 32 : 24;
+      const hitbox = isBoss ? 36 : isElite ? 34 : 28;
       this.tdRigs.set(
         e,
         new ActorRig(this, e, {
@@ -1538,6 +1580,12 @@ export class SweepScene extends Phaser.Scene {
     const rig = this.tdRigs.get(en);
     rig?.destroy();
     this.tdRigs.delete(en);
+    (en.getData('gravitonGfx') as Phaser.GameObjects.Graphics | undefined)?.destroy();
+    this.cipherZones = this.cipherZones.filter((zone) => {
+      if (zone.caster !== en) return true;
+      zone.gfx.destroy();
+      return false;
+    });
     const body = en.body as Phaser.Physics.Arcade.Body | null;
     body?.stop();
     if (body) body.enable = false;
@@ -2160,6 +2208,7 @@ export class SweepScene extends Phaser.Scene {
 
   debugStartEnemyProbe(kind: SweepEnemyKind): boolean {
     if (!this.player?.active || !SWEEP_ENEMIES[kind]) return false;
+    this.debugCombatProbeActive = true;
     resetVirtualInput();
     this.enemies.clear(true, true);
     (this.playerShots.getChildren() as Projectile[]).forEach((b) => b.active && b.kill());
@@ -2525,8 +2574,9 @@ export class SweepScene extends Phaser.Scene {
       if (b) {
         const uni = wp.scale ?? 1; // heavy shells (RUPTURE) read bigger
         b.setTint(charged || surge ? P.warning : wp.tint);
-        b.setScale((charged ? 2.2 : (wp.scaleX ?? 1)) * uni, (charged ? 1.25 : 1) * uni);
+        b.setScale((charged ? 1.75 : (wp.scaleX ?? 1.08)) * uni, (charged ? 1.15 : 1.02) * uni);
         b.setData('dmg', wp.damage * (surge || charged ? 2 : 1));
+        b.setData('damageFamily', damageFamilyForWeapon(wp.id));
         b.setData('pierce', wp.pierce === true || charged);
         b.setData('bounce', wp.id === 'pulse' && ownsRicochet ? Math.max(1, wp.bounce ?? 0) : wp.bounce ?? 0);
         b.setData('chain', wp.id === 'pulse' && ownsPulseResonance && charged ? 2 : 0);
@@ -2536,6 +2586,8 @@ export class SweepScene extends Phaser.Scene {
         b.setData('discPhase', 'out');
         b.setData('returnTrail', wp.id === 'disc');
         b.setData('trailAt', 0);
+        b.setData('shotTrailAt', 0);
+        b.setData('trailColor', charged || surge ? P.warning : wp.glow);
         // reset per-shot specials every fire — the pool reuses sprites, so stale
         // homing/explode data from a previous weapon must be cleared.
         b.setData('homing', wp.homing ? (wp.homingRate ?? 5) : 0);
@@ -2562,13 +2614,21 @@ export class SweepScene extends Phaser.Scene {
     const px = this.player.x;
     const py = this.player.y;
     const blade = this.add.graphics().setDepth(26);
-    blade.lineStyle(6, wp.glow, 0.86);
+    blade.fillStyle(wp.glow, 0.16);
+    blade.slice(px, py, range + 8, base - arc / 2, base + arc / 2, false);
+    blade.fillPath();
+    blade.lineStyle(10, wp.glow, 0.34);
+    blade.beginPath();
+    blade.arc(px, py, range - 5, base - arc / 2, base + arc / 2, false);
+    blade.strokePath();
+    blade.lineStyle(5, wp.glow, 0.9);
     blade.beginPath();
     blade.arc(px, py, range, base - arc / 2, base + arc / 2, false);
     blade.strokePath();
-    blade.lineStyle(2, P.white, 0.72);
-    blade.lineBetween(px, py, px + Math.cos(base) * range, py + Math.sin(base) * range);
-    this.tweens.add({ targets: blade, alpha: 0, duration: 130, onComplete: () => blade.destroy() });
+    blade.lineStyle(2, P.white, 0.86);
+    blade.lineBetween(px + Math.cos(base - arc / 2) * 22, py + Math.sin(base - arc / 2) * 22, px + Math.cos(base) * (range + 6), py + Math.sin(base) * (range + 6));
+    blade.lineBetween(px + Math.cos(base + arc / 2) * 22, py + Math.sin(base + arc / 2) * 22, px + Math.cos(base) * (range + 6), py + Math.sin(base) * (range + 6));
+    this.tweens.add({ targets: blade, alpha: 0, scaleX: 1.08, scaleY: 1.08, duration: 155, onComplete: () => blade.destroy() });
     this.fx.sparks(px + Math.cos(base) * 28, py + Math.sin(base) * 28, wp.glow, 9);
     this.fx.scanRing(px + Math.cos(base) * 28, py + Math.sin(base) * 28, 34, 160, wp.glow);
     audio.pulseShot();
@@ -2582,7 +2642,7 @@ export class SweepScene extends Phaser.Scene {
       if (!inside) return;
       hit = true;
       this.impactFx(en.x, en.y, wp.glow);
-      if (en.applyHit(wp.damage, px, py, 430)) this.killEnemy(en);
+      if (this.applyEnemyDamage(en, wp.damage, px, py, 430, 'arc')) this.killEnemy(en);
     });
 
     let reflected = 0;
@@ -2596,11 +2656,14 @@ export class SweepScene extends Phaser.Scene {
       if (rb) {
         rb.setTint(wp.glow).setScale(1.2);
         rb.setData('dmg', 1);
+        rb.setData('damageFamily', 'arc');
         rb.setData('pierce', true);
         rb.setData('bounce', 0);
         rb.setData('hits', null);
         rb.setData('recallDisc', false);
         rb.setData('returnTrail', false);
+        rb.setData('shotTrailAt', 0);
+        rb.setData('trailColor', wp.glow);
         rb.setData('chain', 0);
         rb.setData('homing', 0);
         rb.setData('explode', null);
@@ -2619,8 +2682,129 @@ export class SweepScene extends Phaser.Scene {
       if (!en.active) return;
       const d = Phaser.Math.Distance.Between(x, y, en.x, en.y);
       if (d > 74) return;
-      if (en.applyHit(1, x, y, 260)) this.killEnemy(en);
+      if (this.applyEnemyDamage(en, 1, x, y, 260, 'arc')) this.killEnemy(en);
     });
+  }
+
+  private applyEnemyDamage(en: SweepEnemy, baseDamage: number, fromX: number, fromY: number, force: number = SWEEP.enemyKnockback, family: DamageFamily = 'pulse'): boolean {
+    const mult = affinityMultiplier(en.kind, en.affinityState(), family);
+    const dmg = Math.max(0.25, baseDamage * mult);
+    const label = affinityLabel(mult);
+    if (label) {
+      const color = label === 'WEAK' ? P.warning : P.bluestone;
+      this.fx.floatText(en.x, en.y - 18, label, color);
+      if (label === 'WEAK') this.fx.sparks(en.x, en.y, color, 5);
+      else this.fx.sparks(en.x, en.y, color, 2);
+    }
+    return en.applyHit(dmg, fromX, fromY, force * Phaser.Math.Clamp(mult, 0.55, 1.45));
+  }
+
+  private spawnCipherZone(caster: SweepEnemy, data: { x: number; y: number; radius: number; lockMs: number; explodeMs: number }): void {
+    const p = this.nearestWalkableWorld(data.x, data.y);
+    const gfx = this.add.graphics().setDepth(DEPTH.decal + 78);
+    this.cipherZones.push({
+      x: p.x,
+      y: p.y,
+      radius: data.radius,
+      lockAt: this.time.now + data.lockMs,
+      explodeAt: this.time.now + data.explodeMs,
+      gfx,
+      caster,
+    });
+  }
+
+  private updateCipherZones(now: number): void {
+    this.cipherZones = this.cipherZones.filter((zone) => {
+      const locked = now >= zone.lockAt;
+      const remain = Math.max(0, zone.explodeAt - now);
+      const t = 1 - remain / Math.max(1, zone.explodeAt - zone.lockAt);
+      zone.gfx.clear();
+      zone.gfx.fillStyle(P.danger, locked ? 0.17 + t * 0.16 : 0.08).fillCircle(zone.x, zone.y, zone.radius);
+      zone.gfx.lineStyle(2, locked ? P.warning : P.danger, locked ? 0.72 : 0.38).strokeCircle(zone.x, zone.y, zone.radius * (locked ? 1 : 0.75 + Math.sin(now * 0.012) * 0.08));
+      zone.gfx.lineStyle(1, P.white, locked ? 0.24 : 0.12).lineBetween(zone.x - zone.radius, zone.y, zone.x + zone.radius, zone.y).lineBetween(zone.x, zone.y - zone.radius, zone.x, zone.y + zone.radius);
+      if (now < zone.explodeAt) return true;
+
+      zone.gfx.destroy();
+      this.fx.mechanicalRupture(zone.x, zone.y, P.danger, 18);
+      this.fx.scorch(zone.x, zone.y, 18);
+      audio.explode();
+      if (this.time.now >= this.entryGraceUntil && Phaser.Math.Distance.Between(zone.x, zone.y, this.player.x, this.player.y) <= zone.radius + 8) {
+        if (this.player.damage(zone.x, zone.y)) this.onPlayerHurt();
+      }
+      (this.enemies.getChildren() as SweepEnemy[]).forEach((en) => {
+        if (!en.active || en === zone.caster) return;
+        if (Phaser.Math.Distance.Between(zone.x, zone.y, en.x, en.y) > zone.radius + 8) return;
+        if (this.applyEnemyDamage(en, 1.25, zone.x, zone.y, 220, 'blast')) this.killEnemy(en);
+      });
+      return false;
+    });
+  }
+
+  private pulseGroundMarker(x: number, y: number, radius: number, tint: number, ms = 520): void {
+    const g = this.add.graphics().setDepth(DEPTH.decal + 77);
+    g.fillStyle(tint, 0.12).fillCircle(x, y, radius);
+    g.lineStyle(2, tint, 0.65).strokeCircle(x, y, radius);
+    this.tweens.add({ targets: g, alpha: 0, duration: ms, onComplete: () => g.destroy() });
+  }
+
+  private updateEnemySpecials(now: number, dt: number): void {
+    (this.enemies.getChildren() as SweepEnemy[]).forEach((en) => {
+      if (!en.active) return;
+      const cipher = en.getData('cipherMarkerRequest') as { x: number; y: number; radius: number; lockMs: number; explodeMs: number } | undefined;
+      if (cipher) {
+        en.setData('cipherMarkerRequest', null);
+        this.spawnCipherZone(en, cipher);
+      }
+
+      const activeUntil = Number(en.getData('gravitonActiveUntil')) || 0;
+      const gravitonGfx = en.getData('gravitonGfx') as Phaser.GameObjects.Graphics | undefined;
+      if (now < activeUntil && en.kind === 'graviton') {
+        let gfx = gravitonGfx;
+        if (!gfx) {
+          gfx = this.add.graphics().setDepth(DEPTH.decal + 76);
+          en.setData('gravitonGfx', gfx);
+        }
+        const r = 168;
+        gfx.clear();
+        gfx.fillStyle(P.neonCyan, 0.08).fillCircle(en.x, en.y, r);
+        gfx.lineStyle(2, P.neonCyan, 0.36).strokeCircle(en.x, en.y, r * (0.94 + Math.sin(now * 0.008) * 0.04));
+        gfx.lineStyle(1, P.white, 0.18).lineBetween(en.x, en.y, this.player.x, this.player.y);
+        const d = Phaser.Math.Distance.Between(en.x, en.y, this.player.x, this.player.y);
+        if (d > 20 && d < r && this.hasWalkableLine(en.x, en.y, this.player.x, this.player.y)) {
+          const body = this.player.body as Phaser.Physics.Arcade.Body;
+          const pull = 185 * Phaser.Math.Clamp(1 - d / r, 0.22, 0.72);
+          body.velocity.x += ((en.x - this.player.x) / d) * pull * dt;
+          body.velocity.y += ((en.y - this.player.y) / d) * pull * dt;
+        }
+      } else if (gravitonGfx) {
+        gravitonGfx.destroy();
+        en.setData('gravitonGfx', null);
+      }
+
+      const lock = en.getData('undertowLockRequest') as { x: number; y: number; radius: number; eruptAt: number } | undefined;
+      if (lock) {
+        en.setData('undertowLockRequest', null);
+        this.pulseGroundMarker(lock.x, lock.y, lock.radius, P.warning, Math.max(220, lock.eruptAt - now));
+      }
+      const erupt = en.getData('undertowEruptRequest') as { x: number; y: number; radius: number } | undefined;
+      if (erupt) {
+        en.setData('undertowEruptRequest', null);
+        this.fx.mechanicalRupture(erupt.x, erupt.y, P.warning, 14);
+        this.fx.scorch(erupt.x, erupt.y, 14);
+        if (this.time.now >= this.entryGraceUntil && Phaser.Math.Distance.Between(erupt.x, erupt.y, this.player.x, this.player.y) <= erupt.radius) {
+          if (this.player.damage(erupt.x, erupt.y)) this.onPlayerHurt();
+        }
+      }
+      const ambush = en.getData('ambushBurstRequest') as { x: number; y: number; radius: number } | undefined;
+      if (ambush) {
+        en.setData('ambushBurstRequest', null);
+        this.fx.scanRing(ambush.x, ambush.y, ambush.radius, 220, P.danger);
+        if (this.time.now >= this.entryGraceUntil && Phaser.Math.Distance.Between(ambush.x, ambush.y, this.player.x, this.player.y) <= ambush.radius) {
+          if (this.player.damage(ambush.x, ambush.y)) this.onPlayerHurt();
+        }
+      }
+    });
+    this.updateCipherZones(now);
   }
 
   /* ---------------------------- collisions ------------------------------- */
@@ -2659,7 +2843,8 @@ export class SweepScene extends Phaser.Scene {
     if (!pierce) shot.kill();
     this.impactFx(en.x, en.y, shot.getData('bounce') ? P.signalGreen : P.warning);
     audio.enemyHit();
-    if (en.applyHit(dmg, sx, sy)) this.killEnemy(en);
+    const family = (shot.getData('damageFamily') as DamageFamily | undefined) ?? 'pulse';
+    if (this.applyEnemyDamage(en, dmg, sx, sy, SWEEP.enemyKnockback, family)) this.killEnemy(en);
     if (chain > 0) this.pulseResonanceChain(ix, iy, chain);
     if (explode) this.explodeShot(ix, iy, explode);
   }
@@ -2685,7 +2870,7 @@ export class SweepScene extends Phaser.Scene {
         .setOrigin(0)
         .setDepth(24);
       this.time.delayedCall(90, () => line.destroy());
-      if (target.applyHit(1, origin.x, origin.y, 180)) this.killEnemy(target);
+      if (this.applyEnemyDamage(target, 1, origin.x, origin.y, 180, 'pulse')) this.killEnemy(target);
       origin = { x: target.x, y: target.y };
     }
   }
@@ -2700,7 +2885,7 @@ export class SweepScene extends Phaser.Scene {
     (this.enemies.getChildren() as SweepEnemy[]).forEach((en) => {
       if (!en.active) return;
       if (Phaser.Math.Distance.Between(x, y, en.x, en.y) <= ex.radius) {
-        if (en.applyHit(ex.damage, x, y, 240)) this.killEnemy(en);
+        if (this.applyEnemyDamage(en, ex.damage, x, y, 240, 'blast')) this.killEnemy(en);
       }
     });
   }
@@ -2710,6 +2895,7 @@ export class SweepScene extends Phaser.Scene {
     const ownsRecallTrail = loadSave().purchasedUpgrades.includes('pulse-ricochet');
     (this.playerShots.getChildren() as Projectile[]).forEach((b) => {
       if (!b.active) return;
+      this.renderProjectileTrail(b);
       if (b.getData('recallDisc') === true) {
         const body = b.body as Phaser.Physics.Arcade.Body;
         const phase = b.getData('discPhase') as string;
@@ -2759,8 +2945,26 @@ export class SweepScene extends Phaser.Scene {
     (this.enemies.getChildren() as SweepEnemy[]).forEach((en) => {
       if (!en.active) return;
       if (Phaser.Math.Distance.Between(b.x, b.y, en.x, en.y) > 30) return;
-      if (en.applyHit(1, b.x, b.y, 120)) this.killEnemy(en);
+      if (this.applyEnemyDamage(en, 1, b.x, b.y, 120, 'kinetic')) this.killEnemy(en);
     });
+  }
+
+  private renderProjectileTrail(b: Projectile): void {
+    const now = this.time.now;
+    if (now < ((b.getData('shotTrailAt') as number) ?? 0)) return;
+    b.setData('shotTrailAt', now + 44);
+    const body = b.body as Phaser.Physics.Arcade.Body;
+    const speed = Math.hypot(body.velocity.x, body.velocity.y);
+    if (speed < 8) return;
+    const color = (b.getData('trailColor') as number | undefined) ?? P.signal;
+    const ax = Math.atan2(body.velocity.y, body.velocity.x);
+    const tail = b.getData('recallDisc') === true ? 30 : 24;
+    const g = this.add.graphics().setDepth(23).setBlendMode(Phaser.BlendModes.ADD);
+    g.lineStyle(b.getData('recallDisc') === true ? 5 : 4, color, 0.36);
+    g.lineBetween(b.x - Math.cos(ax) * tail, b.y - Math.sin(ax) * tail, b.x, b.y);
+    g.lineStyle(1, P.white, 0.6);
+    g.lineBetween(b.x - Math.cos(ax) * (tail * 0.48), b.y - Math.sin(ax) * (tail * 0.48), b.x + Math.cos(ax) * 6, b.y + Math.sin(ax) * 6);
+    this.tweens.add({ targets: g, alpha: 0, duration: 130, onComplete: () => g.destroy() });
   }
 
   /** angle from the player to the nearest live enemy, or null if none (touch auto-aim) */
@@ -2831,8 +3035,9 @@ export class SweepScene extends Phaser.Scene {
     const splitN = en.splitInto; // REPLICATOR bursts into chasing shards
     this.removeEnemy(en);
     if (splitN > 0) this.spawnSplitShards(ex, ey, splitN);
-    // kills charge the Node (double near it); the breach opens at full charge
-    this.addNodeCharge(ex, ey);
+    // kills charge the Node (double near it); isolated combat probes skip this
+    // so reward modals cannot pause enemy validation mid-shot.
+    if (!this.debugCombatProbeActive) this.addNodeCharge(ex, ey);
     // the finale boss triggers the climax; the Elite drops a Boon + cache; grunts drop by chance
     if (isBoss) {
       this.onBossDefeated(ex, ey);
@@ -2864,7 +3069,7 @@ export class SweepScene extends Phaser.Scene {
     // ROCKET Phase-Strike: dashing through a drone damages IT (you're invulnerable mid-dash)
     if (this.player.isDashing && activeSkin().abilities.phaseStrike === true) {
       this.fx.sparks(en.x, en.y, P.scoutDanny, 4);
-      if (en.applyHit(SWEEP.shotDmg, this.player.x, this.player.y)) {
+      if (this.applyEnemyDamage(en, SWEEP.shotDmg, this.player.x, this.player.y, SWEEP.enemyKnockback, 'pulse')) {
         this.killEnemy(en);
         if (SWEEP.dashRefundOnPhaseKill) this.player.refreshDash(); // dash-chain flow
       }
@@ -2925,11 +3130,11 @@ export class SweepScene extends Phaser.Scene {
     const type = isWeapon ? 'weapon' : 'health';
     const tint = isWeapon ? WEAPONS[wid].tint : P.signalGreen;
     const pk = this.pickups.create(x, y, TEX.sweepPickup) as Phaser.Physics.Arcade.Image;
-    pk.setTint(tint).setScale(isWeapon ? 1.5 : 1.1).setDepth(12).setData('ptype', type);
+    pk.setTint(tint).setScale(isWeapon ? 1.05 : 0.78).setDepth(12).setData('ptype', type);
     if (isWeapon) pk.setData('wid', wid);
     (pk.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
     // a soft light pool so pickups read against the dark ground
-    const glow = this.add.image(x, y, TEX.glow8).setDepth(11).setTint(tint).setBlendMode(Phaser.BlendModes.ADD).setScale(1.4).setAlpha(0.4);
+    const glow = this.add.image(x, y, TEX.glow8).setDepth(11).setTint(tint).setBlendMode(Phaser.BlendModes.ADD).setScale(isWeapon ? 2.1 : 1.35).setAlpha(isWeapon ? 0.5 : 0.32);
     pk.setData('glow', glow);
     let label: Phaser.GameObjects.Text | undefined;
     if (isWeapon) {
@@ -2949,16 +3154,16 @@ export class SweepScene extends Phaser.Scene {
         .setDepth(13);
       pk.setData('label', label);
     }
-    this.tweens.add({ targets: [pk], scale: { from: pk.scale * 0.85, to: pk.scale * 1.15 }, duration: 520, yoyo: true, repeat: -1 });
-    this.tweens.add({ targets: glow, alpha: { from: 0.25, to: 0.55 }, duration: 640, yoyo: true, repeat: -1 });
+    this.tweens.add({ targets: [pk], scale: { from: pk.scale * 0.92, to: pk.scale * 1.08 }, duration: 620, yoyo: true, repeat: -1 });
+    this.tweens.add({ targets: glow, alpha: { from: isWeapon ? 0.32 : 0.18, to: isWeapon ? 0.62 : 0.42 }, duration: 720, yoyo: true, repeat: -1 });
     this.time.delayedCall(11000, () => { if (pk.active) { glow.destroy(); label?.destroy(); pk.destroy(); } });
   }
 
   private dropHealthPickup(x: number, y: number, persist = false): void {
     const pk = this.pickups.create(x, y, TEX.sweepPickup) as Phaser.Physics.Arcade.Image;
-    pk.setTint(P.signalGreen).setScale(1.25).setDepth(12).setData('ptype', 'health');
+    pk.setTint(P.signalGreen).setScale(0.82).setDepth(12).setData('ptype', 'health');
     (pk.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
-    const glow = this.add.image(x, y, TEX.glow8).setDepth(11).setTint(P.signalGreen).setBlendMode(Phaser.BlendModes.ADD).setScale(1.25).setAlpha(0.36);
+    const glow = this.add.image(x, y, TEX.glow8).setDepth(11).setTint(P.signalGreen).setBlendMode(Phaser.BlendModes.ADD).setScale(1.35).setAlpha(0.3);
     const label = this.add
       .text(x, this.pickupLabelY(x, y, 23), 'RECOVERY', {
         fontFamily: 'monospace',
@@ -2973,8 +3178,8 @@ export class SweepScene extends Phaser.Scene {
       .setDepth(13);
     pk.setData('glow', glow);
     pk.setData('label', label);
-    this.tweens.add({ targets: pk, scale: { from: 1.05, to: 1.45 }, duration: 520, yoyo: true, repeat: -1 });
-    this.tweens.add({ targets: glow, alpha: { from: 0.22, to: 0.5 }, duration: 640, yoyo: true, repeat: -1 });
+    this.tweens.add({ targets: pk, scale: { from: 0.72, to: 0.92 }, duration: 600, yoyo: true, repeat: -1 });
+    this.tweens.add({ targets: glow, alpha: { from: 0.18, to: 0.42 }, duration: 720, yoyo: true, repeat: -1 });
     if (!persist) this.time.delayedCall(11000, () => { if (pk.active) { glow.destroy(); label.destroy(); pk.destroy(); } });
   }
 
@@ -2982,9 +3187,9 @@ export class SweepScene extends Phaser.Scene {
   private dropWeaponPickup(x: number, y: number, wid: string, persist: boolean): void {
     const wp = WEAPONS[wid] ?? WEAPONS.pulse;
     const pk = this.pickups.create(x, y, TEX.sweepPickup) as Phaser.Physics.Arcade.Image;
-    pk.setTint(wp.tint).setScale(1.5).setDepth(12).setData('ptype', 'weapon').setData('wid', wp.id).setData('major', persist);
+    pk.setTint(wp.tint).setScale(persist ? 1.34 : 1.04).setDepth(12).setData('ptype', 'weapon').setData('wid', wp.id).setData('major', persist);
     (pk.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
-    const glow = this.add.image(x, y, TEX.glow8).setDepth(11).setTint(wp.tint).setBlendMode(Phaser.BlendModes.ADD).setScale(1.4).setAlpha(0.4);
+    const glow = this.add.image(x, y, TEX.glow8).setDepth(11).setTint(wp.tint).setBlendMode(Phaser.BlendModes.ADD).setScale(persist ? 2.65 : 2.05).setAlpha(persist ? 0.58 : 0.46);
     const label = this.add
       .text(x, this.pickupLabelY(x, y, 25), this.weaponPickupLabel(wp, persist), {
         fontFamily: 'monospace',
@@ -3000,8 +3205,8 @@ export class SweepScene extends Phaser.Scene {
       .setDepth(13);
     pk.setData('glow', glow);
     pk.setData('label', label);
-    this.tweens.add({ targets: [pk], scale: { from: 1.3, to: 1.7 }, duration: 520, yoyo: true, repeat: -1 });
-    this.tweens.add({ targets: glow, alpha: { from: 0.25, to: 0.55 }, duration: 640, yoyo: true, repeat: -1 });
+    this.tweens.add({ targets: [pk], scale: { from: pk.scale * 0.92, to: pk.scale * 1.08 }, duration: 620, yoyo: true, repeat: -1 });
+    this.tweens.add({ targets: glow, alpha: { from: persist ? 0.35 : 0.28, to: persist ? 0.7 : 0.58 }, duration: 720, yoyo: true, repeat: -1 });
     if (!persist) this.time.delayedCall(14000, () => { if (pk.active) { glow.destroy(); label.destroy(); pk.destroy(); } });
   }
 
@@ -3068,7 +3273,7 @@ export class SweepScene extends Phaser.Scene {
     (this.enemies.getChildren() as SweepEnemy[]).forEach((en) => {
       if (!en.active) return;
       if (Phaser.Math.Distance.Between(this.player.x, this.player.y, en.x, en.y) <= r) {
-        if (en.applyHit(SWEEP.scanDmg, this.player.x, this.player.y, 260)) this.killEnemy(en);
+        if (this.applyEnemyDamage(en, SWEEP.scanDmg, this.player.x, this.player.y, 260, 'arc')) this.killEnemy(en);
       }
     });
     if (loadSave().purchasedUpgrades.includes('emp-burst')) {
@@ -3280,6 +3485,7 @@ export class SweepScene extends Phaser.Scene {
         const target = this.enemyDriveTarget(en, pathDist);
         en.drive(target.x, target.y, now, fireBolt, aggro, target.pathing);
       });
+      this.updateEnemySpecials(now, dt);
       this.applyEnemyContactPressure();
     }
     if (!(this.traverse && this.breachOpen)) this.updateElite(now);
@@ -3422,7 +3628,7 @@ export class SweepScene extends Phaser.Scene {
     (this.enemies.getChildren() as SweepEnemy[]).forEach((en) => {
       if (!en.active) return;
       if (Phaser.Math.Distance.Between(this.player.x, this.player.y, en.x, en.y) <= SWEEP.overdriveShockRadius) {
-        if (en.applyHit(SWEEP.overdriveShockDmg, this.player.x, this.player.y, 320)) this.killEnemy(en);
+        if (this.applyEnemyDamage(en, SWEEP.overdriveShockDmg, this.player.x, this.player.y, 320, 'blast')) this.killEnemy(en);
       }
     });
   }
