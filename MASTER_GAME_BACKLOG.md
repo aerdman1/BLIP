@@ -32,7 +32,7 @@ rewrite.
 
 The playable foundation is real: single save, Continue/New Game, pause Quit to
 Menu, shared player state across handoffs, three weapons, fast switching, Boost,
-an explicit BOOST meter, restrained trailing boost echoes, a capped fading cyan hover-fire ground trail, named region goals, hardened charge-plus-action route objectives, centralized Pulse/Arc/Kinetic/Blast damage affinities, tactical enemy
+an explicit BOOST meter, restrained trailing boost echoes, a capped fading cyan hover-fire ground trail, named region goals, a clearer central mystery around CONTACT-47 being classified by the Interpretation Engine, hardened charge-plus-action route objectives, centralized Pulse/Arc/Kinetic/Blast damage affinities, tactical enemy
 roles, enemy pursuit/stuck-recovery hardening, HD visual scale decoupled from
 world-space hitboxes, safe marker resolution for authored spawns/exits, a first
 Gravity Well beat, schematic-first expanded layouts across all five route
@@ -41,20 +41,25 @@ authored field-event reward pockets with visible purpose-labeled markers, early
 weapon prototypes, optional ambush hooks, a first subtle discovered-area lighting
 read, a tightened pickup-label/equip-message path, a weapon feel pass across
 Pulse/Arc/Recall, Orchard Crop Circle gating through the
-Gravity Well/raised-ridge step, two first-pass Miller Boost washout crossings,
+Gravity Well/raised-ridge step, a first meaningful route progression chain
+(Miller mutation choice, Motel Phase Boost+, Town Scout Relay Pylon, Orchard
+Scan Memory secret and Signal Storm relay gate), two first-pass Miller Boost washout crossings,
 CRT scanlines defaulting off, CONTACT-47 aura defaulting off with a Settings toggle, settings screen filters that apply to the active top-down world camera, additive
 environment-depth dressing with biome-specific ground wear, layered silhouettes,
 foreground framing, built-roof service details, named-area identity dressing and
 data-driven elevation zones with stronger follow-camera offset/zoom, staged Signal Storm phase labels, generated map
 schematics, AI Lab smoke harness and focused campaign evidence, HD top-down renderer, the Tripo
 CONTACT-47 eight-facing sprite fallback pipeline, and a main-menu radar hero that uses the Tripo CONTACT-47 render.
+The old Wardrobe / Signal Skin system is cut from active gameplay; legacy save
+fields remain only for compatibility, cache rewards no longer roll skins, and
+future Scout rewards should be explicit upgrades, abilities, lore or route tools.
 
 The game is not yet a strong vertical slice. The biggest current gaps are:
 manual feel review on the newly expanded purposeful layouts, objective/route
 completion on short AI region runs, region variety still needing live encounter polish, incomplete
 notification/reward consolidation, shallow loot presentation despite larger cache-like pickup art and stronger first-pass projectile/Arc VFX, progression
-mutations that need testing/polish, weak full-route AI completion evidence, and
-a finale that still needs a more authored climax. The latest automated sweep
+mutations that need testing/polish, no crash-site/non-combat onboarding scene yet, weak full-route AI completion evidence, and
+a finale that still needs a more authored climax despite the new relay gate. The latest automated sweep
 added stricter `qa:maps` structural checks plus `qa:route` runtime checks for HD
 rendering, objective copy, route-open guidance, pressure cleanup, Motel scanner
 identity/offline cleanup, Ghost Check-In stealth-bonus gating, Orchard Gravity Well gating and Signal Storm finale
@@ -116,28 +121,35 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 3. Patch only targeted map problems from that review: do not blindly scale again.
    Adjust specific routes, branches, encounter spaces, loot pockets, signs or
    helper coordinates.
-4. AI Player Lab safety and route guidance: continue before/after comparisons
+4. Progression/motivation spine: verify the new Miller mutation choice, Motel
+   Phase Boost+, Town Scout Relay Pylon, Orchard Scan Memory secret and Signal
+   Storm relay gate in real play and focused automation.
+5. Crash Site Onboarding package: add a short pre-Miller or Miller-opening
+   non-combat beat where CONTACT-47 recovers from a crash, receives Scout/kid
+   context, repairs Boost or recovers the first weapon, and gets an immediate
+   reason to protect the town. Keep it brief and do not derail the current route.
+6. AI Player Lab safety and route guidance: continue before/after comparisons
    using visible perception only. The focused first-three sample
    `first-three-route-regression-v8` now reaches Town 6/6 with 0 deaths and 0
    soft locks; full-route and broader regression evidence are still pending.
-5. First-route clarity: Miller -> Motel -> Town must remain understandable
+7. First-route clarity: Miller -> Motel -> Town must remain understandable
    without hidden navigation. Current focused evidence is strong enough to move
    on to broader route regression and subjective live-feel review.
-6. Unified notification and reward UI: one objective card, one activity feed,
+8. Unified notification and reward UI: one objective card, one activity feed,
    centered blocking read-and-continue major reward cards, no overlapping popups.
-7. Major reward presentation: clear name, type, rarity/importance, behavior,
+9. Major reward presentation: clear name, type, rarity/importance, behavior,
    equip/activate where relevant, and no generic diamond for important rewards.
-8. Meaningful progression: test/polish the first live behavior hooks, then add
+10. Meaningful progression: test/polish the first live behavior hooks, then add
    additional mutations tied to region rewards, Scout caches, or secrets.
-9. Motel identity: scanner/stealth section must feel intentionally different,
-   with Phase Shift onboarding and combat fallback.
-10. Town identity: cover routes, at least two approaches, hostile structure, and
+11. Motel identity: scanner/stealth section must feel intentionally different,
+   with Phase Boost onboarding and combat fallback.
+12. Town identity: cover routes, at least two approaches, hostile structure, and
    stronger Chagrin Falls exterior-landmark read.
-11. Orchard identity: deepen the existing Gravity Well into a compact puzzle and
+13. Orchard identity: deepen the existing Gravity Well into a compact puzzle and
    make the raised ridge useful beyond a label.
-12. Signal Storm finale: named multi-stage climax that combines weapons, Phase
+14. Signal Storm finale: named multi-stage climax that combines weapons, Phase
    Shift, hazards, and reward/completion feedback.
-13. Focused AI/regression campaigns after the layouts are stable; extended
+15. Focused AI/regression campaigns after the layouts are stable; extended
    overnight campaign only after the route is stable enough to produce
    meaningful evidence.
 
@@ -184,7 +196,7 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 | Motel Circuit | PARTIAL | `SWEEP_MOTEL_SCANNERS`, expanded `circuit-z2`, `fieldEvents`, `MAP_SCHEMATICS.md`, `first-three-route-regression-v8`, `tests/route-readiness.spec.ts` | Layout has scanner main route, optional Room Row stealth branch, Boost-only Maintenance Pocket, Pool Courtyard crossing, Service Lot fallback loop, drainage shortcut, Motel Sign Ledge, early Safe Battery recovery, early Arc/Disc prototypes and Town breach. Ambiguous scanner/gate/circuit labels are removed; Scanner Core is the objective anchor; scanner endpoints use hardware sprites; HUD says scanners offline instead of gate wording; active beams read red; open-route scanners disappear from perception/visual state; all-scanners-offline/no-alert clears award Ghost Check-In | Needs live stealth feel review and broader route regression | P0 | Personas use Boost and reach Town legitimately |
 | Chagrin Falls Town | PARTIAL | expanded `town-z3`, stadium biome, `fieldEvents`, `weaponSpawns`, `MAP_SCHEMATICS.md` | Layout has Main Street, Neighborhood Block/Market Alley upper route, Bridge Overlook sniper/cache beat, River Walk lower shortcut, River Road Tower objective, Stadium Road recovery space, stadium back alley, early Arc/Disc prototypes and Orchard Gate | Needs dedicated Chagrin Falls asset identity and live cover/readability review | P1 | Two readable approaches and cover combat are obvious |
 | Patterson's Orchard | PARTIAL | `SWEEP_GRAVITY_WELLS`, expanded `maze-z4`, `fieldEvents`, `MAP_SCHEMATICS.md`, `orchard-ai-gravity-priority-v1` | Layout has tractor lane, Lower Creek secret puzzle pocket, required Gravity Well launch, Raised Ridge reward/switch step, West Rows Recall lane, East Rows pressure lane, Scout Shelter loop, storm-fence shortcut and Crop Circle gate. Focused AI now completes Orchard 6/6 with no soft locks/deaths | Gravity Well object/enemy/projectile redirection is still deferred; dormant Maze Heart boss gate is cut from the current route so Orchard stays traversal-focused | P1 | Gravity Well puzzle has purpose, reward, reset safety |
-| Signal Storm | PARTIAL | expanded `anomaly-01` waves, Storm Classifier copy, `fieldEvents`, `MAP_SCHEMATICS.md` | Finale arena has entry recovery lane, Classifier Core phase-one objective, West/East Relay Wing phase-two targets, North Rift phase-three anchor, coil pockets, pressure pockets, recovery pockets, field rewards and named phase banners | Needs authored boss behavior/presentation | P1 | Finale feels distinct from normal waves and completes slice clearly |
+| Signal Storm | PARTIAL | expanded `anomaly-01` waves, Storm Classifier copy, `fieldEvents`, `MAP_SCHEMATICS.md` | Finale arena has entry recovery lane, Classifier Core phase-one objective, a hard relay-wing scan gate before later waves, North Rift phase-three anchor, coil pockets, pressure pockets, recovery pockets, field rewards and named phase banners | Needs authored boss behavior/presentation | P1 | Finale feels distinct from normal waves and completes slice clearly |
 
 ### 4. Level Design and World Depth
 
@@ -215,9 +227,9 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 
 | Item | Status | Evidence | Works | Missing / Risk | Priority | Acceptance / Tests |
 |---|---|---|---|---|---|---|
-| Named mutation rewards | PARTIAL | `upgrades.ts`, region rewards, `SweepScene` | Rewards persist and first behavior hooks are live: charged Pulse chain, Arc parry shockwave, Recall return trail | Needs focused tests, HUD clarity and more mutations | P0 | Each major reward changes playstyle |
+| Named mutation rewards | PARTIAL | `upgrades.ts`, region rewards, `SweepScene`, `RewardUI` | Miller now pauses gameplay for a real three-card mutation choice: Overchain Capacitor, Arc Reprisal or Recall Conduit. Rewards persist and behavior hooks are live: charged Pulse chain, Arc parry shockwave, Recall return trail | Needs focused tests, HUD clarity and more mutations | P0 | Each major reward changes playstyle |
 | Two mutations per weapon | PARTIAL | `SweepScene` mutation hooks | One strong hook exists for each weapon family | Still short of two meaningful mutations per weapon | P0 | Six behavior-changing mutations |
-| Progression chain | PARTIAL | region rewards, workbench, Scout sets | Region rewards and Workbench exist | Motivation still disconnected | P0 | Each region grants/reveals useful future-facing change |
+| Progression chain | PARTIAL | `regionGoals.ts`, `upgrades.ts`, `SweepScene` field events | Route rewards now form a concrete chain: Miller mutation choice, Motel Phase Boost+, Town Scout Relay Pylon, Orchard Scan Memory behind the Gravity Well/Scout Shelter chain, Signal Storm Refuse the Label payoff | Needs full-route validation, HUD clarity and stronger story ceremony | P0 | Each region grants/reveals useful future-facing change |
 | Full mutation trees | DEFERRED | docs | Not needed for demo | Too broad now | P3 | Later full-game system |
 | Full crafting economy | DEFERRED | scope-control skill | Workbench exists | Full crafting would distract | P3 | Later only if progression needs it |
 
@@ -226,7 +238,7 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 | Item | Status | Evidence | Works | Missing / Risk | Priority | Acceptance / Tests |
 |---|---|---|---|---|---|---|
 | Basic resources/caches | COMPLETE | `RewardSystem`, `rewards.ts` | Caches, shards, archive, trophies exist | Some charm rewards may still feel toy-like | P2 | Reward archive remains functional |
-| Major reward cards | PARTIAL | toasts/modals, region goals, `RewardUI`, pickup labels, `sweepTextures.ts` | Name/type/description appears, major reward modals pause gameplay, completion bursts batch into one grouped card where possible, weapon pickups/equip messages resolve from the actual weapon id, health drops no longer have stale weapon ids, and pickup art is larger/cache-like | Not yet a single polished acquire/equip flow; final high-res loot art still needed | P0 | Major reward card is unmistakable and non-overlapping |
+| Major reward cards | PARTIAL | toasts/modals, region goals, `RewardUI`, pickup labels, `sweepTextures.ts` | Name/type/description appears, major reward modals pause gameplay, completion bursts batch into one grouped card where possible, weapon pickups/equip messages resolve from the actual weapon id, health drops no longer have stale weapon ids, and pickup art is larger/glossy signal-vault-like instead of a cartoon chest | Not yet a single polished acquire/equip flow; final high-res loot art still needed | P0 | Major reward card is unmistakable and non-overlapping |
 | Comparison/equip | PARTIAL | `RewardUI`, `rewards.equip()` | Cosmetic equip exists | Gameplay reward compare/equip shallow | P1 | Simple acquire/activate/equip flow |
 | Store/salvage | DEFERRED | docs | Duplicate dust exists | Full inventory not needed now | P3 | Decide later |
 | AI ignored reward tracking | PARTIAL | AI JSON loot fields | Loot seen/ignored counted | Current evidence is short and route-biased | P1 | Overnight report ranks ignored rewards |
@@ -239,18 +251,18 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 | Hover-fire ground trail | COMPLETE | `SweepScene.updateHoverTrail()`, `tests/smoke.spec.ts` | Moving CONTACT-47 stamps a capped, fading cyan ground residue so recent travel path is visible | Needs manual visual taste review for brightness/duration | P1 | Trail shows where the player has been without obscuring combat |
 | Keyboard/controller/touch input | PARTIAL | `InputSystem`, touch button, pad binding | Inputs exist | Dedicated tests incomplete | P1 | Input tests for all modes |
 | Scanner interaction | PARTIAL | Motel scanner code, `SWEEP_MOTEL_SCANNERS`, `tests/route-readiness.spec.ts` | Holding Boost through a beam disables scanner/charges objective. Labels explicitly end in SCANNER; endpoints use scanner hardware sprites; active beams are red hazards; disabled scanners hide after the route opens so they do not look like random props. Ghost Check-In rewards all-scanners-offline/no-alert clears and debug route-open cannot trigger it | Tutorial/safe-zone presentation is still shallow | P0 | Player/AI uses Boost in Motel |
-| Projectile/barrier/secret interactions | PLANNED | docs | Projectile phasing partly via i-frames | No phase doors/barrier secrets | P2 | Phase door/secret later |
-| Weapon follow-up interactions | PLANNED | docs | Phase-strike skin hook exists | Not a general weapon system | P2 | Weapon-specific follow-up pass |
+| Projectile/barrier/secret interactions | PARTIAL | `BlipCraft`, `SweepScene.updatePhaseBoostPlus()` | Phase Boost+ clears nearby hostile bolts while boosting; scanner crossing works | No phase doors/barrier secrets yet | P2 | Phase door/secret later |
+| Weapon follow-up interactions | PLANNED | docs | Old Phase-strike skin hook is cut from active gameplay | Needs a real weapon/ability system if revived | P2 | Weapon-specific follow-up pass |
 
 ### 9. Traversal and Puzzle Systems
 
 | System | Status | Evidence | Works | Missing / Risk | Priority | Acceptance / Tests |
 |---|---|---|---|---|---|---|
-| Gravity Well | PARTIAL | `buildRegionSetPieces()`, `tryGravityWell()`, `maybeCompleteTraverseObjective()` | Orchard launch to ridge is playable and gates Crop Circle completion | No object/enemy/projectile redirection yet | P1 | Puzzle has reset, safe spawn, reward |
+| Gravity Well | PARTIAL | `buildRegionSetPieces()`, `tryGravityWell()`, `maybeCompleteTraverseObjective()`, Orchard field events | Orchard launch to ridge is playable, gates Crop Circle completion, and unlocks the Scout Shelter/Scan Memory secret chain | No object/enemy/projectile redirection yet | P1 | Puzzle has reset, safe spawn, reward |
 | Signal Tubes | PLANNED | docs only | Concept retained | No implementation | P3 | Add only when route needs conduit travel |
 | Phase Doors | PLANNED | docs only | Concept retained | No implementation | P2 | Use for secrets/frequency gates later |
 | Signal Rails | DEFERRED | docs | Concept retained | Not needed now | P3 | Later spectacle/traversal |
-| Scout Contraptions | PARTIAL | Scout rewards/lore | Story-connected tech exists | No authored contraption puzzle device | P2 | One device if it helps slice pacing |
+| Scout Contraptions | PARTIAL | Scout rewards/lore, Town Orchard Gate field event | Story-connected tech exists and Town deploys temporary Scout Relay Pylons during the Orchard Gate defense beat | No reusable authored puzzle device yet | P2 | One device if it helps slice pacing |
 | Puzzle reset/soft-lock prevention | MISSING | no focused tests | None yet beyond simple well | Needs architecture before complex puzzles | P1 | Puzzle can reset/retry safely |
 
 ### 10. Enemies and Encounter Variety
@@ -278,9 +290,9 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 
 | Item | Status | Evidence | Works | Missing / Risk | Priority | Acceptance / Tests |
 |---|---|---|---|---|---|---|
-| Scanner beams/alerts | PARTIAL | `buildMotelScanners()` | Beams, labels, alert fallback exist | Alert/investigation/safe zones shallow | P0 | Motel feels like stealth/Phase Shift, not arena |
+| Scanner beams/alerts | PARTIAL | `buildMotelScanners()` | Beams, labels, alert fallback exist | Alert/investigation/safe zones shallow | P0 | Motel feels like stealth/Phase Boost, not arena |
 | Combat fallback | COMPLETE | alert spawns pressure, no soft fail | Detection does not end run | Needs tuning | P1 | Detection changes encounter but does not soft-lock |
-| Stealth reward | PLANNED | region reward copy | Ghost Protocol exists later | No clear avoid-detection reward | P1 | Optional reward for cleaner infiltration |
+| Stealth reward | PARTIAL | `maybeAwardMotelStealthBonus()`, route readiness tests | Ghost Check-In bonus awards shards for all-scanners-offline/no-alert Motel clears | Needs stronger presentation and broader manual proof | P1 | Optional reward for cleaner infiltration |
 | Decoys/tools | PLANNED | Echo Blink concept | Not active in Motel | No reliable decoy stealth loop | P3 | Later if stealth needs more choice |
 
 ### 13. Secrets and Discovery
@@ -386,7 +398,7 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 | Typecheck/build/E2E | COMPLETE | last run passed 6/6 | Deploy gates pass | Keep current | P0 | `npm run qa:full` |
 | Route transitions/save | COMPLETE | `tests/smoke.spec.ts` | Main chain covered by debug route | Needs natural-route tests | P1 | Natural completion suite |
 | Weapon behavior tests | PARTIAL | E2E switch only | Switching covered | Attack/parry/return not fully covered | P1 | Unit/E2E for each weapon behavior |
-| Phase Shift tests | PARTIAL | AI use, input code | Basic smoke | Collision/cooldown tests missing | P1 | Test cooldown and blocked destination |
+| Phase Boost tests | PARTIAL | AI use, input code, smoke tests | Basic boost drain/regeneration and washout crossing are covered | Projectile-phasing and broader controller/touch coverage still missing | P1 | Test cooldown, hostile-bolt phasing and blocked destination |
 | Gravity Well tests | MISSING | no focused test | Manual/code only | Needs test | P1 | Entry/exit/spawn/save support |
 | Signal Tube/Phase Door tests | PLANNED | systems unimplemented | N/A | Mark planned, not failed | P3 | Add with systems |
 | Notification queue tests | MISSING | no manager yet | N/A | Needed after UI manager | P1 | No overlap and priority order |
@@ -468,19 +480,25 @@ a strong demo. Do not jump to later full-game systems until these are stable.
 
 ## Proposed Next Work Package
 
-Next package: unified notification/reward UI, then broader route regression and subjective feel review.
+Next package: Crash Site Onboarding, then full-route regression and subjective feel review.
 
 Scope:
 
-1. Continue automated route-following:
+1. Add a brief non-combat opening beat without rebuilding the route:
+   - CONTACT-47 wakes at a crash scar near Miller Field
+   - visible kid/Scout evidence explains that the town is in danger and CONTACT-47 is not just an enemy signal
+   - a simple electric-line/jolt puzzle repairs Boost or recovers the first weapon
+   - the player earns one clear “you can now do X” tool before combat starts
+   - then the current Miller route begins normally
+2. Continue automated route-following:
    - use `first-three-route-regression-v8` as the current first-three baseline
    - preserve visible-perception-only AI behavior
    - broaden to full-route and multi-region regression before overnight campaigns
-2. Keep the new automated gates green:
+3. Keep the new automated gates green:
    - `npm run qa:maps`
    - `npm run qa:route`
    - typecheck/build/E2E as appropriate
-3. Subjective play-feel review the expanded maps using `MAP_SCHEMATICS.md` and live gameplay:
+4. Subjective play-feel review the expanded maps using `MAP_SCHEMATICS.md` and live gameplay:
    - Miller spawn -> objective -> Motel exit
    - Field Track, Willow Trail, East Road, Breach Road and Motel Breach signage
    - optional Old Mill, Substation and Scout Shelter branches
@@ -489,17 +507,19 @@ Scope:
    - Town streets/bridge/stadium-edge route
    - Orchard Gravity Well/ridge route
    - Signal Storm arena scale
-4. Patch only obvious problems from the expanded pass:
+5. Patch only obvious problems from the expanded pass:
    - excessive empty walking
    - unclear signs/landmarks
    - route signs, pickup labels or field-event labels that overlap in normal play
    - cover or enemies placed where they no longer support the larger spaces
    - rewards or field events that are visible but not worth diverting for
    - stale helper coordinates
-5. After first-route route-following, resume Motel stealth identity and notification/reward UI work.
+6. After full-route route-following, resume deeper mutation HUD, loot comparison, and Signal Storm boss-presentation work.
 
 Acceptance:
 
+- The opening gives the player a reason to continue before the first fight.
+- The first tool is earned through a quick readable action, not an arbitrary pickup.
 - The expanded route feels larger without changing actor scale, camera zoom or
   prop scale.
 - Original region layout identities remain recognizable.

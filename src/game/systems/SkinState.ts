@@ -1,14 +1,15 @@
 /**
- * Active Signal Skin state — a tiny shared accessor so gameplay and UI read the
- * same equipped skin's modifiers/abilities without threading it through constructors.
+ * Legacy Signal Skin accessor. Wardrobe is cut from active gameplay, so all
+ * callers receive CONTACT-47 baseline mods/abilities.
  */
 import { DEFAULT_SKIN, skinById, type SkinAbilities, type SkinDef, type SkinMods } from '../data/skins';
 
 let current: SkinDef = skinById(DEFAULT_SKIN);
 
-/** set the live skin state (no event — callers emit EVT.skinSelected at intent points) */
+/** Keep old callers safe while forcing CONTACT-47 baseline. */
 export function setActiveSkin(id: string): void {
-  current = skinById(id);
+  void id;
+  current = skinById(DEFAULT_SKIN);
 }
 
 export function activeSkin(): SkinDef {

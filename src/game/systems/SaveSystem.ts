@@ -4,8 +4,6 @@
  * emit EVT.saveUpdated on the bus.
  */
 import { BUILD_VERSION, EVT, LEGACY_SAVE_KEY, SAVE_KEY } from '../config';
-import { SKINS } from '../data/skins';
-import { UPGRADES } from '../data/upgrades';
 import { bus } from './EventBus';
 
 export interface SaveFlags {
@@ -54,7 +52,8 @@ export interface SaveData {
   discoveredScoutLogs: string[];
   playerStats: PlayerStats;
   flags: SaveFlags;
-  // Signal Skins (additive — old saves migrate via hydrate defaults)
+  // Legacy Signal Skin fields stay for old-save compatibility. Wardrobe is cut
+  // from active gameplay; CONTACT-47 is the only selected field unit.
   unlockedSkins: string[]; // 'contact47' always present
   selectedSkin: string;
   signalSets: Record<string, { badge: boolean; log: boolean; relic: boolean }>;
@@ -194,10 +193,8 @@ function hydrate(partial: Partial<SaveData>): SaveData {
     discoveredScoutBadges: partial.discoveredScoutBadges ?? [],
     discoveredScoutLogs: partial.discoveredScoutLogs ?? [],
     completedZones: partial.completedZones ?? [],
-    unlockedSkins: partial.unlockedSkins?.includes('contact47')
-      ? partial.unlockedSkins
-      : ['contact47', ...(partial.unlockedSkins ?? [])],
-    selectedSkin: partial.selectedSkin ?? 'contact47',
+    unlockedSkins: ['contact47'],
+    selectedSkin: 'contact47',
     signalSets: partial.signalSets ?? {},
     earnedPortraits: partial.earnedPortraits ?? [],
     foundSecrets: partial.foundSecrets ?? [],
@@ -261,33 +258,21 @@ export function saveAsJson(): string {
   return JSON.stringify(loadSave(), null, 2);
 }
 
-/* ------------------------------- Signal Skins ------------------------------ */
+/* -------------------------- Legacy Signal Skins ---------------------------- */
 
 export function unlockSkin(id: string): void {
+  void id;
   updateSave((s) => {
-    if (!s.unlockedSkins.includes(id)) s.unlockedSkins.push(id);
+    s.unlockedSkins = ['contact47'];
+    s.selectedSkin = 'contact47';
   });
-  grantScoutSetAbility(id);
-}
-
-/**
- * Channel C payoff: completing a scout's Signal Set (which is the only thing
- * that unlocks their skin) also hands over that scout's `scout-set` ability —
- * e.g. Will / WILLOW → Route Tracer. Idempotent via grantAbility.
- */
-function grantScoutSetAbility(skinId: string): void {
-  const scoutId = SKINS.find((s) => s.id === skinId)?.scoutId;
-  if (!scoutId) return;
-  const def = UPGRADES.find((u) => u.unlockType === 'scout-set' && u.scout === scoutId);
-  if (!def) return;
-  if (grantAbility(def.id)) {
-    bus.emit(EVT.toast, { text: `◆ ABILITY UNLOCKED — ${def.name.toUpperCase()}`, color: 'cyan' });
-  }
 }
 
 export function selectSkin(id: string): void {
+  void id;
   updateSave((s) => {
-    if (s.unlockedSkins.includes(id)) s.selectedSkin = id;
+    s.unlockedSkins = ['contact47'];
+    s.selectedSkin = 'contact47';
   });
 }
 

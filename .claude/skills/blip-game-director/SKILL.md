@@ -32,7 +32,7 @@ Purpose: keep the project aligned with the actual game vision. Consult this befo
 Every player verb must have a **combat** job AND a **traversal/stealth** job — one input, two uses — so the kit stays tiny but deep. This is a house rule: before adding a new verb, first ask whether an existing verb can carry the job.
 
 - **Scan** — reveals caches and scout trails (exploration) AND stuns drones caught in the pulse + exposes weak points (combat).
-- **Phase Shift** — blinks across danger lanes and slips through security beams with i-frames (traversal/stealth) AND ROCKET's phase-strike damages drones (combat).
+- **Phase Boost** — held high-speed surge across danger lanes and through security beams with i-frames (traversal/stealth). Phase Boost+ later phases through nearby hostile bolts during active Boost.
 - **Weapons** — Pulse Carbine pressures at range, Arc Blade creates melee/parry risk-reward, and Recall Disc rewards positioning. Fast switching is part of the combat identity. Future weapons should usually be mutations of these before becoming new standalone weapons.
 - **Overdrive** — clears a swarm to open space (survival) AND creates a short rapid-fire push for the node (combat).
 
@@ -48,7 +48,7 @@ Apply these when authoring ANY zone's secrets/collectibles (scan-secrets, scout 
 2. **Claimed = visibly done.** Every scannable/collectible MUST change state on claim: cues **pop
    + fade away** or otherwise visibly retire. Persistent props should **dim/tint green** or clearly show a claimed state. Never leave a claimed item looking identical to an unclaimed one.
 3. **Reachability is math, not vibes.** Every intended route must fit the top-down player radius,
-   Phase Shift distance, scan radius, and camera scale. Never place a reward the base kit cannot reach.
+   Phase Boost reach, scan radius, and camera scale. Never place a reward the base kit cannot reach.
 4. **No signage without payoff.** A marker/arrow/glow must point at something real and obtainable.
    Decorative markers that promise a reward (the "stranded WILLOW chevron" bug) read as broken.
 5. **Tutorialize in Zone 1 only.** Miller Surface teaches `[Q] SCAN`; later zones assume the verb is learned.

@@ -49,7 +49,7 @@ export const CACHES: Record<CacheType, CacheDef> = {
     drops: 1,
     floor: 'rare',
     rarityWeights: { common: 22, uncommon: 34, rare: 30, superrare: 11, epic: 3 },
-    categoryBias: { badge: 4, note: 4, relic: 3, skin: 2, trail: 2 },
+    categoryBias: { badge: 4, note: 4, relic: 3, trail: 2 },
     icon: 'cache-scout',
   },
   anomaly: {
@@ -61,7 +61,7 @@ export const CACHES: Record<CacheType, CacheDef> = {
     drops: 1,
     floor: 'epic',
     rarityWeights: { uncommon: 14, rare: 30, superrare: 30, epic: 18, mythic: 6, anomaly: 2 },
-    categoryBias: { skin: 3, trail: 3, ripple: 3, echofx: 2, relic: 2, note: 2 },
+    categoryBias: { trail: 3, ripple: 3, echofx: 2, relic: 2, note: 2 },
     icon: 'cache-anomaly',
   },
   broadcast: {
@@ -73,7 +73,7 @@ export const CACHES: Record<CacheType, CacheDef> = {
     drops: 1,
     floor: 'mythic',
     rarityWeights: { rare: 12, superrare: 30, epic: 34, mythic: 18, anomaly: 6 },
-    categoryBias: { skin: 3, relic: 3, trail: 2, ripple: 2, note: 2 },
+    categoryBias: { relic: 3, trail: 2, ripple: 2, note: 2 },
     icon: 'cache-broadcast',
   },
 };

@@ -1,6 +1,6 @@
 ---
 name: blip-progression
-description: BLIP's top-down earn-loop — abilities, Signal Shards, skins, rewards, and save wiring.
+description: BLIP's top-down earn-loop — abilities, Signal Shards, Scout upgrades, rewards, and save wiring.
 ---
 
 # BLIP — Top-Down Progression
@@ -13,9 +13,11 @@ Purpose: keep BLIP's power curve small, legible, and wired through the current t
 |---|---|---|
 | **A — Signature ability** | clear a major Signal Node / area milestone | `ZONE_SIGNATURE` in `src/game/data/upgrades.ts` |
 | **B — Signal Shards → Chip's Workbench** | salvage from drones, caches, route clears | `config.PROGRESSION.workbench` + `save.shards` / `purchasedUpgrades` |
-| **C — Scout skins** | complete a scout's 3-piece Signal Set | `src/game/data/skins.ts` |
+| **C — Scout tech / lore** | complete or discover Scout caches, logs, shelters, and field events | `src/game/data/rewards.ts`, `src/game/data/upgrades.ts`, `src/game/data/scouts.ts` |
 
-The base kit must beat every area unaided: move, Phase Shift, Pulse Carbine, Arc Blade, Recall Disc, scan pulse, and overdrive. Upgrades add options; they must not become mandatory unless the route explicitly marks the gate.
+The old Wardrobe / Signal Skin system is cut from active gameplay. Do not add new selectable body skins or skin stat sidegrades. Scout rewards should be explicit abilities, weapon mutations, route tools, lore, or major loot.
+
+The base kit must beat every area unaided: move, held Phase Boost, Pulse Carbine, Arc Blade, Recall Disc, scan pulse, and overdrive. Upgrades add options; they must not become mandatory unless the route explicitly marks the gate.
 
 ## Wiring Rules
 

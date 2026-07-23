@@ -184,8 +184,11 @@ export const rewardById = (id: string): RewardDef | undefined => REWARD_BY_ID[id
 
 export const isCurrency = (r: RewardDef): boolean => CURRENCY_CATEGORIES.includes(r.category);
 
+/** Legacy/cut categories stay readable for old saves, but are not active rewards. */
+export const isActiveReward = (r: RewardDef): boolean => r.category !== 'skin';
+
 /** every collectible (non-currency) reward — the denominator for collection %. */
-export const COLLECTIBLE_REWARDS: RewardDef[] = REWARDS.filter((r) => !isCurrency(r));
+export const COLLECTIBLE_REWARDS: RewardDef[] = REWARDS.filter((r) => !isCurrency(r) && isActiveReward(r));
 
 export const rewardsByCategory = (cat: RewardCategory): RewardDef[] => REWARDS.filter((r) => r.category === cat);
 

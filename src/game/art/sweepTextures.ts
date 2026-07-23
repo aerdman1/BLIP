@@ -715,21 +715,31 @@ export function buildSweepTextures(scene: Phaser.Scene): void {
     g.generateTexture(TEX.sweepReticle, 16, 16);
     g.destroy();
   }
-  // major pickup — readable cache/hologram silhouette with black ink outline
+  // major pickup — glossy sealed signal vault, not a cartoon treasure chest
   {
     const g = gfx(scene);
-    g.fillStyle(0x000000, 0.28).fillEllipse(16, 24, 26, 7);
-    g.fillStyle(P.black, 0.92).fillRoundedRect(3, 8, 26, 14, 4);
-    g.fillStyle(P.white, 1).fillRoundedRect(5, 7, 22, 13, 4);
-    g.fillStyle(0xc9d0d8, 1).fillRoundedRect(5, 14, 22, 7, 3);
-    g.fillStyle(P.black, 0.72).fillRect(4, 13, 24, 2);
-    g.fillStyle(P.black, 0.62).fillRoundedRect(12, 10, 8, 10, 2);
-    g.fillStyle(P.signal, 1).fillRoundedRect(14, 11, 4, 5, 1);
-    g.fillStyle(P.white, 0.75).fillRect(7, 9, 9, 2);
-    g.lineStyle(2, P.black, 1).strokeRoundedRect(4, 7, 24, 14, 4);
-    g.lineStyle(1, P.signal, 0.7).strokeRoundedRect(8, 4, 16, 5, 3);
-    g.fillStyle(P.signal, 0.18).fillCircle(16, 13, 15);
-    g.generateTexture(TEX.sweepPickup, 32, 28);
+    g.fillStyle(0x000000, 0.32).fillEllipse(22, 30, 34, 8);
+    g.fillStyle(P.neonCyan, 0.12).fillEllipse(22, 27, 36, 12);
+
+    g.fillStyle(0x05080a, 0.96).fillRoundedRect(6, 11, 32, 17, 5);
+    g.fillStyle(0x263139, 1).fillRoundedRect(8, 9, 28, 16, 5);
+    g.fillStyle(0x56636b, 1).fillRoundedRect(10, 8, 24, 6, 4);
+    g.fillStyle(0x11191f, 1).fillRoundedRect(9, 15, 26, 10, 4);
+
+    g.fillStyle(0x9bd8e8, 0.9).fillRoundedRect(12, 10, 14, 2, 1);
+    g.fillStyle(P.white, 0.8).fillRoundedRect(13, 9, 8, 1, 1);
+    g.fillStyle(0x000000, 0.38).fillRect(8, 20, 28, 4);
+
+    g.fillStyle(P.neonCyan, 0.26).fillCircle(23, 18, 13);
+    g.fillStyle(P.neonCyan, 0.48).fillCircle(23, 18, 8);
+    g.fillStyle(0xe9ffff, 1).fillCircle(23, 18, 4);
+    g.fillStyle(P.white, 0.95).fillCircle(21, 16, 2);
+
+    g.lineStyle(2, 0x010304, 1).strokeRoundedRect(6, 9, 32, 19, 5);
+    g.lineStyle(1, P.neonCyan, 0.72).strokeRoundedRect(11, 12, 24, 12, 4);
+    g.lineStyle(1, 0xf8ffff, 0.45).lineBetween(11, 10, 28, 9);
+    g.lineStyle(1, P.warning, 0.65).lineBetween(8, 25, 36, 25);
+    g.generateTexture(TEX.sweepPickup, 44, 34);
     g.destroy();
   }
 }

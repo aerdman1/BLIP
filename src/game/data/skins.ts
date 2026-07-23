@@ -1,8 +1,8 @@
 /**
- * SIGNAL SKINS — single source of truth for scout sidegrade skins.
- * Each skin recolors CONTACT-47 into a scout and grants that scout's signature
- * ability drawn from their zone mechanic. UNKNOWN / CONTACT-47 is the baseline
- * with no tradeoffs. ALL tuning lives here — Player/CC read, never hardcode.
+ * LEGACY SIGNAL SKINS — retained only so older save/runtime imports remain
+ * compatible. Wardrobe is cut from active gameplay: CONTACT-47 is the canonical
+ * field-unit presentation and future Scout rewards should become explicit
+ * abilities, route tools, lore, or major loot instead of body recolors/stat skins.
  */
 import { PALETTE as P } from '../config';
 

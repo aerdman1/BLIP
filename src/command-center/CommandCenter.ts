@@ -23,9 +23,7 @@ import {
 import { SWEEP_ARENAS, type SweepArena } from '../game/data/sweepArenas';
 import { SCOUTS, SCOUT_LOGS } from '../game/data/scouts';
 import { FIELD_NOTES } from '../game/data/fieldNotes';
-import { SKINS, skinById } from '../game/data/skins';
 import { UPGRADES } from '../game/data/upgrades';
-import { selectSkin, setProgress } from '../game/systems/SaveSystem';
 import { rewards } from '../game/systems/RewardSystem';
 import { RARITIES, type RarityId } from '../game/data/rewards';
 import { CACHES, CACHE_ORDER } from '../game/data/caches';
@@ -176,7 +174,6 @@ export class CommandCenter {
       ['portraits', 'SIGNAL PORTRAITS'],
       ['fieldnotes', 'FIELD NOTES'],
       ['rewards', 'SIGNAL ARCHIVE'],
-      ['wardrobe', 'WARDROBE'],
       ['mechanics', 'MECHANICS'],
       ['controls', 'CONTROLS'],
       ['progression', 'PROGRESSION'],
@@ -219,7 +216,6 @@ export class CommandCenter {
             ${this.sectionPortraits()}
             ${this.sectionFieldNotes()}
             ${this.sectionRewards()}
-            ${this.sectionWardrobe()}
             ${this.sectionMechanics()}
             ${this.sectionControls()}
             ${this.sectionProgression()}
@@ -267,17 +263,6 @@ export class CommandCenter {
     (this.root.querySelector('#cc-open-cache') as HTMLButtonElement | null)?.addEventListener('click', () => {
       bus.emit(EVT.rewardOpenCache, {});
     });
-    // wardrobe SELECT — delegated so it survives re-renders
-    this.root.querySelector('#cc-wardrobe-grid')?.addEventListener('click', (ev) => {
-      const btn = (ev.target as HTMLElement).closest('.cc-skin-select') as HTMLElement | null;
-      if (!btn) return;
-      const id = btn.dataset.skin;
-      if (!id) return;
-      selectSkin(id);
-      const skin = skinById(id);
-      bus.emit(EVT.skinSelected, { id: skin.id, name: skin.name, color: skin.color, live: true });
-      this.refresh();
-    });
   }
 
   private buildCommit(): string {
@@ -287,10 +272,6 @@ export class CommandCenter {
   private buildGeneratedAt(): string {
     const stamped = (document.querySelector('meta[name="blip-deploy-built-at"]') as HTMLMetaElement | null)?.content;
     return stamped ? new Date(stamped).toLocaleString() : new Date().toLocaleString() + ' (dev build — export time, not build time)';
-  }
-
-  private zoneOf(scoutId: string): string {
-    return SCOUTS.find((s) => s.id === scoutId)?.zone ?? 'their home zone';
   }
 
   private devMode(): boolean {
@@ -405,19 +386,6 @@ export class CommandCenter {
       <div class="cc-chips" id="cc-rw-cachechips"></div>
       <h3>RECENT REWARDS</h3>
       <div class="cc-chips" id="cc-rw-recent"></div>`
-    );
-  }
-
-  private sectionWardrobe(): string {
-    return this.panel(
-      'wardrobe',
-      'SIGNAL SKINS / WARDROBE',
-      `
-      <p class="cc-note">Gather a scout's 3-piece Signal Set (badge · log · relic) in their home zone to
-      <b>wear their frequency</b> — a recolor plus that scout's signature ability. CONTACT-47 / UNKNOWN is the
-      no-tradeoff baseline. Skins are sidegrades — one strength, one honest tradeoff. Equipped:
-      <b id="cc-skin-current" class="ok">CONTACT-47</b></p>
-      <div class="cc-cards" id="cc-wardrobe-grid"></div>`
     );
   }
 
@@ -1056,36 +1024,6 @@ export class CommandCenter {
           <header><b>${esc(n.title)}</b><span class="cc-chip ok">${scout ? esc(scout.callsign) : ''}</span></header>
           <p class="cc-note-body">${esc(n.body)}</p>
           <p class="cc-kv"><label>TEACHES</label> ${esc(n.hint)}</p>
-        </article>`;
-      }).join('');
-    }
-
-    // wardrobe
-    const wardrobe = this.root.querySelector('#cc-wardrobe-grid');
-    if (wardrobe) {
-      const selected = save.selectedSkin;
-      set('cc-skin-current', skinById(selected).name);
-      wardrobe.innerHTML = SKINS.map((skin) => {
-        const unlocked = save.unlockedSkins.includes(skin.id);
-        const isSel = skin.id === selected;
-        const sw = colorHex(skin.color);
-        const prog = skin.scoutId ? setProgress(skin.scoutId) : { count: 3 };
-        const lockLine = skin.scoutId
-          ? unlocked
-            ? `<span class="cc-chip ok">UNLOCKED</span>`
-            : `<span class="cc-chip">${prog.count}/3 PIECES</span>`
-          : `<span class="cc-chip ok">BASELINE</span>`;
-        const btn = isSel
-          ? `<button class="cc-skin-select" data-skin="${skin.id}" disabled>◆ EQUIPPED</button>`
-          : unlocked
-            ? `<button class="cc-skin-select" data-skin="${skin.id}">SELECT</button>`
-            : `<button class="cc-skin-select" data-skin="${skin.id}" disabled>LOCKED</button>`;
-        return `<article class="cc-card skin ${unlocked ? '' : 'locked'} ${isSel ? 'equipped' : ''}" style="--sw:${sw}">
-          <header><b>${esc(skin.name)}</b>${lockLine}</header>
-          <p class="cc-zone-tag">${esc(skin.klass)} — ${esc(skin.fantasy)}</p>
-          ${unlocked || !skin.scoutId ? `<p><b class="ok">PASSIVE</b> ${esc(skin.passive)}</p><p><b class="warn">SIGNATURE</b> ${esc(skin.signature)}</p><p><b class="bad">TRADEOFF</b> ${esc(skin.tradeoff)}</p>` : `<p>Wear ${esc(skin.scoutName)}’s frequency. Gather their Signal Set in ${esc(this.zoneOf(skin.scoutId))} to unlock.</p>`}
-          <p class="cc-kv"><label>BEST IN</label> ${esc(skin.bestIn)}</p>
-          ${btn}
         </article>`;
       }).join('');
     }

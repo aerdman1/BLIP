@@ -31,11 +31,15 @@ export const UPGRADES: UpgradeDef[] = [
 
   // --- Channel A: signature abilities (one per zone, from the boss) ---
   { id: 'pulse-resonance', name: 'Pulse Resonance', description: 'Charged Pulse Carbine shots arc into up to two nearby exposed threats.', status: 'IMPLEMENTED', source: 'Miller Surface node', unlockType: 'boss', zone: 'miller-field' },
-  { id: 'emp-burst', name: 'EMP Burst', description: 'Your SCAN also fires an EMP shockwave that stuns enemies and clears bolts in a radius.', status: 'IMPLEMENTED', source: 'Motel Circuit node', unlockType: 'boss', zone: 'motel-nowhere' },
+  { id: 'pulse-overchain', name: 'Overchain Capacitor', description: 'Your chosen Miller mutation: charged Pulse Carbine shots chain farther through exposed enemies.', status: 'IMPLEMENTED', source: 'Willow Cache mutation choice', unlockType: 'boss', zone: 'miller-field' },
+  { id: 'arc-shockwave', name: 'Arc Reprisal', description: 'Your chosen Miller mutation: Arc Blade parries release a close shockwave that staggers nearby drones.', status: 'IMPLEMENTED', source: 'Willow Cache mutation choice', unlockType: 'boss', zone: 'miller-field' },
+  { id: 'recall-conduit', name: 'Recall Conduit', description: 'Your chosen Miller mutation: the Recall Disc leaves damaging blue lightning on its return path.', status: 'IMPLEMENTED', source: 'Willow Cache mutation choice', unlockType: 'boss', zone: 'miller-field' },
+  { id: 'phase-drift-plus', name: 'Phase Boost+', description: 'Longer Boost reserve, faster recharge, and cleaner phasing through enemy bolts.', status: 'IMPLEMENTED', source: 'Motel Circuit scanner core', unlockType: 'boss', zone: 'motel-nowhere' },
+  { id: 'relay-pylon', name: 'Scout Relay Pylon', description: 'Scout-built defense pylons can briefly hold a synchronization point by firing at nearby drones.', status: 'IMPLEMENTED', source: 'Chagrin Falls Town defense beat', unlockType: 'boss', zone: 'tiger-stadium' },
+  { id: 'emp-burst', name: 'EMP Burst', description: 'Your SCAN also fires an EMP shockwave that stuns enemies and clears bolts in a radius.', status: 'IMPLEMENTED', source: 'Motel Circuit secondary tech', unlockType: 'boss', zone: 'motel-nowhere' },
   { id: 'ghost-protocol', name: 'Ghost Protocol', description: 'Arc Blade parries release a short shockwave, and Boost surges briefly scramble scanner reads.', status: 'IMPLEMENTED', source: 'Chagrin Falls Town node', unlockType: 'boss', zone: 'tiger-stadium' },
   { id: 'pulse-ricochet', name: 'Carbine Ricochet', description: 'Pulse shots bounce off geometry, and Recall Disc returns with a damaging electrical trail.', status: 'IMPLEMENTED', source: 'Patterson’s Orchard node', unlockType: 'boss', zone: 'pattersons-orchard' },
   { id: 'scan-memory', name: 'Scan Memory', description: 'Your SCAN remembers — the ring lingers and everything it touched keeps a glowing echo marker for several seconds.', status: 'IMPLEMENTED', source: 'Patterson’s Orchard (secondary)', unlockType: 'boss', zone: 'pattersons-orchard' },
-  { id: 'phase-drift-plus', name: 'Phase Boost+', description: 'Longer boost reserve that phases clean through enemy bolts.', status: 'IMPLEMENTED', source: 'Signal Storm (secondary)', unlockType: 'boss', zone: 'skyline-array' },
   { id: 'refuse-label', name: 'Refuse the Label', description: 'For a beat, reject whatever the Engine decided you are and clear the read it tried to pin on you.', status: 'IMPLEMENTED', source: 'Signal Storm node', unlockType: 'boss', zone: 'skyline-array' },
 
   // --- Channel B: Chip's Workbench (spend Signal Shards) ---
@@ -52,8 +56,8 @@ export const UPGRADES: UpgradeDef[] = [
 /** the marquee signature ability a zone's boss grants (Channel A) */
 export const ZONE_SIGNATURE: Record<string, string> = {
   'miller-field': 'pulse-resonance',
-  'motel-nowhere': 'emp-burst',
-  'tiger-stadium': 'ghost-protocol',
+  'motel-nowhere': 'phase-drift-plus',
+  'tiger-stadium': 'relay-pylon',
   'pattersons-orchard': 'pulse-ricochet',
   'skyline-array': 'refuse-label',
 };

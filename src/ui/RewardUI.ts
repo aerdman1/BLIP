@@ -33,8 +33,8 @@ import { iconSvg } from './rewardIcons';
 const esc = (s: string): string =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-/** cosmetic categories the player can equip as a loadout */
-const EQUIPPABLE: RewardCategory[] = ['trail', 'ripple', 'pulsefx', 'echofx', 'skin'];
+/** cosmetic categories the player can equip as a loadout. Wardrobe skins are cut from active play. */
+const EQUIPPABLE: RewardCategory[] = ['trail', 'ripple', 'pulsefx', 'echofx'];
 
 interface BannerPayload {
   kind: string;
@@ -45,6 +45,21 @@ interface BannerPayload {
   icon: string;
   rarity: RarityId;
   big?: boolean;
+}
+
+interface ChoicePayload {
+  title: string;
+  prompt: string;
+  color?: string;
+  options: Array<{
+    id: string;
+    name: string;
+    type: string;
+    desc: string;
+    icon: string;
+    color: string;
+  }>;
+  onChoose?: (id: string) => void;
 }
 
 type CacheState = 'idle' | 'revealing' | 'summary';
@@ -61,10 +76,12 @@ export class RewardUI {
   private banners!: HTMLElement;
   private cacheEl!: HTMLElement;
   private archiveEl!: HTMLElement;
+  private choiceEl!: HTMLElement;
 
   private pausedScenes: string[] = [];
   private cacheOpen = false;
   private archiveOpen = false;
+  private choiceOpen = false;
 
   // cache-opening state
   private cacheState: CacheState = 'idle';
@@ -117,11 +134,16 @@ export class RewardUI {
     this.archiveEl.id = 'rw-archive';
     this.archiveEl.className = 'rw-modal hidden';
 
-    this.root.append(this.banners, this.cacheEl, this.archiveEl);
+    this.choiceEl = document.createElement('div');
+    this.choiceEl.id = 'rw-choice';
+    this.choiceEl.className = 'rw-modal hidden';
+
+    this.root.append(this.banners, this.cacheEl, this.archiveEl, this.choiceEl);
   }
 
   private wireBus(): void {
     bus.on(EVT.rewardBanner, (d) => this.showBanner(d as BannerPayload));
+    bus.on(EVT.rewardChoice, (d) => this.openChoice(d as ChoicePayload));
     bus.on(EVT.rewardOpenArchive, () => this.openArchive());
     bus.on(EVT.rewardOpenCache, (d) => this.openCacheScreen((d as { cacheType?: CacheType } | undefined)?.cacheType));
   }
@@ -163,6 +185,48 @@ export class RewardUI {
     }, 120);
   }
 
+  private openChoice(payload: ChoicePayload): void {
+    if (!payload.options.length) return;
+    this.bannerQueue = [];
+    this.banners.innerHTML = '';
+    this.choiceEl.innerHTML =
+      `<div class="rw-grid-bg"></div>` +
+      `<div class="rw-choice-frame" style="--c:${payload.color ?? '#a8ff3e'}">` +
+      `  <div class="rw-choice-title">${esc(payload.title)}</div>` +
+      `  <div class="rw-choice-prompt">${esc(payload.prompt)}</div>` +
+      `  <div class="rw-choice-options">${payload.options.map((opt) =>
+        `<button class="rw-choice-card" data-choice="${esc(opt.id)}" style="--c:${opt.color}">` +
+        `  <span class="rw-choice-icon">${iconSvg(opt.icon, opt.color)}</span>` +
+        `  <b>${esc(opt.name)}</b>` +
+        `  <small>${esc(opt.type)}</small>` +
+        `  <span>${esc(opt.desc)}</span>` +
+        `</button>`
+      ).join('')}</div>` +
+      `</div>`;
+    this.choiceEl.querySelectorAll('[data-choice]').forEach((btn) =>
+      btn.addEventListener('click', () => {
+        const id = (btn as HTMLElement).dataset.choice!;
+        try { audio.rewardCollect(); } catch { /* audio best-effort */ }
+        payload.onChoose?.(id);
+        this.closeChoice();
+      })
+    );
+    this.choiceEl.classList.remove('hidden');
+    if (!this.choiceOpen) {
+      this.choiceOpen = true;
+      this.pushModal();
+    }
+  }
+
+  private closeChoice(): void {
+    if (!this.choiceOpen) return;
+    this.choiceOpen = false;
+    this.choiceEl.classList.add('hidden');
+    this.choiceEl.innerHTML = '';
+    this.popModal();
+    this.flushDeferredBanners();
+  }
+
   /**
    * Reveal the next queued banner if the stage is clear. Only ever ONE banner is
    * on screen: enter → hold → exit → gap → next. A backlog shortens the dwell so
@@ -170,7 +234,7 @@ export class RewardUI {
    */
   private pumpBanner(): void {
     // hold everything back while the cache-opening screen owns the spotlight
-    if (this.bannerActive || this.cacheOpen || this.archiveOpen || this.bannerQueue.length === 0) return;
+    if (this.bannerActive || this.cacheOpen || this.archiveOpen || this.choiceOpen || this.bannerQueue.length === 0) return;
     const p = this.bannerQueue.shift() as BannerPayload;
     const grouped = [p, ...this.bannerQueue.splice(0, 5)];
     const primary = grouped[0];
@@ -529,7 +593,6 @@ export class RewardUI {
     return [
       { id: 'caches', label: 'CACHES', count: () => [rewards.totalCaches(), rewards.totalCaches()] },
       { id: 'trophies', label: 'TROPHIES', count: () => [rewards.trophyProgress().unlocked, rewards.trophyProgress().total] },
-      catTab('skin', 'SKINS', ['skin']),
       catTab('effects', 'TRAILS & EFFECTS', ['trail', 'ripple', 'pulsefx', 'echofx']),
       catTab('tokens', 'STICKERS & BADGES', ['sticker', 'badge']),
       catTab('note', 'FIELD NOTES', ['note']),
@@ -613,7 +676,6 @@ export class RewardUI {
     if (tab === 'scouts') return this.renderScoutsTab();
     // category tabs
     const map: Record<string, RewardCategory[]> = {
-      skin: ['skin'],
       effects: ['trail', 'ripple', 'pulsefx', 'echofx'],
       tokens: ['sticker', 'badge'],
       note: ['note'],
@@ -730,7 +792,7 @@ export class RewardUI {
 
   private markTabSeen(tab: string): void {
     const map: Record<string, RewardCategory[]> = {
-      skin: ['skin'], effects: ['trail', 'ripple', 'pulsefx', 'echofx'],
+      effects: ['trail', 'ripple', 'pulsefx', 'echofx'],
       tokens: ['sticker', 'badge'], note: ['note'], relic: ['relic'], medal: ['medal'],
     };
     const cats = map[tab];

@@ -19,6 +19,7 @@ import {
   RARITIES,
   RARITY_ORDER,
   REWARDS,
+  isActiveReward,
   isCurrency,
   rewardById,
   type RarityId,
@@ -71,10 +72,10 @@ function pickReward(rarity: RarityId, bias?: Partial<Record<RewardCategory, numb
   let pool: RewardDef[] = [];
   while (pool.length === 0 && rank >= 1) {
     const rid = RARITY_ORDER.find((r) => RARITIES[r].rank === rank)!;
-    pool = REWARDS.filter((r) => r.rarity === rid);
+    pool = REWARDS.filter((r) => r.rarity === rid && isActiveReward(r));
     rank--;
   }
-  if (pool.length === 0) pool = REWARDS;
+  if (pool.length === 0) pool = REWARDS.filter(isActiveReward);
   return weightedPick(pool.map((r) => ({ item: r, w: bias?.[r.category] ?? 1 })));
 }
 
@@ -114,7 +115,10 @@ export const rewards = {
 
   /** collection completion over all non-currency rewards (0..1). */
   collection(): { owned: number; total: number; percent: number } {
-    const owned = getSave().rewards.owned.length;
+    const owned = getSave().rewards.owned.filter((id) => {
+      const def = rewardById(id);
+      return !!def && !isCurrency(def) && isActiveReward(def);
+    }).length;
     const total = COLLECTIBLE_REWARDS.length;
     return { owned, total, percent: total ? owned / total : 0 };
   },

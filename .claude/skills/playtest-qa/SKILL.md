@@ -10,11 +10,11 @@ Purpose: after each major feature, verify the game is actually playable.
 ## Checklist (run after every major feature)
 
 - Can the player spawn in `SweepScene`?
-- Can the player move in 4 directions, Phase Shift, aim, and shoot?
+- Can the player move in 4 directions, hold Phase Boost, aim, and shoot?
 - Can scan pulse reveal caches and damage/stun nearby threats?
 - Can the player charge a signal node?
 - Does a charged breach/route transition to the next top-down arena?
-- Do health, shards, weapon pickups, skins, rewards, and save state persist across arena transitions?
+- Do health, shards, weapon pickups, Scout rewards/upgrades, and save state persist across arena transitions?
 - Can the player clear Signal Storm?
 - Does save data update (localStorage `blip_save_v1`)?
 - Does the Command Center reflect the top-down world state?

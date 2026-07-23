@@ -24,7 +24,7 @@ Full controller support (Xbox / PlayStation, standard mapping) including menu na
 |---|---|---|
 | Move | A / D or ← / → | Left stick · D-pad |
 | Move Up / Down | W / S or ↑ / ↓ | Left stick · D-pad |
-| Phase Shift | SHIFT | RB / LB · R1 / L1 |
+| Phase Boost | hold SHIFT | hold RB / LB · R1 / L1 |
 | Fire | X or Left Click | X / RT · ▢ / R2 |
 | Switch Weapon | 1 / 2 / 3 · mouse wheel · R | L-stick / R-stick click |
 | Scan Pulse | Q / Right Click | Y / LT · △ / L2 |
@@ -33,23 +33,22 @@ Full controller support (Xbox / PlayStation, standard mapping) including menu na
 | Command Center | C or TAB | BACK · SHARE |
 | Menus | ↑ ↓ + ENTER | D-pad / stick + A |
 | Debug overlay / tools | F1–F3 | — |
-| Debug: cycle Signal Skin | F6 | — |
 
 ## Current Route
 
 BLIP currently plays as one route-connected top-down arena chain. It is not one seamless open map yet; each area is a separate top-down arena with fast breach handoffs and shared save/runtime state.
 
-1. **Miller Surface** (`surface-z1`) — rural Area 47 combat/traversal
-2. **Motel Circuit** (`circuit-z2`) — tight neon corridors and powered routes
-3. **Chagrin Falls Town** (`town-z3`) — streets, alleys, bridge lanes, and stadium-edge cover
-4. **Patterson's Orchard Maze** (`maze-z4`) — living corn-maze combat route
-5. **Signal Storm** (`anomaly-01`) — wave-based combat holdout
+1. **Miller Surface** (`surface-z1`) — recover Willow's cache and choose the first weapon mutation
+2. **Motel Circuit** (`circuit-z2`) — phase through scanners and earn Phase Boost+
+3. **Chagrin Falls Town** (`town-z3`) — hold River Road with Scout Relay Pylon tech
+4. **Patterson's Orchard Maze** (`maze-z4`) — use the Gravity Well and find the Scan Memory shelter secret
+5. **Signal Storm** (`anomaly-01`) — break the Classifier Core, stabilize both Relay Wings, and refuse the label
 
 Progress autosaves to localStorage. The **Command Center** (C) holds the story bible, the Five Signal Scouts, progression, route-area maps, debug/save data, and the AI QA lab.
 
 ### Ending / Finale
 
-The finale path is the Signal Storm route. Story, bosses, scouts, rewards, and Signal Fragment structure all build on the connected top-down foundation.
+The finale path is the Signal Storm route. Story, bosses, Scouts, rewards, and Signal Fragment structure all build on the connected top-down foundation. A short crash-site onboarding scene where CONTACT-47 meets the Scout trail and recovers the first kit is planned, but not yet implemented.
 
 ## Tech
 
@@ -74,24 +73,17 @@ The finale path is the Signal Storm route. Story, bosses, scouts, rewards, and S
 | `npm run qa:full` | typecheck + build + e2e |
 | `npm run qa:loop` | bounded AI QA loop → `test-results/qa-reports/latest.md` |
 
-## Signal Skins
+## Scout Signal Sets
 
-Gather a scout's 3-piece **Signal Set** (badge · log · relic) in their home zone to **wear their frequency** — CONTACT-47 recolors into that kid and gains their signature ability. Completing a set triggers a **Scout Echo** (the kid, as a character) who hands you the signal. UNKNOWN / CONTACT-47 is the no-tradeoff baseline; each skin is a sidegrade (one strength, one honest tradeoff):
+Scout badges, logs, relics, and caches remain part of BLIP's mystery and progression loop. The old Wardrobe / Signal Skin system has been cut from active gameplay because the Tripo CONTACT-47 model is now the canonical player presentation and invisible stat sidegrades were confusing.
 
-- **WILLOW** (Will, Recon) — wider scan + Recon Ping (outlines enemy cones)
-- **SPARK** (Chip, Engineer) — overdrive economy + Surge Shot concepts for signal devices
-- **ANCHOR** (Henry, Guardian) — +1 hull, reads slower, drops safe zones
-- **ECHO** (Cameron, Trickster) — reflection timing and route-memory master
-- **ROCKET** (Danny, Speed) — faster Phase Shift, Phase-Strike, glass cannon
-
-Manage them in **Command Center ▸ Wardrobe**. All five scouts have their Signal Sets placed across the five zones (Will in Miller Field, Chip in Motel Nowhere, Henry at the stadium, Cameron in the orchard, Danny on the Skyline Array). Debug: **F6** unlocks + cycles skins.
+Future Scout rewards should become clear abilities, upgrades, route tools, lore, or major loot, not selectable body recolors.
 
 ## Developer Dashboard
 
 The **Command Center** doubles as the dev/design dashboard — in-game via `C`, or standalone (no game, no Phaser) at **`/command-center.html`**. Beyond story/progression it includes:
 
 - **Route Areas** — live maps for the route-connected top-down arenas.
-- **Wardrobe** — every Signal Skin with passive/signature/tradeoff, lock state, and live equip.
 - **Bestiary / Arsenal** — every enemy, the CONTACT-47 kit, and the live three-weapon foundation from game data.
 - Plus live save/quest state, route-area maps, vertical-slice system status, region-purpose planning, the reconciled master backlog summary, build TODO, and the AI QA checklist — all reading the same data the game runs on.
 

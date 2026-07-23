@@ -20,9 +20,8 @@ import {
   type PadAction,
 } from '../game/systems/PadBindings';
 import { readPad } from '../game/systems/PadSim';
-import { addShards, buyUpgrade, getSave, grantAbility, hasProgress, ownsUpgrade, resetSave, unlockSkin, updateSave } from '../game/systems/SaveSystem';
+import { addShards, buyUpgrade, getSave, grantAbility, hasProgress, ownsUpgrade, resetSave, updateSave } from '../game/systems/SaveSystem';
 import { rewards } from '../game/systems/RewardSystem';
-import { skinById } from '../game/data/skins';
 import { UPGRADES } from '../game/data/upgrades';
 import { devState } from '../game/systems/DevState';
 import { settings, type TouchControlsMode } from '../game/systems/Settings';
@@ -554,15 +553,6 @@ export class ShellUI {
       const line = document.getElementById('pad-status-line');
       if (line) line.innerHTML = p.connected ? `<b class="ok">CONNECTED</b> — ${p.id ?? 'controller'}` : 'no controller detected';
     });
-    bus.on(EVT.skinSelected, (d) => {
-      const s = d as { name: string; color: number };
-      const el = document.querySelector('#unit-badge .badge-text') as HTMLElement | null;
-      if (el) {
-        el.textContent = `${s.name} / FIELD UNIT`;
-        el.style.color = '#' + s.color.toString(16).padStart(6, '0');
-      }
-    });
-
     // shell-level action events
     bus.on(EVT.uiMainMenu, () => {
       this.setPauseVisible(false);
@@ -804,13 +794,12 @@ export class ShellUI {
     if (hasSave) {
       const zone = ZONE_LABELS[save.currentZone] ?? 'Miller Surface';
       const mins = Math.max(1, Math.round(save.playerStats.timePlayedSec / 60));
-      const skin = save.selectedSkin && save.selectedSkin !== 'contact47' ? ` · ${skinById(save.selectedSkin).name}` : '';
       this.menuEntries.push({
         label: 'CONTINUE',
         icon: '▶',
         cls: 'primary',
         id: 'menu-continue',
-        sub: `${zone.toUpperCase()} · ${save.signalFragments}◆ · ${mins}m${skin}`,
+        sub: `${zone.toUpperCase()} · ${save.signalFragments}◆ · ${mins}m`,
         action: () => bus.emit(EVT.uiStartGame, { continueRun: true }),
       });
     }
@@ -1423,7 +1412,6 @@ export class ShellUI {
         <div class="dev-sec-h">GRANT</div>
         <div class="dev-row">
           <button data-act="abilities">All Abilities</button>
-          <button data-act="skins">All Skins</button>
           <button data-act="frags">+5 Fragments</button>
           <button data-act="shards">+250 Shards</button>
         </div>
@@ -1466,7 +1454,7 @@ export class ShellUI {
     if (fly) fly.textContent = `Fly Mode: ${devState.fly ? 'ON' : 'OFF'}`;
     (this.devEl.querySelector('#dev-fly') as HTMLElement)?.classList.toggle('on', devState.fly);
     this.devStatus(
-      `${s.unlockedAbilities.length} abilities · ${s.unlockedSkins.length} skins · ${s.signalFragments} frags · ${s.shards} shards`
+      `${s.unlockedAbilities.length} abilities · ${s.signalFragments} frags · ${s.shards} shards`
     );
   }
 
@@ -1479,9 +1467,6 @@ export class ShellUI {
     switch (act) {
       case 'abilities':
         UPGRADES.forEach((u) => grantAbility(u.id));
-        break;
-      case 'skins':
-        ['contact47', 'will', 'chip', 'henry', 'cameron', 'danny'].forEach(unlockSkin);
         break;
       case 'frags':
         updateSave((s) => {

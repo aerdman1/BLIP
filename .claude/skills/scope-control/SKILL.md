@@ -18,7 +18,7 @@ Purpose: prevent runaway feature creep.
 - Do NOT add a WebGPU gameplay dependency (detection badge in Command Center only).
 - Do NOT expand story cutscenes today (scout logs are short text popups, not cutscenes).
 - Current baseline: Miller Surface → Motel Circuit → Chagrin Falls Town → Orchard Maze → Signal Storm is connected and top-down-only. Improve this route before expanding it.
-- Phase Shift, stealth, weapon-specific secrets, and mutation trees should land as scoped, tested passes rather than one giant rewrite.
+- Phase Boost, stealth, weapon-specific secrets, crash-site onboarding, and mutation trees should land as scoped, tested passes rather than one giant rewrite.
 
 ## Decision Test
 

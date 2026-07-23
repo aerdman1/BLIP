@@ -196,6 +196,8 @@ export class SweepScene extends Phaser.Scene {
     label: Phaser.GameObjects.Text;
   };
   private orchardGateWarnAt = 0;
+  private stormRelaysActivated = new Set<string>();
+  private stormRelayWarnAt = 0;
   private cipherZones: Array<{ x: number; y: number; radius: number; lockAt: number; explodeAt: number; gfx: Phaser.GameObjects.Graphics; caster?: SweepEnemy }> = [];
 
   /* ---- HD top-down visual treatment (per biome; see TdBiomes) ---- */
@@ -297,6 +299,8 @@ export class SweepScene extends Phaser.Scene {
     this.motelPhaseSlipUntil = 0;
     this.gravityWell = undefined;
     this.orchardGateWarnAt = 0;
+    this.stormRelaysActivated.clear();
+    this.stormRelayWarnAt = 0;
 
     this.arena = SWEEP_ARENAS[arenaId] ?? SWEEP_ARENAS[DEFAULT_ARENA];
     this.goal = goalForArena(this.arena.id);
@@ -1499,7 +1503,7 @@ export class SweepScene extends Phaser.Scene {
         { id: goal.rewardId, rarity: goal.rewardType, at: now },
         ...s.rewards.recent.filter((r) => r.id !== goal.rewardId),
       ].slice(0, 8);
-      if (goal.rewardId === 'emp-burst' && !s.unlockedAbilities.includes('phase-shift')) s.unlockedAbilities.push('phase-shift');
+      if ((goal.rewardId === 'emp-burst' || goal.rewardId === 'phase-drift-plus') && !s.unlockedAbilities.includes('phase-shift')) s.unlockedAbilities.push('phase-shift');
     });
     if (!newlyAwarded) return;
     audio.badgePickup();
@@ -1508,6 +1512,10 @@ export class SweepScene extends Phaser.Scene {
     this.fx.floatText(this.player.x, this.player.y - 16, goal.rewardName.toUpperCase(), P.signal);
     if (this.suppressRewardModalOnce) {
       this.suppressRewardModalOnce = false;
+      return;
+    }
+    if (goal.rewardId === 'pulse-resonance') {
+      this.openMillerMutationChoice();
       return;
     }
     bus.emit(EVT.rewardBanner, {
@@ -1522,18 +1530,89 @@ export class SweepScene extends Phaser.Scene {
     });
   }
 
+  private openMillerMutationChoice(): void {
+    bus.emit(EVT.rewardChoice, {
+      title: 'Willow Cache Recovered',
+      prompt: 'The Scouts left three unstable blueprints. Choose one permanent mutation now; the others can return later through secrets or the Workbench.',
+      color: '#35d5ff',
+      options: [
+        {
+          id: 'pulse-overchain',
+          name: 'Overchain Capacitor',
+          type: 'Pulse mutation',
+          desc: 'Charged Pulse Carbine shots chain farther through exposed enemies. Best if you like ranged control.',
+          icon: 'pulse',
+          color: '#a8ff3e',
+        },
+        {
+          id: 'arc-shockwave',
+          name: 'Arc Reprisal',
+          type: 'Arc mutation',
+          desc: 'Arc Blade parries release a close shockwave. Best if you like risky timing and melee pressure.',
+          icon: 'echo',
+          color: '#b06bff',
+        },
+        {
+          id: 'recall-conduit',
+          name: 'Recall Conduit',
+          type: 'Recall mutation',
+          desc: 'Recall Disc leaves damaging blue lightning on the return path. Best if you like positioning.',
+          icon: 'relic',
+          color: '#f2a93b',
+        },
+      ],
+      onChoose: (id: string) => this.grantMutationChoice(id),
+    });
+  }
+
+  private grantMutationChoice(id: string): void {
+    const allowed = new Set(['pulse-overchain', 'arc-shockwave', 'recall-conduit']);
+    if (!allowed.has(id)) return;
+    const names: Record<string, string> = {
+      'pulse-overchain': 'OVERCHAIN CAPACITOR',
+      'arc-shockwave': 'ARC REPRISAL',
+      'recall-conduit': 'RECALL CONDUIT',
+    };
+    let newlyAwarded = false;
+    updateSave((s) => {
+      if (!s.purchasedUpgrades.includes(id)) {
+        s.purchasedUpgrades.push(id);
+        newlyAwarded = true;
+      }
+      if (!s.rewards.owned.includes(id)) s.rewards.owned.push(id);
+      if (!s.rewards.awarded.includes(`mutation:${id}`)) s.rewards.awarded.push(`mutation:${id}`);
+      s.rewards.recent = [
+        { id, rarity: 'Weapon mutation', at: new Date().toISOString() },
+        ...s.rewards.recent.filter((r) => r.id !== id),
+      ].slice(0, 8);
+    });
+    if (!newlyAwarded) return;
+    this.fx.scanRing(this.player.x, this.player.y, 108, 480, P.signal);
+    this.fx.floatText(this.player.x, this.player.y - 22, names[id], P.signal);
+    bus.emit(EVT.rewardBanner, {
+      kind: 'mutation-choice',
+      title: names[id],
+      sub: 'PERMANENT MUTATION',
+      desc: 'This choice changes how your current route plays. Future Scout caches can unlock the other branches.',
+      color: id === 'pulse-overchain' ? '#a8ff3e' : id === 'arc-shockwave' ? '#b06bff' : '#f2a93b',
+      icon: id === 'pulse-overchain' ? 'pulse' : id === 'arc-shockwave' ? 'echo' : 'relic',
+      rarity: 'epic',
+      big: true,
+    });
+  }
+
   private regionRewardColor(): string {
     if (this.goal.rewardId.includes('pulse') || this.goal.rewardId.includes('carbine')) return '#a8ff3e';
-    if (this.goal.rewardId === 'emp-burst') return '#3df0ff';
-    if (this.goal.rewardId === 'ghost-protocol') return '#b06bff';
+    if (this.goal.rewardId === 'emp-burst' || this.goal.rewardId === 'phase-drift-plus') return '#3df0ff';
+    if (this.goal.rewardId === 'ghost-protocol' || this.goal.rewardId === 'relay-pylon') return '#b06bff';
     if (this.goal.rewardId === 'refuse-label') return '#ff4b5c';
     return '#f2a93b';
   }
 
   private regionRewardIcon(): string {
     if (this.goal.rewardId.includes('pulse') || this.goal.rewardId.includes('carbine')) return 'pulse';
-    if (this.goal.rewardId === 'emp-burst') return 'badge';
-    if (this.goal.rewardId === 'ghost-protocol') return 'echo';
+    if (this.goal.rewardId === 'emp-burst' || this.goal.rewardId === 'phase-drift-plus') return 'badge';
+    if (this.goal.rewardId === 'ghost-protocol' || this.goal.rewardId === 'relay-pylon') return 'echo';
     if (this.goal.rewardId === 'refuse-label') return 'trophy-refuse';
     return 'relic';
   }
@@ -1753,21 +1832,40 @@ export class SweepScene extends Phaser.Scene {
     if (def.reward === 'weapon' && weapon) return weapon.tint;
     if (def.reward === 'health') return P.signalGreen;
     if (def.reward === 'overdrive') return P.warning;
+    if (def.reward === 'defense') return P.scoutChip;
+    if (def.reward === 'upgrade') return P.scoutCameron;
     return P.violetGlitch;
   }
 
   private fieldEventActionLabel(def: SweepFieldEvent): string {
+    if (!this.fieldEventAvailable(def)) return 'RIDGE LOCKED';
     if (def.reward === 'health') return 'RECOVERY';
     if (def.reward === 'weapon') return def.wid ? `${String(def.wid).toUpperCase()} WEAPON` : 'WEAPON';
     if (def.reward === 'overdrive') return 'OVERDRIVE';
     if (def.reward === 'boon') return 'SCOUT TECH';
     if (def.reward === 'shards') return 'CACHE';
+    if (def.reward === 'defense') return 'DEFENSE KIT';
+    if (def.reward === 'upgrade') return 'UPGRADE';
     return def.trigger === 'scan' ? 'SCAN' : 'ACTIVATE';
+  }
+
+  private fieldEventAvailable(def: SweepFieldEvent): boolean {
+    if (def.requiresGravityWell && this.arena.id === 'maze-z4' && !this.gravityWell?.used) return false;
+    return true;
+  }
+
+  private refreshFieldEventAvailability(): void {
+    this.fieldEventObjects.forEach((event) => {
+      if (event.claimed) return;
+      event.label.setText(`${event.def.label}\n${this.fieldEventActionLabel(event.def)}`);
+      event.marker.setAlpha(this.fieldEventAvailable(event.def) ? (event.def.trigger === 'scan' ? 0.28 : 0.36) : 0.16);
+    });
   }
 
   private triggerScanFieldEvents(x: number, y: number, radius: number): void {
     this.fieldEventObjects.forEach((event) => {
       if (event.claimed || event.def.trigger !== 'scan') return;
+      if (!this.fieldEventAvailable(event.def)) return;
       if (Phaser.Math.Distance.Between(x, y, event.x, event.y) <= radius) this.claimFieldEvent(event);
     });
   }
@@ -1775,6 +1873,7 @@ export class SweepScene extends Phaser.Scene {
   private updateEnterFieldEvents(): void {
     this.fieldEventObjects.forEach((event) => {
       if (event.claimed || event.def.trigger !== 'enter') return;
+      if (!this.fieldEventAvailable(event.def)) return;
       const r = event.def.radius ?? 52;
       if (Phaser.Math.Distance.Between(this.player.x, this.player.y, event.x, event.y) <= r) this.claimFieldEvent(event);
     });
@@ -1784,6 +1883,12 @@ export class SweepScene extends Phaser.Scene {
     if (event.claimed) return;
     event.claimed = true;
     const def = event.def;
+    if (!this.fieldEventAvailable(def)) {
+      event.claimed = false;
+      this.fx.floatText(event.x, event.y - 14, 'LOCKED BY RIDGE SIGNAL', P.warning);
+      bus.emit(EVT.toast, { text: 'The Scout shelter will not open until the Gravity Well proves the ridge route.', color: 'orange' });
+      return;
+    }
     const tint = this.fieldEventColor(def);
     audio.fragmentPickup();
     this.fx.scanRing(event.x, event.y, 82, 420, tint);
@@ -1812,7 +1917,14 @@ export class SweepScene extends Phaser.Scene {
         this.fx.floatText(event.x, event.y + 8, 'OVERDRIVE READY', P.warning);
         this.emitHudStats();
         break;
+      case 'defense':
+        this.deployScoutPylons(event.x, event.y);
+        break;
+      case 'upgrade':
+        this.grantFieldUpgrade(def, event.x, event.y);
+        break;
     }
+    this.trackStormRelay(event);
     (def.spawns ?? []).forEach((m, i) => {
       this.time.delayedCall(240 + i * 160, () => {
         const T = SWEEP.tile;
@@ -1821,6 +1933,92 @@ export class SweepScene extends Phaser.Scene {
         this.addEnemy(new SweepEnemy(this, p.x, p.y, m.type));
       });
     });
+  }
+
+  private deployScoutPylons(x: number, y: number): void {
+    const offsets = [
+      { x: -34, y: -12 },
+      { x: 34, y: -12 },
+      { x: 0, y: 34 },
+    ];
+    const pylons = offsets.map((o) => {
+      const base = this.add.rectangle(x + o.x, y + o.y, 15, 22, P.scoutChip, 0.42).setDepth(13).setStrokeStyle(1, P.cream, 0.35);
+      const core = this.add.image(x + o.x, y + o.y - 12, TEX.glow8).setDepth(14).setTint(P.scoutChip).setBlendMode(Phaser.BlendModes.ADD).setScale(0.35);
+      return { base, core, x: x + o.x, y: y + o.y - 12 };
+    });
+    this.fx.scanRing(x, y, 120, 520, P.scoutChip);
+    this.fx.floatText(x, y - 24, 'SCOUT RELAY ONLINE', P.scoutChip);
+    const zap = this.time.addEvent({
+      delay: 340,
+      repeat: 25,
+      callback: () => {
+        pylons.forEach((pylon) => {
+          let target: SweepEnemy | null = null;
+          let best = 230 * 230;
+          (this.enemies.getChildren() as SweepEnemy[]).forEach((en) => {
+            if (!en.active) return;
+            const d = Phaser.Math.Distance.Squared(pylon.x, pylon.y, en.x, en.y);
+            if (d < best && this.hasWalkableLine(pylon.x, pylon.y, en.x, en.y)) {
+              best = d;
+              target = en;
+            }
+          });
+          if (!target) return;
+          const en = target as SweepEnemy;
+          const line = this.add.line(0, 0, pylon.x, pylon.y, en.x, en.y, P.scoutChip, 0.55).setOrigin(0).setDepth(24);
+          this.time.delayedCall(80, () => line.destroy());
+          this.fx.sparks(en.x, en.y, P.scoutChip, 4);
+          if (this.applyEnemyDamage(en, 0.65, pylon.x, pylon.y, 140, 'arc')) this.killEnemy(en);
+        });
+      },
+    });
+    this.time.delayedCall(9600, () => {
+      zap.remove(false);
+      pylons.forEach((pylon) => {
+        this.tweens.add({ targets: [pylon.base, pylon.core], alpha: 0, duration: 220, onComplete: () => { pylon.base.destroy(); pylon.core.destroy(); } });
+      });
+    });
+  }
+
+  private grantFieldUpgrade(def: SweepFieldEvent, x: number, y: number): void {
+    const id = def.upgradeId;
+    if (!id) return;
+    let newlyAwarded = false;
+    updateSave((s) => {
+      if (!s.purchasedUpgrades.includes(id)) {
+        s.purchasedUpgrades.push(id);
+        newlyAwarded = true;
+      }
+      if (!s.rewards.owned.includes(id)) s.rewards.owned.push(id);
+      if (!s.rewards.awarded.includes(`field:${id}`)) s.rewards.awarded.push(`field:${id}`);
+      s.rewards.recent = [
+        { id, rarity: 'Scout upgrade', at: new Date().toISOString() },
+        ...s.rewards.recent.filter((r) => r.id !== id),
+      ].slice(0, 8);
+    });
+    if (!newlyAwarded) return;
+    this.fx.scanRing(x, y, 112, 480, P.scoutCameron);
+    this.fx.floatText(x, y - 18, String(def.upgradeName ?? id).toUpperCase(), P.scoutCameron);
+    bus.emit(EVT.rewardBanner, {
+      kind: 'field-upgrade',
+      title: String(def.upgradeName ?? id).toUpperCase(),
+      sub: 'SCOUT UPGRADE',
+      desc: def.upgradeDescription ?? 'A Scout device permanently changes what CONTACT-47 can read in the world.',
+      color: css(P.scoutCameron),
+      icon: 'badge',
+      rarity: 'epic',
+      big: true,
+    });
+  }
+
+  private trackStormRelay(event: { def: SweepFieldEvent; x: number; y: number }): void {
+    if (this.arena.id !== 'anomaly-01') return;
+    if (event.def.id !== 'west-relay-cache' && event.def.id !== 'east-relay-cache') return;
+    this.stormRelaysActivated.add(event.def.id);
+    const done = this.stormRelaysActivated.size;
+    this.fx.floatText(event.x, event.y - 26, `RELAY ${done}/2`, P.neonCyan);
+    bus.emit(EVT.toast, { text: `Relay Wing stabilized ${done}/2.`, color: done >= 2 ? 'green' : 'cyan' });
+    this.emitHudStats();
   }
 
   /** Scan reveals + auto-collects nearby hidden caches (double-duty Scan). */
@@ -2026,6 +2224,19 @@ export class SweepScene extends Phaser.Scene {
     this.spawnAt = this.time.now + 300;
     this.waveActive = true;
     this.showBanner(w.label ?? `WAVE ${this.waveIdx + 1} / ${waves.length}`);
+  }
+
+  private shouldHoldStormRelayPhase(now: number): boolean {
+    if (this.arena.id !== 'anomaly-01' || this.waveIdx !== 0) return false;
+    if (this.stormRelaysActivated.size >= 2) return false;
+    if (now >= this.stormRelayWarnAt) {
+      this.stormRelayWarnAt = now + 2600;
+      const missing = 2 - this.stormRelaysActivated.size;
+      this.fx.floatText(this.nodePos.x, this.nodePos.y - 28, `RELAY WINGS ${this.stormRelaysActivated.size}/2`, P.neonCyan);
+      bus.emit(EVT.toast, { text: `Classifier Core exposed. Scan ${missing} Relay Wing${missing === 1 ? '' : 's'} before the North Rift opens.`, color: 'cyan' });
+      this.emitHudStats();
+    }
+    return true;
   }
 
   private spawnEnemy(kind: SweepEnemyKind): void {
@@ -2295,6 +2506,7 @@ export class SweepScene extends Phaser.Scene {
       cameraElevationOffsetY?: number;
       cameraElevationZoom?: number;
       elevationZones?: number;
+      stormRelays?: { activated: number; required: number };
   } | null {
     if (!this.player?.active) return null;
     const motelScanners = this.motelScannerStatus();
@@ -2321,6 +2533,7 @@ export class SweepScene extends Phaser.Scene {
       cameraElevationOffsetY: Math.round(this.cameraElevationOffsetY),
       cameraElevationZoom: Number(this.cameraElevationZoom.toFixed(3)),
       elevationZones: this.arena.elevationZones?.length,
+      stormRelays: this.arena.id === 'anomaly-01' ? { activated: this.stormRelaysActivated.size, required: 2 } : undefined,
     };
   }
 
@@ -2421,6 +2634,7 @@ export class SweepScene extends Phaser.Scene {
         objectiveActionsRequired: this.arena.minObjectiveActions ?? 0,
         gravityWellUsed: this.gravityWell?.used,
         gravityWellRequired: this.arena.id === 'maze-z4' ? true : undefined,
+        stormRelays: this.arena.id === 'anomaly-01' ? { activated: this.stormRelaysActivated.size, required: 2 } : undefined,
         breachOpen: this.breachOpen,
         enemiesActive: this.activeEnemyCount(),
         overdrive: Math.round(Phaser.Math.Clamp(this.overdrive / SWEEP.overdriveMax, 0, 1) * 100),
@@ -2456,6 +2670,13 @@ export class SweepScene extends Phaser.Scene {
   }
 
   private currentObjectiveTarget(): ObjectiveTarget | null {
+    if (!this.traverse && this.arena.id === 'anomaly-01' && this.waveIdx === 0 && this.awaitingWave && this.stormRelaysActivated.size < 2) {
+      const relay = this.fieldEventObjects.find((event) =>
+        !event.claimed &&
+        (event.def.id === 'west-relay-cache' || event.def.id === 'east-relay-cache')
+      );
+      if (relay) return { kind: 'field-event', label: relay.def.label, x: relay.x, y: relay.y };
+    }
     if (!this.traverse) return { kind: 'survive', x: this.nodePos.x, y: this.nodePos.y };
     const route = ROUTE_BEACONS[this.arena.id];
     if (this.gravityWell && !this.gravityWell.used && this.arena.id === 'maze-z4') {
@@ -2488,6 +2709,7 @@ export class SweepScene extends Phaser.Scene {
     let best: { kind: ObjectiveKind; label: string; x: number; y: number; d: number } | null = null;
     for (const event of this.fieldEventObjects) {
       if (event.claimed) continue;
+      if (!this.fieldEventAvailable(event.def)) continue;
       const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, event.x, event.y);
       const reach = event.def.trigger === 'scan' ? 170 : event.def.radius ?? 72;
       if (d > reach) continue;
@@ -2553,7 +2775,7 @@ export class SweepScene extends Phaser.Scene {
   private fire(now: number): void {
     const wp = this.weapon;
     const save = loadSave();
-    const ownsPulseResonance = save.purchasedUpgrades.includes('pulse-resonance');
+    const ownsPulseOverchain = save.purchasedUpgrades.includes('pulse-overchain');
     const ownsRicochet = save.purchasedUpgrades.includes('pulse-ricochet');
     const cd = wp.cooldownMs * (activeSkin().mods.pulseCooldownMul ?? 1) * this.boonFireMul * (this.odActive ? SWEEP.overdriveFireMul : 1);
     this.fireAt = now + cd;
@@ -2579,7 +2801,7 @@ export class SweepScene extends Phaser.Scene {
         b.setData('damageFamily', damageFamilyForWeapon(wp.id));
         b.setData('pierce', wp.pierce === true || charged);
         b.setData('bounce', wp.id === 'pulse' && ownsRicochet ? Math.max(1, wp.bounce ?? 0) : wp.bounce ?? 0);
-        b.setData('chain', wp.id === 'pulse' && ownsPulseResonance && charged ? 2 : 0);
+        b.setData('chain', wp.id === 'pulse' && ownsPulseOverchain && charged ? 3 : 0);
         b.setData('hits', null);
         b.setData('recallDisc', wp.id === 'disc');
         b.setData('returnAt', now + 420);
@@ -2670,7 +2892,8 @@ export class SweepScene extends Phaser.Scene {
       }
       reflected++;
     });
-    if (reflected) this.arcParryShockwave(px, py, wp);
+    if (reflected && loadSave().purchasedUpgrades.includes('arc-shockwave')) this.arcParryShockwave(px, py, wp);
+    else if (reflected) this.fx.scanRing(px, py, 42, 170, wp.glow);
     if (hit || reflected) audio.enemyHit();
     if (reflected) this.fx.floatText(px, py - 12, `PARRY x${reflected}`, wp.glow);
   }
@@ -2892,7 +3115,8 @@ export class SweepScene extends Phaser.Scene {
 
   /** SEEKER: curve every homing bolt toward its nearest live drone (rate-capped → fair). */
   private steerHomingShots(dt: number): void {
-    const ownsRecallTrail = loadSave().purchasedUpgrades.includes('pulse-ricochet');
+    const save = loadSave();
+    const ownsRecallTrail = save.purchasedUpgrades.includes('pulse-ricochet') || save.purchasedUpgrades.includes('recall-conduit');
     (this.playerShots.getChildren() as Projectile[]).forEach((b) => {
       if (!b.active) return;
       this.renderProjectileTrail(b);
@@ -3270,6 +3494,7 @@ export class SweepScene extends Phaser.Scene {
     // scan radius honors the active skin (WILLOW wider, ECHO narrower) + WILLOW boon
     const r = SWEEP.scanRadius * (activeSkin().mods.scanRadiusMul ?? 1) * this.boonScanMul;
     this.fx.scanRing(this.player.x, this.player.y, r, 460, P.signal);
+    if (loadSave().purchasedUpgrades.includes('scan-memory')) this.createScanMemoryEcho(this.player.x, this.player.y, r);
     (this.enemies.getChildren() as SweepEnemy[]).forEach((en) => {
       if (!en.active) return;
       if (Phaser.Math.Distance.Between(this.player.x, this.player.y, en.x, en.y) <= r) {
@@ -3296,6 +3521,31 @@ export class SweepScene extends Phaser.Scene {
     this.triggerScanFieldEvents(this.player.x, this.player.y, r);
   }
 
+  private createScanMemoryEcho(x: number, y: number, radius: number): void {
+    const g = this.add.graphics().setDepth(DEPTH.decal + 74).setAlpha(0.56);
+    g.lineStyle(2, P.scoutCameron, 0.42).strokeCircle(x, y, radius * 0.42);
+    g.lineStyle(1, P.neonCyan, 0.24).strokeCircle(x, y, radius * 0.78);
+    g.fillStyle(P.scoutCameron, 0.05).fillCircle(x, y, radius * 0.78);
+    this.tweens.add({ targets: g, alpha: 0, duration: 3600, ease: 'Cubic.easeOut', onComplete: () => g.destroy() });
+  }
+
+  private updatePhaseBoostPlus(now: number): void {
+    if (!this.player.isDashing || !loadSave().purchasedUpgrades.includes('phase-drift-plus')) return;
+    if (now < this.motelPhaseSlipUntil) return;
+    let cleared = 0;
+    (this.enemyShots.getChildren() as Projectile[]).forEach((bolt) => {
+      if (!bolt.active) return;
+      if (Phaser.Math.Distance.Between(this.player.x, this.player.y, bolt.x, bolt.y) > 38) return;
+      cleared++;
+      this.fx.sparks(bolt.x, bolt.y, P.neonCyan, 4);
+      bolt.kill();
+    });
+    if (!cleared) return;
+    this.motelPhaseSlipUntil = now + 220;
+    this.fx.floatText(this.player.x, this.player.y - 18, `PHASED x${cleared}`, P.neonCyan);
+    audio.hazardZap();
+  }
+
   private tryGravityWell(maxDistance = 88): boolean {
     const well = this.gravityWell;
     if (!well || well.used) return false;
@@ -3320,6 +3570,7 @@ export class SweepScene extends Phaser.Scene {
         this.awardRegionReward();
         well.ring.setTint(P.signalGreen);
         well.label.setText('GRAVITY WELL\nRIDGE ROUTE OPEN').setColor(css(P.signalGreen));
+        this.refreshFieldEventAvailability();
         this.updateRouteMarkerVisibility();
         this.fx.floatText(this.nodePos.x, this.nodePos.y - 28, 'CROP CIRCLE UNLOCKED', P.cropGlow);
         bus.emit(EVT.toast, { text: 'Raised Ridge reached — the Crop Circle can open now.', color: 'green' });
@@ -3454,6 +3705,7 @@ export class SweepScene extends Phaser.Scene {
 
     const wasShifting = this.player.isDashing;
     this.player.move(this.input2);
+    this.updatePhaseBoostPlus(now);
     this.updateHoverTrail(now);
     this.updateCameraElevation(dt);
     if (!wasShifting && this.player.isDashing && loadSave().purchasedUpgrades.includes('ghost-protocol')) {
@@ -3514,8 +3766,12 @@ export class SweepScene extends Phaser.Scene {
         this.nextWaveAt = now + (this.arena.waves?.[this.waveIdx]?.clearDelay ?? 2) * 1000;
       }
       if (this.awaitingWave && now >= this.nextWaveAt) {
-        this.awaitingWave = false;
-        this.startNextWave();
+        if (this.shouldHoldStormRelayPhase(now)) {
+          this.nextWaveAt = now + 450;
+        } else {
+          this.awaitingWave = false;
+          this.startNextWave();
+        }
       }
     }
 
@@ -3567,6 +3823,8 @@ export class SweepScene extends Phaser.Scene {
       objectiveSub = this.gravityWell && !this.gravityWell.used
         ? 'Follow LOWER ROWS to the Gravity Well, enter the launch ring, then finish the Crop Circle route.'
         : `Raised Ridge reached. Return to the Crop Circle and finish opening the storm passage. Reward: ${this.goal.rewardName}.`;
+    } else if (this.arena.id === 'anomaly-01' && this.waveIdx === 0 && this.awaitingWave && this.stormRelaysActivated.size < 2) {
+      objectiveSub = `Classifier Core phase one cleared. Scan Relay Wings ${this.stormRelaysActivated.size}/2 to open the North Rift finale. Reward: ${this.goal.rewardName}.`;
     }
     bus.emit(EVT.hudSweepStats, {
       region: this.arena.label,

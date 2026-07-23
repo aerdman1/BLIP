@@ -92,7 +92,7 @@ test('top-down route transitions preserve SweepScene and advance save zone', asy
   expect(await api(page, 'api.getSweepRuntimeState().hp')).toBeGreaterThanOrEqual(1);
   expect(await api(page, 'api.getSweepRuntimeState().hp')).toBeLessThanOrEqual(3);
   const saveAfterRoute = await api(page, 'api.getSaveData()');
-  expect(saveAfterRoute.purchasedUpgrades).toEqual(expect.arrayContaining(['pulse-resonance', 'emp-burst', 'ghost-protocol', 'pulse-ricochet']));
+  expect(saveAfterRoute.purchasedUpgrades).toEqual(expect.arrayContaining(['pulse-resonance', 'phase-drift-plus', 'relay-pylon', 'pulse-ricochet']));
   expect(saveAfterRoute.rewards.awarded).not.toContain('milestone:sweep-first');
   expect(saveAfterRoute.rewards.owned).not.toEqual(expect.arrayContaining(['medal-bronze', 'medal-silver', 'medal-gold']));
 });
@@ -232,6 +232,30 @@ test('major reward modal pauses gameplay until Continue', async ({ page }) => {
   await page.waitForTimeout(650);
   const resumed = await playerState(page);
   expect(resumed.x).toBeGreaterThan(before.x + 20);
+  await api(page, 'api.stopAi()');
+});
+
+test('Miller completion offers one persistent weapon mutation choice', async ({ page }) => {
+  await bootToMenu(page);
+  await api(page, `api.enterSweep('surface-z1')`);
+  expect(await api(page, 'api.completeRouteWithRewards()')).toBe(true);
+  await expect(page.locator('#rw-choice')).toBeVisible();
+  await expect(page.locator('#rw-choice')).toContainText('Willow Cache Recovered');
+  await expect(page.locator('#rw-choice')).toContainText('Overchain Capacitor');
+  await expect(page.locator('#rw-choice')).toContainText('Arc Reprisal');
+  await expect(page.locator('#rw-choice')).toContainText('Recall Conduit');
+
+  const before = await playerState(page);
+  await api(page, `api.driveAi({ moveX: 1, moveY: 0, aimX: 1, aimY: 0, dashHeld: true })`);
+  await page.waitForTimeout(500);
+  const paused = await playerState(page);
+  expect(Math.abs(paused.x - before.x)).toBeLessThanOrEqual(2);
+
+  await page.locator('#rw-choice [data-choice="arc-shockwave"]').click();
+  await page.waitForFunction(() => (window as any).__BLIP_TEST_API__.getSaveData().purchasedUpgrades.includes('arc-shockwave'));
+  const save = await api(page, 'api.getSaveData()');
+  expect(save.purchasedUpgrades).toEqual(expect.arrayContaining(['pulse-resonance', 'arc-shockwave']));
+  expect(save.rewards.awarded).toContain('mutation:arc-shockwave');
   await api(page, 'api.stopAi()');
 });
 

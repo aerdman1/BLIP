@@ -6,12 +6,11 @@ import Phaser from 'phaser';
 import { EVT, SCENES, type FilterId, type SweepEnemyKind } from '../config';
 import { bus } from './EventBus';
 import { settings } from './Settings';
-import { getSave, resetSave, selectSkin, unlockSkin, updateSave } from './SaveSystem';
+import { getSave, resetSave, updateSave } from './SaveSystem';
 import { driveVirtualInput, resetVirtualInput } from './VirtualInput';
 import { quests } from './QuestSystem';
 import { rewards } from './RewardSystem';
 import type { CacheType } from '../data/caches';
-import { skinById } from '../data/skins';
 import type { MainMenuScene } from '../scenes/MainMenuScene';
 
 export interface VirtualInput {
@@ -211,6 +210,12 @@ export function installTestAPI(game: Phaser.Game): void {
       sweep.debugRouteToBreach(true);
       return true;
     },
+    completeRouteWithRewards: (): boolean => {
+      const sweep = sweepScene() as (Phaser.Scene & { debugRouteToBreach?: (suppressRewardModal?: boolean) => void }) | null;
+      if (!sweep?.debugRouteToBreach) return false;
+      sweep.debugRouteToBreach(false);
+      return true;
+    },
     openRouteForInspection: (): boolean => {
       const sweep = sweepScene() as (Phaser.Scene & { debugOpenRouteForInspection?: () => boolean }) | null;
       return sweep?.debugOpenRouteForInspection?.() ?? false;
@@ -370,16 +375,6 @@ export function installTestAPI(game: Phaser.Game): void {
       const sweep = sweepScene() as (Phaser.Scene & { player?: { godMode?: boolean } }) | null;
       if (sweep?.player) sweep.player.godMode = enabled;
       bus.emit(EVT.godMode, { on: enabled });
-      return true;
-    },
-
-    unlockSkin: (id: string): boolean => {
-      if (!skinById(id)) return false;
-      unlockSkin(id);
-      return true;
-    },
-    selectSkin: (id: string): boolean => {
-      selectSkin(id);
       return true;
     },
 

@@ -1382,6 +1382,7 @@ export const EVT = {
   rewardTrophy: 'reward:trophy', // {id} — a trophy just unlocked
   rewardChanged: 'reward:changed', // reward save state changed (refresh UIs)
   rewardBanner: 'reward:banner', // {kind, title, sub, color, icon, rarity} — juicy popup
+  rewardChoice: 'reward:choice', // {title, prompt, options[]} — blocking reward-choice modal
   rewardOpenArchive: 'reward:open-archive', // request: open the Signal Archive
   rewardOpenCache: 'reward:open-cache', // {cacheType?} — request: open the cache-opening screen
   sweepCleared: 'sweep:cleared', // {combo, noHit} — a Signal Storm arena was cleared

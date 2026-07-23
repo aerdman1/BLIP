@@ -79,13 +79,17 @@ export interface SweepFieldEvent {
   ty: number;
   radius?: number;
   trigger: 'enter' | 'scan';
-  reward?: 'boon' | 'health' | 'weapon' | 'overdrive' | 'shards';
+  reward?: 'boon' | 'health' | 'weapon' | 'overdrive' | 'shards' | 'defense' | 'upgrade';
   scout?: 'will' | 'chip' | 'henry' | 'cameron' | 'danny';
   wid?: string;
+  upgradeId?: string;
+  upgradeName?: string;
+  upgradeDescription?: string;
   shards?: number;
   charge?: number;
   message?: string;
   spawns?: SweepEnemyMarker[];
+  requiresGravityWell?: boolean;
 }
 
 export interface SweepArena {
@@ -507,9 +511,9 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
         ty: 51,
         radius: 58,
         trigger: 'enter',
-        reward: 'overdrive',
+        reward: 'defense',
         charge: 12,
-        message: 'Orchard Gate classifier wave incoming.',
+        message: 'Scout Relay Pylons deployed — hold River Road while they cover the gate.',
         spawns: [{ tx: 82, ty: 48, type: 'warden' }, { tx: 78, ty: 50, type: 'cipher' }, { tx: 85, ty: 49, type: 'weaver' }],
       },
     ],
@@ -627,6 +631,17 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
         message: 'Recall Row cache: line the disc through the corn lanes.',
       },
       {
+        id: 'tractor-lane-recovery',
+        label: 'TRACTOR BATTERY',
+        tx: 12,
+        ty: 51,
+        radius: 54,
+        trigger: 'enter',
+        reward: 'health',
+        charge: 6,
+        message: 'Tractor battery stabilized — safe charge recovered before the maze tightens.',
+      },
+      {
         id: 'raised-ridge-cache',
         label: 'RIDGE CACHE',
         tx: 52,
@@ -645,9 +660,13 @@ export const SWEEP_ARENAS: Record<string, SweepArena> = {
         tx: 76,
         ty: 47,
         trigger: 'scan',
-        reward: 'health',
+        reward: 'upgrade',
+        upgradeId: 'scan-memory',
+        upgradeName: 'Scan Memory',
+        upgradeDescription: 'Scan pulses leave lingering blue Scout echoes on hidden routes, caches, and suspicious devices.',
+        requiresGravityWell: true,
         charge: 10,
-        message: 'Scout Shelter safe kit found under the apple crates.',
+        message: 'CAMERON MAP — the Scout shelter only resolves after the Raised Ridge pattern is proven.',
         spawns: [{ tx: 73, ty: 47, type: 'splitter' }, { tx: 78, ty: 45, type: 'dormant' }],
       },
       {

@@ -18,7 +18,8 @@
 /* every reward surface uses the display font for headings, mono for body */
 #rw-banners,
 #rw-cache,
-#rw-archive {
+#rw-archive,
+#rw-choice {
   --ink: #05070f;
   font-family: var(--mono, monospace);
   color: var(--cream, #f6e7b4);
@@ -256,6 +257,119 @@
   letter-spacing: 1px;
   box-shadow: 0 0 18px -8px var(--c);
   cursor: pointer;
+}
+
+/* ============================ 1b. CHOICE MODAL ============================ */
+
+#rw-choice {
+  position: fixed;
+  inset: 0;
+  z-index: 218;
+  display: grid;
+  place-items: center;
+  padding: max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
+  background: radial-gradient(circle at 50% 44%, rgba(18, 36, 24, 0.55), rgba(2, 4, 8, 0.86) 72%);
+  pointer-events: auto;
+}
+#rw-choice.hidden {
+  display: none;
+}
+.rw-choice-frame {
+  width: min(94vw, 820px);
+  border: 1px solid color-mix(in srgb, var(--c) 48%, transparent);
+  border-left: 6px solid var(--c);
+  background:
+    linear-gradient(145deg, rgba(7, 11, 18, 0.98), rgba(12, 17, 24, 0.95)),
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.035) 0 1px, transparent 1px 6px);
+  box-shadow: 0 28px 80px rgba(0,0,0,0.82), 0 0 54px -16px var(--c);
+  padding: clamp(18px, 3vw, 28px);
+}
+.rw-choice-title {
+  font-family: var(--display, sans-serif);
+  color: var(--c);
+  font-size: clamp(18px, 3vw, 30px);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.rw-choice-prompt {
+  margin-top: 8px;
+  color: #d7cba8;
+  font-size: clamp(12px, 1.8vw, 15px);
+  line-height: 1.45;
+  max-width: 62rem;
+}
+.rw-choice-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+.rw-choice-card {
+  min-height: 188px;
+  display: grid;
+  grid-template-rows: 56px auto auto 1fr;
+  gap: 7px;
+  align-items: start;
+  border: 1px solid color-mix(in srgb, var(--c) 42%, transparent);
+  background:
+    radial-gradient(circle at 50% 18%, color-mix(in srgb, var(--c) 20%, transparent), transparent 54%),
+    rgba(255,255,255,0.035);
+  color: var(--cream, #f6e7b4);
+  text-align: left;
+  padding: 14px;
+  cursor: pointer;
+}
+.rw-choice-card:hover,
+.rw-choice-card:focus-visible {
+  outline: none;
+  border-color: var(--c);
+  box-shadow: 0 0 24px -8px var(--c);
+  transform: translateY(-1px);
+}
+.rw-choice-icon {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--c) 44%, transparent);
+  background: rgba(0,0,0,0.24);
+}
+.rw-choice-icon svg {
+  width: 38px;
+  height: 38px;
+}
+.rw-choice-card b {
+  font-family: var(--display, sans-serif);
+  color: var(--c);
+  font-size: 15px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+.rw-choice-card small {
+  color: #f2a93b;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.rw-choice-card span:last-child {
+  color: #d7cba8;
+  font-size: 12px;
+  line-height: 1.35;
+}
+@media (max-width: 720px) {
+  .rw-choice-options {
+    grid-template-columns: 1fr;
+  }
+  .rw-choice-card {
+    min-height: 120px;
+    grid-template-columns: 48px minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+  }
+  .rw-choice-icon {
+    grid-row: 1 / span 3;
+    width: 46px;
+    height: 46px;
+  }
 }
 .rw-b-continue:hover,
 .rw-b-continue:focus-visible {

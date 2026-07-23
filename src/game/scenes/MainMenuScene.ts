@@ -415,6 +415,7 @@ export class MainMenuScene extends Phaser.Scene {
     }
 
     this.addMenuCat(372, 236, 'black');
+    this.addMenuCat(402, 237, 'grey', 0.46);
     this.addMenuCat(430, 236, 'spotted');
 
     // fireflies over the water and along the ledges
@@ -441,16 +442,19 @@ export class MainMenuScene extends Phaser.Scene {
     }
   }
 
-  private addMenuCat(x: number, groundY: number, variant: 'black' | 'spotted'): void {
+  private addMenuCat(x: number, groundY: number, variant: 'black' | 'grey' | 'spotted', catScale = 0.58): void {
     const g = this.add.graphics().setDepth(12);
     const black = 0x04050a;
     const blackLit = 0x20243a;
+    const grey = 0x737985;
+    const greyLit = 0x9aa1ac;
     const white = 0xf0ead9;
     const whiteShade = 0xc8bea7;
     const outline = 0x251d18;
     const amber = 0xffd36a;
+    const brown = 0x8a5a32;
     const eyeGreen = 0xb8ff5f;
-    const scale = 0.58;
+    const scale = catScale;
     const sx = (dx: number) => x + dx * scale;
     const sy = (dy: number) => groundY + dy * scale;
     const ss = (v: number) => v * scale;
@@ -474,39 +478,44 @@ export class MainMenuScene extends Phaser.Scene {
 
     ell(1, 1, 34, 4, 0x000000, 0.25);
 
-    if (variant === 'black') {
+    if (variant === 'black' || variant === 'grey') {
       // Smooth seated black cat with a connected tail.
-      line(5, blackLit, [
+      const body = variant === 'grey' ? grey : black;
+      const bodyLit = variant === 'grey' ? greyLit : blackLit;
+      const eye = variant === 'grey' ? brown : amber;
+      line(5, bodyLit, [
         [-3, -8],
         [-13, -8],
         [-19, -12],
         [-16, -18],
         [-10, -18],
       ], 0.9);
-      line(4, black, [
+      line(4, body, [
         [-4, -7],
         [-13, -7],
         [-17, -11],
         [-15, -15],
         [-10, -15],
       ]);
-      ell(-4, -9, 18, 18, blackLit, 0.92);
-      ell(6, -14, 12, 19, blackLit, 0.92);
-      ell(10, -25, 13, 11, blackLit, 0.95);
-      tri(5, -28, 8, -36, 11, -28, blackLit, 0.95);
-      tri(13, -28, 18, -35, 18, -27, blackLit, 0.95);
-      ell(-3, -8, 15, 16, black);
-      ell(7, -13, 9, 17, black);
-      ell(11, -25, 11, 9, black);
-      tri(6, -28, 8, -34, 10, -28, black);
-      tri(14, -28, 17, -33, 17, -27, black);
-      line(2, blackLit, [
+      ell(-4, -9, 18, 18, bodyLit, 0.92);
+      ell(6, -14, 12, 19, bodyLit, 0.92);
+      ell(10, -25, 13, 11, bodyLit, 0.95);
+      tri(5, -28, 8, -36, 11, -28, bodyLit, 0.95);
+      tri(13, -28, 18, -35, 18, -27, bodyLit, 0.95);
+      ell(-3, -8, 15, 16, body);
+      ell(7, -13, 9, 17, body);
+      ell(11, -25, 11, 9, body);
+      tri(6, -28, 8, -34, 10, -28, body);
+      tri(14, -28, 17, -33, 17, -27, body);
+      line(2, bodyLit, [
         [5, -9],
         [5, -1],
       ], 0.85);
-      ell(-5, 0, 7, 2, blackLit, 0.95);
-      ell(9, 0, 7, 2, blackLit, 0.95);
-      ell(14, -25, 1.4, 1.1, amber);
+      ell(-5, 0, 7, 2, bodyLit, 0.95);
+      ell(9, 0, 7, 2, bodyLit, 0.95);
+      ell(13.2, -25, 1.2, 1, eye);
+      ell(16, -24.5, 1, 0.9, eye, variant === 'grey' ? 0.9 : 0);
+      if (variant === 'grey') ell(13.5, -25.3, 0.35, 0.3, 0xffd39a, 0.8);
     } else {
       // Smooth low side-profile white cat with two body spots.
       line(4, outline, [

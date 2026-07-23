@@ -13,8 +13,7 @@ import { createGame } from './game/BlipGame';
 import { EVT } from './game/config';
 import { audio } from './game/systems/AudioSystem';
 import { bus } from './game/systems/EventBus';
-import { getSave, selectSkin, unlockSkin, updateSave } from './game/systems/SaveSystem';
-import { SKINS } from './game/data/skins';
+import { updateSave } from './game/systems/SaveSystem';
 import { quests } from './game/systems/QuestSystem';
 import { installTestAPI, isTestApiEnabled } from './game/systems/TestAPI';
 import { ShellUI } from './ui/ShellUI';
@@ -81,18 +80,6 @@ window.addEventListener('keydown', (ev) => {
       });
       bus.emit(EVT.fragmentCount, { count: s2.signalFragments });
       bus.emit(EVT.toast, { text: 'DEBUG: FRAGMENT GRANTED', color: 'orange' });
-      break;
-    }
-    case 'F6': {
-      // debug: unlock all skins + cycle to the next one (applies live)
-      ev.preventDefault();
-      SKINS.forEach((s) => unlockSkin(s.id));
-      const cur = getSave().selectedSkin;
-      const idx = SKINS.findIndex((s) => s.id === cur);
-      const next = SKINS[(idx + 1) % SKINS.length];
-      selectSkin(next.id);
-      bus.emit(EVT.skinSelected, { id: next.id, name: next.name, color: next.color, live: true });
-      bus.emit(EVT.toast, { text: `SKIN: ${next.name}`, color: 'green' });
       break;
     }
   }

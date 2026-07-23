@@ -2,10 +2,10 @@ import { expect, test } from '@playwright/test';
 import { api, bootToMenu, watchConsole } from './helpers';
 
 const traverseArenas = [
-  { id: 'surface-z1', reward: 'Pulse Resonance', exit: 'motel' },
-  { id: 'circuit-z2', reward: 'EMP Burst', exit: 'River Road' },
-  { id: 'town-z3', reward: 'Ghost Protocol', exit: 'county trail' },
-  { id: 'maze-z4', reward: 'Carbine Ricochet', exit: 'signal storm' },
+  { id: 'surface-z1', reward: 'Willow Mutation Choice', exit: 'motel' },
+  { id: 'circuit-z2', reward: 'Phase Boost+', exit: 'River Road' },
+  { id: 'town-z3', reward: 'Scout Relay Pylon', exit: 'county trail' },
+  { id: 'maze-z4', reward: 'Gravity Conduit', exit: 'signal storm' },
 ] as const;
 
 test.describe('route readiness automation', () => {

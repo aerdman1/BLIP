@@ -10,6 +10,7 @@ import { bus } from '../../systems/EventBus';
 import { settings } from '../../systems/Settings';
 import { activeSkin } from '../../systems/SkinState';
 import { devState } from '../../systems/DevState';
+import { loadSave } from '../../systems/SaveSystem';
 import type { EffectsSystem } from '../../systems/EffectsSystem';
 import type { PlayerInput } from '../../systems/InputSystem';
 
@@ -122,6 +123,12 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
   private get effDashSpeed(): number {
     return SWEEP.dashSpeed * (activeSkin().mods.dashSpeedMul ?? 1);
   }
+  private get boostCapacity(): number {
+    return SWEEP.boostEnergyMax * (loadSave().purchasedUpgrades.includes('phase-drift-plus') ? 1.28 : 1);
+  }
+  private get boostRegenPerSec(): number {
+    return SWEEP.boostRegenPerSec * (loadSave().purchasedUpgrades.includes('phase-drift-plus') ? 1.34 : 1);
+  }
   /** scene sets this each frame from the aim source (mouse world pos / right stick) */
   setAim(angle: number): void {
     this.aimAngle = angle;
@@ -160,6 +167,7 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
     if (boosting) {
       const justStarted = !this.boostActive;
       this.boostActive = true;
+      this.boostEnergy = Math.min(this.boostEnergy, this.boostCapacity);
       this.boostEnergy = Math.max(0, this.boostEnergy - SWEEP.boostDrainPerSec * dt);
       this.boostRegenBlockedUntil = now + SWEEP.boostRegenDelayMs;
       this.invulnUntil = Math.max(this.invulnUntil, now + SWEEP.boostIFrameRefreshMs);
@@ -184,7 +192,7 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
     } else {
       this.boostActive = false;
       if (now >= this.boostRegenBlockedUntil) {
-        this.boostEnergy = Math.min(SWEEP.boostEnergyMax, this.boostEnergy + SWEEP.boostRegenPerSec * dt);
+        this.boostEnergy = Math.min(this.boostCapacity, this.boostEnergy + this.boostRegenPerSec * dt);
       }
       if (ax || ay) body.setAcceleration((ax / len) * SWEEP.accel, (ay / len) * SWEEP.accel);
       else body.setAcceleration(0, 0);
@@ -194,7 +202,7 @@ export class BlipCraft extends Phaser.Physics.Arcade.Sprite {
     }
     bus.emit(EVT.hudEnergy, { energy: Math.round(this.boostEnergy) });
     bus.emit(EVT.hudCooldowns, {
-      dash: 1 - Phaser.Math.Clamp(this.boostEnergy / SWEEP.boostEnergyMax, 0, 1),
+      dash: 1 - Phaser.Math.Clamp(this.boostEnergy / this.boostCapacity, 0, 1),
       scan: 0,
     });
 
